@@ -1,0 +1,26 @@
+# Gradle / build output
+.gradle/
+.kotlin/
+build/
+
+# Local environment & secrets — never commit
+local.properties
+
+# Signing keystores (private keys)
+*.jks
+*.keystore
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Captured UI dumps / screenshots from development
+*.png
+*_dump.xml
