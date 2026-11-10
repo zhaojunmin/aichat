@@ -10,23 +10,28 @@ import com.octos.aichat.data.Speaker
  * Turns the on-screen accessibility node tree of a chat app into a [Conversation].
  *
  * Two strategies:
- *  1. **Precise (per-app)** — when we know the resource-id of the real message
- *     bubble for an app, collect only those nodes. This cleanly excludes profile
- *     cards, suggested-opener prompts, menus, etc. Verified for Soul:
- *     `cn.soulapp.android:id/content_text`.
+ *  1. **Precise (per-app rule)** — when we know an app's message-bubble id, we
+ *     collect only those text nodes (excluding profile cards, suggested openers,
+ *     menus…). The author is read from the row's avatar position, which is
+ *     pinned to the left (other) or right (me) regardless of message length —
+ *     far more reliable than the text's horizontal center, which fails for long
+ *     bubbles that span most of the width. Verified for Soul.
  *  2. **Generic (fallback)** — for unknown apps, collect leaf text nodes in the
- *     vertical middle band (dropping the title bar and input/toolbar) and guess
- *     the author from the bubble's horizontal position.
- *
- * In both cases the author is inferred from horizontal position: the other
- * party hugs the left edge, I hug the right.
+ *     vertical middle band and guess the author from the bubble's position.
  */
 object ChatParser {
 
-    /** Per-app resource-ids that identify a genuine message bubble's text. */
-    private val MESSAGE_IDS: Map<String, Set<String>> = mapOf(
-        "cn.soulapp.android" to setOf("cn.soulapp.android:id/content_text"),
+    /** Per-app parsing rule: which node is a message, and which is the avatar. */
+    private data class AppRule(val messageId: String, val avatarId: String)
+
+    private val APP_RULES: Map<String, AppRule> = mapOf(
+        "cn.soulapp.android" to AppRule(
+            messageId = "cn.soulapp.android:id/content_text",
+            avatarId = "cn.soulapp.android:id/chat_avatar",
+        ),
     )
+
+    private data class Raw(val rect: Rect, val text: String, val speaker: Speaker?)
 
     // Text we never want to treat as a chat message (generic path only).
     private val NOISE = setOf(
@@ -42,47 +47,85 @@ object ChatParser {
     ): Conversation {
         if (root == null || screenWidth <= 0) return Conversation(pkg, emptyList())
 
-        val whitelist = MESSAGE_IDS[pkg]
-        val collected = ArrayList<Pair<Rect, String>>()
+        val rule = APP_RULES[pkg]
+        val raws = ArrayList<Raw>()
 
-        if (whitelist != null) {
-            collectById(root, whitelist, collected)
+        if (rule != null) {
+            collectByRule(root, rule, screenWidth, raws)
         } else {
-            collectLeafText(root, collected)
-            applyVerticalBand(collected, screenHeight)
+            val leaves = ArrayList<Pair<Rect, String>>()
+            collectLeafText(root, leaves)
+            applyVerticalBand(leaves, screenHeight)
+            leaves.mapTo(raws) { Raw(it.first, it.second, null) }
         }
 
         // Top-to-bottom, then left-to-right = chronological for a chat list.
-        val ordered = collected.sortedWith(compareBy({ it.first.top }, { it.first.left }))
+        val ordered = raws.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))
 
         val messages = ArrayList<ChatMessage>()
         var lastText: String? = null
-        for ((rect, text) in ordered) {
-            if (!looksLikeMessage(text)) continue
-            if (text == lastText) continue // collapse duplicates from re-layout
-            messages.add(ChatMessage(classify(rect, screenWidth), text))
-            lastText = text
+        for (raw in ordered) {
+            if (!looksLikeMessage(raw.text)) continue
+            if (raw.text == lastText) continue // collapse duplicates from re-layout
+            val speaker = raw.speaker ?: classify(raw.rect, screenWidth)
+            messages.add(ChatMessage(speaker, raw.text))
+            lastText = raw.text
         }
         return Conversation(pkg, messages)
     }
 
     // ---- Precise path ----------------------------------------------------
 
-    private fun collectById(
+    private fun collectByRule(
         node: AccessibilityNodeInfo?,
-        ids: Set<String>,
-        out: MutableList<Pair<Rect, String>>,
+        rule: AppRule,
+        screenWidth: Int,
+        out: MutableList<Raw>,
     ) {
         if (node == null) return
-        val vid = node.viewIdResourceName
-        if (vid != null && vid in ids) {
+        if (node.viewIdResourceName == rule.messageId) {
             val raw = (node.text ?: node.contentDescription)?.toString()?.trim()
             if (!raw.isNullOrEmpty()) {
                 val rect = Rect().also { node.getBoundsInScreen(it) }
-                if (rect.width() > 0 && rect.height() > 0) out.add(rect to raw)
+                if (rect.width() > 0 && rect.height() > 0) {
+                    out.add(Raw(rect, raw, senderFromAvatar(node, rule.avatarId, screenWidth)))
+                }
             }
         }
-        for (i in 0 until node.childCount) collectById(node.getChild(i), ids, out)
+        for (i in 0 until node.childCount) collectByRule(node.getChild(i), rule, screenWidth, out)
+    }
+
+    /**
+     * Walk up to the message row, then find the avatar inside it; the avatar's
+     * horizontal center tells us the author. Returns null if no avatar is found
+     * (the caller then falls back to position-based classification).
+     */
+    private fun senderFromAvatar(
+        messageNode: AccessibilityNodeInfo,
+        avatarId: String,
+        screenWidth: Int,
+    ): Speaker? {
+        var row: AccessibilityNodeInfo = messageNode
+        var cur: AccessibilityNodeInfo? = messageNode.parent
+        var hops = 0
+        while (cur != null && hops < 8) {
+            val r = Rect().also { cur!!.getBoundsInScreen(it) }
+            if (r.width() > screenWidth * 0.85f) { row = cur; break }
+            cur = cur.parent
+            hops++
+        }
+        val avatar = findById(row, avatarId) ?: return null
+        val ar = Rect().also { avatar.getBoundsInScreen(it) }
+        return if (ar.centerX() > screenWidth / 2) Speaker.ME else Speaker.OTHER
+    }
+
+    private fun findById(node: AccessibilityNodeInfo?, id: String): AccessibilityNodeInfo? {
+        if (node == null) return null
+        if (node.viewIdResourceName == id) return node
+        for (i in 0 until node.childCount) {
+            findById(node.getChild(i), id)?.let { return it }
+        }
+        return null
     }
 
     // ---- Generic path ----------------------------------------------------

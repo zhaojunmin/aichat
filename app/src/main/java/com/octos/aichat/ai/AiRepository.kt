@@ -27,7 +27,9 @@ object AiRepository {
         require(settings.apiKey.isNotBlank()) { "尚未填写 API Key" }
 
         val n = settings.suggestionCount.coerceIn(1, 5)
-        val transcript = conversation.toTranscript()
+        // Exclude my own trailing messages so the model replies to the other
+        // party's latest line instead of continuing my last turn.
+        val transcript = conversation.withoutTrailingMine().toTranscript()
         val user = buildString {
             append("下面是我和对方的聊天记录(我=我自己,对方=对方):\n\n")
             append(transcript.ifBlank { "(暂无可识别的聊天内容)" })

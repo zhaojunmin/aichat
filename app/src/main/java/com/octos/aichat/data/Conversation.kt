@@ -18,6 +18,17 @@ data class Conversation(
     fun lastFromOther(): String? =
         messages.lastOrNull { it.speaker == Speaker.OTHER }?.text
 
+    /**
+     * Drop trailing messages I authored. When generating a reply we want the AI
+     * to respond to the other party's latest line, not continue my own last
+     * message — so my trailing turns are removed from the model input.
+     */
+    fun withoutTrailingMine(): Conversation {
+        var end = messages.size
+        while (end > 0 && messages[end - 1].speaker == Speaker.ME) end--
+        return if (end == messages.size) this else copy(messages = messages.subList(0, end).toList())
+    }
+
     /** Render as plain transcript lines for the LLM prompt. */
     fun toTranscript(maxLines: Int = 30): String {
         val tail = messages.takeLast(maxLines)
