@@ -24,3 +24,5 @@ Thumbs.db
 # Captured UI dumps / screenshots from development
 *.png
 *_dump.xml
+# Stray xml dumps at repo root (uiautomator dumps etc.) — never source files
+/*.xml

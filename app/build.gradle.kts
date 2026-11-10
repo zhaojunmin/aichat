@@ -77,4 +77,7 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
 
     implementation(libs.okhttp)
+
+    // On-device Chinese OCR, bundled model (no Google Play services needed — works on Huawei).
+    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
 }

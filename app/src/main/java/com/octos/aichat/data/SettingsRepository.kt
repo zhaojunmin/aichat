@@ -36,6 +36,8 @@ class SettingsRepository private constructor(context: Context) {
         customPersona = prefs.getString(KEY_CUSTOM_PERSONA, "")!!,
         suggestionCount = prefs.getInt(KEY_SUGGESTION_COUNT, 3),
         autoPaste = prefs.getBoolean(KEY_AUTO_PASTE, false),
+        useScreenshotOcr = prefs.getBoolean(KEY_USE_OCR, false),
+        ocrPackages = prefs.getString(KEY_OCR_PKGS, AppSettings.DEFAULT_OCR_PACKAGES)!!,
         targetPackages = prefs.getString(KEY_TARGETS, AppSettings.DEFAULT_TARGET_PACKAGES)!!,
     )
 
@@ -49,6 +51,8 @@ class SettingsRepository private constructor(context: Context) {
             .putString(KEY_CUSTOM_PERSONA, s.customPersona)
             .putInt(KEY_SUGGESTION_COUNT, s.suggestionCount)
             .putBoolean(KEY_AUTO_PASTE, s.autoPaste)
+            .putBoolean(KEY_USE_OCR, s.useScreenshotOcr)
+            .putString(KEY_OCR_PKGS, s.ocrPackages)
             .putString(KEY_TARGETS, s.targetPackages)
             .apply()
     }
@@ -63,6 +67,8 @@ class SettingsRepository private constructor(context: Context) {
         private const val KEY_CUSTOM_PERSONA = "custom_persona"
         private const val KEY_SUGGESTION_COUNT = "suggestion_count"
         private const val KEY_AUTO_PASTE = "auto_paste"
+        private const val KEY_USE_OCR = "use_ocr"
+        private const val KEY_OCR_PKGS = "ocr_packages"
         private const val KEY_TARGETS = "target_packages"
 
         @Volatile

@@ -226,6 +226,26 @@ private fun SettingsScreen(repo: SettingsRepository) {
                     )
                 }
                 Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("截图 OCR 读取")
+                        Text(
+                            "仅对下面列出的 App 生效(默认微信);Soul 等仍走无障碍精准识别",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = settings.useScreenshotOcr,
+                        onCheckedChange = { c -> repo.update { it.copy(useScreenshotOcr = c) } }
+                    )
+                }
+                if (settings.useScreenshotOcr) {
+                    LabeledField(
+                        "OCR 适用 App 包名(逗号分隔)",
+                        settings.ocrPackages
+                    ) { v -> repo.update { it.copy(ocrPackages = v) } }
+                }
+                Spacer(Modifier.height(8.dp))
                 LabeledField(
                     "目标 App 包名(逗号分隔)",
                     settings.targetPackages

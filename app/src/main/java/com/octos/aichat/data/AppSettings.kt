@@ -63,11 +63,18 @@ data class AppSettings(
     val customPersona: String = "",
     val suggestionCount: Int = 3,
     val autoPaste: Boolean = false,
+    /** Read chat via screenshot + OCR instead of the accessibility node tree. */
+    val useScreenshotOcr: Boolean = false,
+    /** Only these packages use OCR; everything else keeps node-tree parsing. */
+    val ocrPackages: String = DEFAULT_OCR_PACKAGES,
     /** Comma-separated package names we offer suggestions inside. */
     val targetPackages: String = DEFAULT_TARGET_PACKAGES,
 ) {
     val targetPackageSet: Set<String>
         get() = targetPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+
+    val ocrPackageSet: Set<String>
+        get() = ocrPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
     /** The effective system prompt: a custom one overrides the chosen preset. */
     fun effectiveSystemPrompt(): String {
@@ -86,5 +93,7 @@ data class AppSettings(
         const val DEFAULT_DEEPSEEK_MODEL = "deepseek-chat"
         // WeChat + Soul out of the box.
         const val DEFAULT_TARGET_PACKAGES = "com.tencent.mm,cn.soulapp.android"
+        // Only WeChat uses OCR by default; Soul keeps precise node-tree parsing.
+        const val DEFAULT_OCR_PACKAGES = "com.tencent.mm"
     }
 }

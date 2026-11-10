@@ -1,13 +1,19 @@
 package com.octos.aichat.accessibility
 
 import android.accessibilityservice.AccessibilityService
+import android.graphics.Bitmap
 import android.graphics.Rect
+import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import androidx.annotation.RequiresApi
 import com.octos.aichat.AppBus
 import com.octos.aichat.data.SettingsRepository
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
  * Reads the active window of supported chat apps and keeps [AppBus.conversation]
@@ -75,6 +81,45 @@ class ChatAccessibilityService : AccessibilityService() {
         walk(root, 0)
         sb.append("\n共 ").append(count).append(" 个有文本/ID 的节点")
         AppBus.lastRawDump = sb.toString()
+    }
+
+    /**
+     * Capture the current screen via the accessibility API — no MediaProjection
+     * consent dialog needed. Returns a software ARGB_8888 bitmap ready for OCR,
+     * or null on failure (e.g. a FLAG_SECURE window, or rate limiting).
+     */
+    @RequiresApi(Build.VERSION_CODES.R)
+    suspend fun captureScreenshot(): Bitmap? = suspendCancellableCoroutine { cont ->
+        // takeScreenshot() can throw synchronously (e.g. SecurityException if the
+        // capability is missing). Guard it so a failure never crashes the whole
+        // accessibility service process.
+        try {
+            takeScreenshot(
+                Display.DEFAULT_DISPLAY,
+                mainExecutor,
+                object : TakeScreenshotCallback {
+                    override fun onSuccess(result: ScreenshotResult) {
+                        val software = try {
+                            val hw = Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
+                            val copy = hw?.copy(Bitmap.Config.ARGB_8888, false)
+                            hw?.recycle()
+                            copy
+                        } catch (_: Exception) {
+                            null
+                        } finally {
+                            result.hardwareBuffer.close()
+                        }
+                        if (cont.isActive) cont.resume(software)
+                    }
+
+                    override fun onFailure(errorCode: Int) {
+                        if (cont.isActive) cont.resume(null)
+                    }
+                }
+            )
+        } catch (e: Exception) {
+            if (cont.isActive) cont.resume(null)
+        }
     }
 
     override fun onInterrupt() {}

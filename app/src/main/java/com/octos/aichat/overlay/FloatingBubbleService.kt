@@ -28,13 +28,18 @@ import android.widget.TextView
 import android.widget.Toast
 import com.octos.aichat.AppBus
 import com.octos.aichat.ai.AiRepository
+import com.octos.aichat.data.AppSettings
+import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
+import com.octos.aichat.ocr.OcrReader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 /**
@@ -149,23 +154,58 @@ class FloatingBubbleService : Service() {
 
     private fun onBubbleTapped() {
         if (panel != null) { removePanel(); return }
-        val conv = AppBus.conversation
-        if (conv.isEmpty) {
-            toast("未读取到聊天内容,请先打开聊天界面并开启无障碍服务")
-            return
-        }
         val settings = SettingsRepository.get(this).current()
         if (settings.apiKey.isBlank()) {
             toast("请先在 App 内填写 API Key")
             return
         }
-        showPanelLoading()
         generating?.cancel()
         generating = scope.launch {
+            // Resolve the conversation first (may involve a screenshot); only then
+            // show the loading panel so it isn't captured into the screenshot.
+            val conv = resolveConversation(settings)
+            showPanelLoading()
+            if (conv == null || conv.isEmpty) {
+                showPanelError(
+                    if (settings.useScreenshotOcr) "截图未识别到聊天内容(需无障碍已开启)"
+                    else "未读取到聊天内容,请打开聊天界面并开启无障碍服务"
+                )
+                return@launch
+            }
             val result = runCatching { AiRepository.generateReplies(settings, conv) }
             result.onSuccess { showPanelResults(it) }
                 .onFailure { showPanelError(it.message ?: "生成失败") }
         }
+    }
+
+    /**
+     * Node tree by default. Only when OCR is enabled AND the current foreground
+     * app is in the OCR list (WeChat by default) do we screenshot + OCR — so
+     * Soul and others keep their precise node-tree parsing untouched.
+     */
+    private suspend fun resolveConversation(settings: AppSettings): Conversation? {
+        val pkg = AppBus.foregroundPackage ?: ""
+        val useOcr = settings.useScreenshotOcr &&
+            pkg in settings.ocrPackageSet &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+        if (!useOcr) return AppBus.conversation
+
+        val svc = AppBus.accessibilityService ?: return null
+        // Hide our own bubble so it isn't part of the captured image.
+        if (::bubble.isInitialized) bubble.visibility = View.GONE
+        delay(80)
+        val bmp = svc.captureScreenshot()
+        if (::bubble.isInitialized) bubble.visibility = View.VISIBLE
+        bmp ?: return null
+
+        val w = resources.displayMetrics.widthPixels
+        val h = resources.displayMetrics.heightPixels
+        val conv = withContext(Dispatchers.Default) {
+            OcrReader.readConversation(bmp, w, h, pkg)
+        }
+        bmp.recycle()
+        AppBus.updateConversation(conv) // let the in-app debug viewer show it too
+        return conv
     }
 
     // ---- Panel -----------------------------------------------------------
