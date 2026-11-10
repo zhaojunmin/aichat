@@ -40,13 +40,17 @@ class ChatAccessibilityService : AccessibilityService() {
         // chat app" signals while typing.
         val root = rootInActiveWindow
         val pkg = root?.packageName?.toString() ?: event.packageName?.toString() ?: return
-        val targets = SettingsRepository.get(this).current().targetPackageSet
-        val isTarget = pkg in targets
+        val settings = SettingsRepository.get(this).current()
+        val isTarget = pkg in settings.targetPackageSet
 
         AppBus.onForeground(pkg, isTarget)
         if (!isTarget || root == null) return
 
         captureTree(root, pkg)
+        // OCR-managed apps (WeChat/Hertz) are read via screenshot on bubble tap;
+        // don't node-parse them, or the noisy node result would overwrite the
+        // clean OCR conversation.
+        if (pkg in settings.ocrPackageSet) return
         val conv = ChatParser.parse(root, screenWidth, screenHeight, pkg)
         if (!conv.isEmpty) AppBus.updateConversation(conv)
     }

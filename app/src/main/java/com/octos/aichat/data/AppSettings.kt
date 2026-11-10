@@ -70,11 +70,13 @@ data class AppSettings(
     /** Comma-separated package names we offer suggestions inside. */
     val targetPackages: String = DEFAULT_TARGET_PACKAGES,
 ) {
+    // Built-in supported apps are always included (union with user list), so a
+    // newly supported app works without the user re-editing saved settings.
     val targetPackageSet: Set<String>
-        get() = targetPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        get() = BUILTIN_TARGETS + targetPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
     val ocrPackageSet: Set<String>
-        get() = ocrPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        get() = BUILTIN_OCR + ocrPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
     /** The effective system prompt: a custom one overrides the chosen preset. */
     fun effectiveSystemPrompt(): String {
@@ -91,9 +93,13 @@ data class AppSettings(
         // DeepSeek speaks the OpenAI chat-completions shape.
         const val DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
         const val DEFAULT_DEEPSEEK_MODEL = "deepseek-chat"
-        // WeChat + Soul out of the box.
-        const val DEFAULT_TARGET_PACKAGES = "com.tencent.mm,cn.soulapp.android"
-        // Only WeChat uses OCR by default; Soul keeps precise node-tree parsing.
-        const val DEFAULT_OCR_PACKAGES = "com.tencent.mm"
+        // WeChat + Soul + Hertz out of the box.
+        const val DEFAULT_TARGET_PACKAGES = "com.tencent.mm,cn.soulapp.android,com.immomo.vchat"
+        // WeChat + Hertz use OCR by default; Soul keeps precise node-tree parsing.
+        const val DEFAULT_OCR_PACKAGES = "com.tencent.mm,com.immomo.vchat"
+
+        // Always-supported apps, merged with the user's list.
+        val BUILTIN_TARGETS = setOf("com.tencent.mm", "cn.soulapp.android", "com.immomo.vchat")
+        val BUILTIN_OCR = setOf("com.tencent.mm", "com.immomo.vchat")
     }
 }

@@ -185,8 +185,9 @@ class FloatingBubbleService : Service() {
      */
     private suspend fun resolveConversation(settings: AppSettings): Conversation? {
         val pkg = AppBus.foregroundPackage ?: ""
-        val useOcr = settings.useScreenshotOcr &&
-            pkg in settings.ocrPackageSet &&
+        // Apps in the OCR list are always read via screenshot (the node tree is
+        // blocked or too noisy); the global toggle is no longer required.
+        val useOcr = pkg in settings.ocrPackageSet &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
         if (!useOcr) return AppBus.conversation
 
