@@ -46,7 +46,7 @@ object OcrReader {
         for ((box, content) in blocks) {
             if (!looksLikeMessage(content)) continue
             if (content == last) continue
-            messages.add(ChatMessage(classify(box, screenWidth), content))
+            messages.add(ChatMessage(classify(bitmap, box, screenWidth), content))
             last = content
         }
         return Conversation(pkg, messages)
@@ -59,10 +59,42 @@ object OcrReader {
                 .addOnFailureListener { if (cont.isActive) cont.resume(null) }
         }
 
-    private fun classify(box: Rect, screenWidth: Int): Speaker {
+    /**
+     * Author from bubble background colour: WeChat's "me" bubble is green
+     * (~#95EC69), the other party's is white/grey. We sample pixels inside the
+     * text box — green hue (g noticeably above r and b) means mine. This is
+     * immune to message length, unlike left/right position. Falls back to the
+     * horizontal margin when no green is found (handles non-WeChat apps too).
+     */
+    private fun classify(bitmap: Bitmap, box: Rect, screenWidth: Int): Speaker {
+        val w = bitmap.width
+        val h = bitmap.height
+        val stepX = (box.width() / 6).coerceAtLeast(1)
+        val stepY = (box.height() / 4).coerceAtLeast(1)
+        var green = 0
+        var total = 0
+        var y = box.top
+        while (y < box.bottom) {
+            var x = box.left
+            while (x < box.right) {
+                if (x in 0 until w && y in 0 until h) {
+                    val p = bitmap.getPixel(x, y)
+                    val r = (p shr 16) and 0xFF
+                    val g = (p shr 8) and 0xFF
+                    val b = p and 0xFF
+                    // Green hue across light & dark WeChat themes.
+                    if (g > 60 && g > r + 18 && g > b + 18) green++
+                    total++
+                }
+                x += stepX
+            }
+            y += stepY
+        }
+        if (total > 0 && green.toFloat() / total > 0.08f) return Speaker.ME
+
+        // No green bubble detected → fall back to horizontal placement.
         val leftMargin = box.left
         val rightMargin = screenWidth - box.right
-        // Tie → lean to OTHER (safer: we won't wrongly drop it as my trailing msg).
         return if (rightMargin < leftMargin) Speaker.ME else Speaker.OTHER
     }
 
