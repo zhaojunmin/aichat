@@ -104,8 +104,11 @@ class FloatingBubbleService : Service() {
 
     // ---- Bubble ----------------------------------------------------------
 
+    private var bubbleSize = 0
+
     private fun addBubble() {
         val size = (56 * dp).toInt()
+        bubbleSize = size
         bubble = TextView(this).apply {
             text = "AI"
             setTextColor(Color.WHITE)
@@ -123,6 +126,10 @@ class FloatingBubbleService : Service() {
     }
 
     private fun attachDragAndTap(view: View, lp: WindowManager.LayoutParams) {
+        // Use the platform touch slop so tiny finger jitter during a tap isn't
+        // misread as a drag — otherwise taps on the small target often fail to
+        // open the panel.
+        val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
         var downX = 0f; var downY = 0f
         var startX = 0; var startY = 0
         var dragging = false
@@ -136,10 +143,14 @@ class FloatingBubbleService : Service() {
                 MotionEvent.ACTION_MOVE -> {
                     val dx = (e.rawX - downX).toInt()
                     val dy = (e.rawY - downY).toInt()
-                    if (abs(dx) > 8 || abs(dy) > 8) dragging = true
-                    lp.x = startX + dx
-                    lp.y = startY + dy
-                    wm.updateViewLayout(view, lp)
+                    if (abs(dx) > slop || abs(dy) > slop) dragging = true
+                    if (dragging) {
+                        // Clamp within the screen so the bubble can't be dragged
+                        // off-screen and effectively vanish.
+                        lp.x = clamp(startX + dx, resources.displayMetrics.widthPixels - bubbleSize)
+                        lp.y = clamp(startY + dy, resources.displayMetrics.heightPixels - bubbleSize)
+                        wm.updateViewLayout(view, lp)
+                    }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
@@ -151,6 +162,8 @@ class FloatingBubbleService : Service() {
         }
         view.setOnClickListener { onBubbleTapped() }
     }
+
+    private fun clamp(value: Int, max: Int): Int = value.coerceIn(0, max.coerceAtLeast(0))
 
     private fun onBubbleTapped() {
         if (panel != null) { removePanel(); return }

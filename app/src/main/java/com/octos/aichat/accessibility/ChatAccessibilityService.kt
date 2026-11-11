@@ -35,16 +35,22 @@ class ChatAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
-        // The active window's package reflects the real foreground app; the IME
-        // and transient sub-windows don't own it, so this avoids false "left the
-        // chat app" signals while typing.
-        val root = rootInActiveWindow
-        val pkg = root?.packageName?.toString() ?: event.packageName?.toString() ?: return
+        // Drive foreground state only from the *active window's* package. The IME,
+        // toasts and transient sub-windows don't own the active window, so this
+        // avoids false "left the chat app" signals (which would hide the bubble).
+        //
+        // Crucially, when rootInActiveWindow is momentarily null (common during
+        // transitions / when the keyboard opens) we must NOT fall back to
+        // event.packageName — that package often belongs to the IME or a system
+        // window, which would wrongly hide the bubble and leave it stuck hidden.
+        // Skipping the event keeps the last known state until a reliable one.
+        val root = rootInActiveWindow ?: return
+        val pkg = root.packageName?.toString() ?: return
         val settings = SettingsRepository.get(this).current()
         val isTarget = pkg in settings.targetPackageSet
 
         AppBus.onForeground(pkg, isTarget)
-        if (!isTarget || root == null) return
+        if (!isTarget) return
 
         captureTree(root, pkg)
         // OCR-managed apps (WeChat/Hertz) are read via screenshot on bubble tap;
