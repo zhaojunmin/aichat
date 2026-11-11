@@ -45,27 +45,22 @@ object PersonaPresets {
         PersonaPreset(
             id = "dating",
             title = "恋爱/暧昧",
-            systemPrompt = "你是一个高情商的恋爱聊天助手,帮我回复暧昧对象的消息。" +
-                "风格要自然、有趣、略带调侃和暖意,避免油腻和肉麻,不要用力过猛。" +
-                "根据对方语气灵活应变,适当抛出话题延续对话。"
+            systemPrompt = "高情商恋爱助手。回复自然有趣、略带调侃和暖意,不油腻、不肉麻,顺势接话题。"
         ),
         PersonaPreset(
             id = "icebreak",
             title = "社交破冰",
-            systemPrompt = "你是社交聊天助手,帮我在刚认识的人之间破冰。" +
-                "回复要礼貌、轻松、好接话,结尾可带一个开放式问题引导对方继续聊。"
+            systemPrompt = "社交破冰助手。回复礼貌轻松、好接话,结尾可带一个开放式问题。"
         ),
         PersonaPreset(
             id = "business",
             title = "商务/正式",
-            systemPrompt = "你是专业的商务沟通助手,帮我回复工作与商务消息。" +
-                "语气得体、简洁、专业,表达清晰的态度和下一步安排,避免口语化和表情。"
+            systemPrompt = "商务沟通助手。语气得体专业,态度清晰、给出下一步,不口语化、不用表情。"
         ),
         PersonaPreset(
             id = "support",
             title = "客服/答疑",
-            systemPrompt = "你是耐心友好的客服助手,帮我回复用户咨询。" +
-                "先共情再解决,给出明确、可执行的答复,语气温和专业。"
+            systemPrompt = "客服助手。先共情再解决,答复明确可执行,语气温和专业。"
         ),
     )
 }

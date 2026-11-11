@@ -26,14 +26,16 @@ object AiRepository {
         // party's latest line instead of continuing my last turn.
         val transcript = conversation.withoutTrailingMine().toTranscript()
         val user = buildString {
-            append("下面是我和对方的聊天记录(我=我自己,对方=对方):\n\n")
+            append("聊天记录(我/对方):\n\n")
             append(transcript.ifBlank { "(暂无可识别的聊天内容)" })
-            append("\n\n请站在\"我\"的角度,生成 ").append(n).append(" 条不同风格的回复候选,")
-            append("直接作为我的下一句话发出去,口语自然、长度适中。")
-            append("只返回一个 JSON 字符串数组,例如 [\"回复1\",\"回复2\"],不要任何额外解释或代码块标记。")
+            append("\n\n以\"我\"的口吻给 ").append(n).append(" 条风格各异的回复。")
+            append("要求:每条一句话、像微信随手回,20 字左右、最多 40 字;")
+            append("口语化、直接能发,别客套、别铺垫、别解释、别重复对方的话。")
+            append("仅返回 JSON 字符串数组,如 [\"回复1\",\"回复2\"]。")
         }
 
-        val raw = client.complete(settings, settings.effectiveSystemPrompt(), user)
+        val system = settings.effectiveSystemPrompt() + " 回复务必简短,一句话说清,不堆砌、不解释。"
+        val raw = client.complete(settings, system, user)
 
         parseReplies(raw, n)
     }
