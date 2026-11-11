@@ -1,6 +1,21 @@
 package com.octos.aichat.data
 
 /**
+ * Which model provider to call. Both speak the OpenAI-compatible
+ * chat-completions shape, so they share one HTTP client; the backend only
+ * selects the default Base URL and model name.
+ */
+enum class AiBackend(val displayName: String) {
+    DEEPSEEK("DeepSeek"),
+    DOUBAO("豆包");
+
+    companion object {
+        fun fromName(name: String?): AiBackend =
+            entries.firstOrNull { it.name == name } ?: DEEPSEEK
+    }
+}
+
+/**
  * A reusable "persona + scene" preset that shapes how the assistant replies.
  * The [systemPrompt] is sent as the system message; it is combined with the
  * extracted conversation to produce candidate replies.
@@ -43,6 +58,7 @@ object PersonaPresets {
 
 /** Full user configuration, persisted via [SettingsRepository]. */
 data class AppSettings(
+    val backend: AiBackend = AiBackend.DEEPSEEK,
     val baseUrl: String = DEFAULT_DEEPSEEK_BASE_URL,
     val apiKey: String = "",
     val model: String = DEFAULT_DEEPSEEK_MODEL,
@@ -75,6 +91,10 @@ data class AppSettings(
     companion object {
         const val DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
         const val DEFAULT_DEEPSEEK_MODEL = "deepseek-chat"
+        // Doubao = Volcengine Ark, OpenAI-compatible. The "model" is either an
+        // Ark inference endpoint id (ep-...) or a model name like doubao-pro-32k.
+        const val DEFAULT_DOUBAO_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
+        const val DEFAULT_DOUBAO_MODEL = "doubao-pro-32k"
         // WeChat + Soul + Hertz out of the box.
         const val DEFAULT_TARGET_PACKAGES = "com.tencent.mm,cn.soulapp.android,com.immomo.vchat"
         // WeChat + Hertz use OCR by default; Soul keeps precise node-tree parsing.

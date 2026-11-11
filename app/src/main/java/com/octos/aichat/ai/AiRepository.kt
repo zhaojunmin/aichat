@@ -9,11 +9,11 @@ import org.json.JSONException
 
 /**
  * Turns an extracted [Conversation] into a handful of candidate replies via the
- * DeepSeek chat API.
+ * configured OpenAI-compatible chat API (DeepSeek / Doubao).
  */
 object AiRepository {
 
-    private val client: AiClient = DeepSeekClient()
+    private val client: AiClient = OpenAiCompatClient()
 
     suspend fun generateReplies(
         settings: AppSettings,

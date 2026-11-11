@@ -28,6 +28,7 @@ class SettingsRepository private constructor(context: Context) {
     }
 
     private fun load(): AppSettings = AppSettings(
+        backend = AiBackend.fromName(prefs.getString(KEY_BACKEND, null)),
         baseUrl = prefs.getString(KEY_BASE_URL, AppSettings.DEFAULT_DEEPSEEK_BASE_URL)!!,
         apiKey = prefs.getString(KEY_API_KEY, "")!!,
         model = prefs.getString(KEY_MODEL, AppSettings.DEFAULT_DEEPSEEK_MODEL)!!,
@@ -42,6 +43,7 @@ class SettingsRepository private constructor(context: Context) {
 
     private fun persist(s: AppSettings) {
         prefs.edit()
+            .putString(KEY_BACKEND, s.backend.name)
             .putString(KEY_BASE_URL, s.baseUrl)
             .putString(KEY_API_KEY, s.apiKey)
             .putString(KEY_MODEL, s.model)
@@ -57,6 +59,7 @@ class SettingsRepository private constructor(context: Context) {
 
     companion object {
         private const val PREFS = "ai_chat_settings"
+        private const val KEY_BACKEND = "backend"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_API_KEY = "api_key"
         private const val KEY_MODEL = "model"

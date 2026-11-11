@@ -19,10 +19,10 @@ private val http: OkHttpClient = OkHttpClient.Builder()
 private fun String.trimTrailingSlash() = trimEnd('/')
 
 /**
- * DeepSeek Chat Completions API (/chat/completions). DeepSeek speaks the
- * OpenAI-compatible request/response shape.
+ * OpenAI-compatible Chat Completions API (/chat/completions). Both DeepSeek and
+ * Doubao (Volcengine Ark) speak this shape, differing only in Base URL + model.
  */
-class DeepSeekClient : AiClient {
+class OpenAiCompatClient : AiClient {
     override suspend fun complete(settings: AppSettings, system: String, user: String): String {
         val messages = JSONArray()
             .put(JSONObject().apply { put("role", "system"); put("content", system) })
@@ -42,11 +42,11 @@ class DeepSeekClient : AiClient {
 
         http.newCall(request).execute().use { resp ->
             val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) throw AiException("DeepSeek ${resp.code}: ${text.take(300)}")
+            if (!resp.isSuccessful) throw AiException("AI ${resp.code}: ${text.take(300)}")
             val choices = JSONObject(text).optJSONArray("choices") ?: JSONArray()
             val msg = choices.optJSONObject(0)?.optJSONObject("message")
             return msg?.optString("content").orEmpty()
-                .ifBlank { throw AiException("DeepSeek 返回为空") }
+                .ifBlank { throw AiException("AI 返回为空") }
         }
     }
 }
