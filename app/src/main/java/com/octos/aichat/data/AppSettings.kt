@@ -1,17 +1,5 @@
 package com.octos.aichat.data
 
-/** Which upstream chat-completion API shape to speak. */
-enum class AiBackend(val displayName: String) {
-    CLAUDE("Claude (Anthropic)"),
-    DEEPSEEK("DeepSeek"),
-    OPENAI("OpenAI 兼容");
-
-    companion object {
-        fun fromName(name: String?): AiBackend =
-            entries.firstOrNull { it.name == name } ?: CLAUDE
-    }
-}
-
 /**
  * A reusable "persona + scene" preset that shapes how the assistant replies.
  * The [systemPrompt] is sent as the system message; it is combined with the
@@ -55,10 +43,9 @@ object PersonaPresets {
 
 /** Full user configuration, persisted via [SettingsRepository]. */
 data class AppSettings(
-    val backend: AiBackend = AiBackend.CLAUDE,
-    val baseUrl: String = DEFAULT_CLAUDE_BASE_URL,
+    val baseUrl: String = DEFAULT_DEEPSEEK_BASE_URL,
     val apiKey: String = "",
-    val model: String = DEFAULT_CLAUDE_MODEL,
+    val model: String = DEFAULT_DEEPSEEK_MODEL,
     val personaId: String = "dating",
     val customPersona: String = "",
     val suggestionCount: Int = 3,
@@ -86,11 +73,6 @@ data class AppSettings(
     }
 
     companion object {
-        const val DEFAULT_CLAUDE_BASE_URL = "https://api.anthropic.com"
-        const val DEFAULT_CLAUDE_MODEL = "claude-opus-4-8"
-        const val DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
-        const val DEFAULT_OPENAI_MODEL = "gpt-4o"
-        // DeepSeek speaks the OpenAI chat-completions shape.
         const val DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
         const val DEFAULT_DEEPSEEK_MODEL = "deepseek-chat"
         // WeChat + Soul + Hertz out of the box.

@@ -1,6 +1,5 @@
 package com.octos.aichat.ai
 
-import com.octos.aichat.data.AiBackend
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 import kotlinx.coroutines.Dispatchers
@@ -9,16 +8,12 @@ import org.json.JSONArray
 import org.json.JSONException
 
 /**
- * Turns an extracted [Conversation] into a handful of candidate replies using
- * whichever backend the user configured.
+ * Turns an extracted [Conversation] into a handful of candidate replies via the
+ * DeepSeek chat API.
  */
 object AiRepository {
 
-    private fun clientFor(backend: AiBackend): AiClient = when (backend) {
-        AiBackend.CLAUDE -> ClaudeClient()
-        // DeepSeek is OpenAI-compatible, so it reuses the same client shape.
-        AiBackend.DEEPSEEK, AiBackend.OPENAI -> OpenAiClient()
-    }
+    private val client: AiClient = DeepSeekClient()
 
     suspend fun generateReplies(
         settings: AppSettings,
@@ -38,8 +33,7 @@ object AiRepository {
             append("只返回一个 JSON 字符串数组,例如 [\"回复1\",\"回复2\"],不要任何额外解释或代码块标记。")
         }
 
-        val raw = clientFor(settings.backend)
-            .complete(settings, settings.effectiveSystemPrompt(), user)
+        val raw = client.complete(settings, settings.effectiveSystemPrompt(), user)
 
         parseReplies(raw, n)
     }

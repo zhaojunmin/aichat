@@ -56,8 +56,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.DisposableEffect
 import com.octos.aichat.accessibility.ChatAccessibilityService
 import com.octos.aichat.ai.AiRepository
-import com.octos.aichat.data.AiBackend
-import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.PersonaPresets
@@ -170,17 +168,7 @@ private fun SettingsScreen(repo: SettingsRepository) {
                 }
             }
 
-            SectionCard("③ AI 后端") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AiBackend.entries.forEach { b ->
-                        FilterChip(
-                            selected = settings.backend == b,
-                            onClick = { repo.update { applyBackendDefaults(it, b) } },
-                            label = { Text(b.displayName) }
-                        )
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
+            SectionCard("③ DeepSeek 接入") {
                 LabeledField("Base URL", settings.baseUrl) { v -> repo.update { it.copy(baseUrl = v) } }
                 LabeledField("模型", settings.model) { v -> repo.update { it.copy(model = v) } }
                 LabeledField("API Key", settings.apiKey, isSecret = true) { v ->
@@ -408,25 +396,6 @@ private fun LabeledField(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
     )
 }
-
-private fun applyBackendDefaults(current: AppSettings, backend: AiBackend): AppSettings =
-    when (backend) {
-        AiBackend.CLAUDE -> current.copy(
-            backend = backend,
-            baseUrl = AppSettings.DEFAULT_CLAUDE_BASE_URL,
-            model = AppSettings.DEFAULT_CLAUDE_MODEL,
-        )
-        AiBackend.DEEPSEEK -> current.copy(
-            backend = backend,
-            baseUrl = AppSettings.DEFAULT_DEEPSEEK_BASE_URL,
-            model = AppSettings.DEFAULT_DEEPSEEK_MODEL,
-        )
-        AiBackend.OPENAI -> current.copy(
-            backend = backend,
-            baseUrl = AppSettings.DEFAULT_OPENAI_BASE_URL,
-            model = AppSettings.DEFAULT_OPENAI_MODEL,
-        )
-    }
 
 private fun isAccessibilityEnabled(context: Context): Boolean {
     val expected = "${context.packageName}/${ChatAccessibilityService::class.java.name}"
