@@ -29,9 +29,7 @@ class SettingsRepository private constructor(context: Context) {
 
     private fun load(): AppSettings = AppSettings(
         backend = AiBackend.fromName(prefs.getString(KEY_BACKEND, null)),
-        baseUrl = prefs.getString(KEY_BASE_URL, AppSettings.DEFAULT_DEEPSEEK_BASE_URL)!!,
-        apiKey = prefs.getString(KEY_API_KEY, "")!!,
-        model = prefs.getString(KEY_MODEL, AppSettings.DEFAULT_DEEPSEEK_MODEL)!!,
+        backendConfigs = loadBackendConfigs(),
         personaId = prefs.getString(KEY_PERSONA_ID, "dating")!!,
         customPersona = prefs.getString(KEY_CUSTOM_PERSONA, "")!!,
         suggestionCount = prefs.getInt(KEY_SUGGESTION_COUNT, 3),
@@ -41,12 +39,32 @@ class SettingsRepository private constructor(context: Context) {
         targetPackages = prefs.getString(KEY_TARGETS, AppSettings.DEFAULT_TARGET_PACKAGES)!!,
     )
 
+    private fun loadBackendConfigs(): Map<AiBackend, BackendConfig> =
+        AiBackend.entries.mapNotNull { b ->
+            val baseUrl = prefs.getString(baseUrlPref(b), null)
+            val model = prefs.getString(modelPref(b), null)
+            // Legacy single key migrates onto DeepSeek the first time around.
+            val legacyKey = if (b == AiBackend.DEEPSEEK) prefs.getString(KEY_API_KEY, "")!! else ""
+            val apiKey = prefs.getString(apiKeyPref(b), "")!!.ifEmpty { legacyKey }
+            if (baseUrl == null && model == null && apiKey.isEmpty()) null
+            else b to BackendConfig(
+                baseUrl = baseUrl ?: b.defaultBaseUrl,
+                model = model ?: b.defaultModel,
+                apiKey = apiKey,
+            )
+        }.toMap()
+
     private fun persist(s: AppSettings) {
         prefs.edit()
             .putString(KEY_BACKEND, s.backend.name)
-            .putString(KEY_BASE_URL, s.baseUrl)
-            .putString(KEY_API_KEY, s.apiKey)
-            .putString(KEY_MODEL, s.model)
+            .apply {
+                AiBackend.entries.forEach { b ->
+                    val c = s.configOf(b)
+                    putString(baseUrlPref(b), c.baseUrl)
+                    putString(modelPref(b), c.model)
+                    putString(apiKeyPref(b), c.apiKey)
+                }
+            }
             .putString(KEY_PERSONA_ID, s.personaId)
             .putString(KEY_CUSTOM_PERSONA, s.customPersona)
             .putInt(KEY_SUGGESTION_COUNT, s.suggestionCount)
@@ -56,6 +74,10 @@ class SettingsRepository private constructor(context: Context) {
             .putString(KEY_TARGETS, s.targetPackages)
             .apply()
     }
+
+    private fun baseUrlPref(b: AiBackend) = "${KEY_BASE_URL}_${b.name}"
+    private fun modelPref(b: AiBackend) = "${KEY_MODEL}_${b.name}"
+    private fun apiKeyPref(b: AiBackend) = "${KEY_API_KEY}_${b.name}"
 
     companion object {
         private const val PREFS = "ai_chat_settings"

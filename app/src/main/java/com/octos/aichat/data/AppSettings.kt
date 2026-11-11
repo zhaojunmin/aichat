@@ -3,17 +3,31 @@ package com.octos.aichat.data
 /**
  * Which model provider to call. Both speak the OpenAI-compatible
  * chat-completions shape, so they share one HTTP client; the backend only
- * selects the default Base URL and model name.
+ * carries the default Base URL and model name.
+ *
+ * Doubao = Volcengine Ark; its "model" is either an Ark inference endpoint id
+ * (ep-...) or a model name like doubao-pro-32k.
  */
-enum class AiBackend(val displayName: String) {
-    DEEPSEEK("DeepSeek"),
-    DOUBAO("豆包");
+enum class AiBackend(
+    val displayName: String,
+    val defaultBaseUrl: String,
+    val defaultModel: String,
+) {
+    DEEPSEEK("DeepSeek", "https://api.deepseek.com", "deepseek-chat"),
+    DOUBAO("豆包", "https://ark.cn-beijing.volces.com/api/v3", "doubao-pro-32k");
 
     companion object {
         fun fromName(name: String?): AiBackend =
             entries.firstOrNull { it.name == name } ?: DEEPSEEK
     }
 }
+
+/** Per-backend connection settings, so each provider keeps its own values. */
+data class BackendConfig(
+    val baseUrl: String,
+    val model: String,
+    val apiKey: String = "",
+)
 
 /**
  * A reusable "persona + scene" preset that shapes how the assistant replies.
@@ -59,9 +73,8 @@ object PersonaPresets {
 /** Full user configuration, persisted via [SettingsRepository]. */
 data class AppSettings(
     val backend: AiBackend = AiBackend.DEEPSEEK,
-    val baseUrl: String = DEFAULT_DEEPSEEK_BASE_URL,
-    val apiKey: String = "",
-    val model: String = DEFAULT_DEEPSEEK_MODEL,
+    /** Base URL / model / key per backend, so switching providers keeps them apart. */
+    val backendConfigs: Map<AiBackend, BackendConfig> = emptyMap(),
     val personaId: String = "dating",
     val customPersona: String = "",
     val suggestionCount: Int = 3,
@@ -81,6 +94,22 @@ data class AppSettings(
     val ocrPackageSet: Set<String>
         get() = BUILTIN_OCR + ocrPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
+    /** Config of the given backend, falling back to that backend's defaults. */
+    fun configOf(b: AiBackend): BackendConfig =
+        backendConfigs[b] ?: BackendConfig(b.defaultBaseUrl, b.defaultModel)
+
+    // Connection values for the currently selected backend.
+    val baseUrl: String get() = configOf(backend).baseUrl
+    val model: String get() = configOf(backend).model
+    val apiKey: String get() = configOf(backend).apiKey
+
+    private fun withConfig(transform: (BackendConfig) -> BackendConfig): AppSettings =
+        copy(backendConfigs = backendConfigs + (backend to transform(configOf(backend))))
+
+    fun withBaseUrl(v: String) = withConfig { it.copy(baseUrl = v) }
+    fun withModel(v: String) = withConfig { it.copy(model = v) }
+    fun withApiKey(v: String) = withConfig { it.copy(apiKey = v) }
+
     /** The effective system prompt: a custom one overrides the chosen preset. */
     fun effectiveSystemPrompt(): String {
         if (customPersona.isNotBlank()) return customPersona.trim()
@@ -89,12 +118,6 @@ data class AppSettings(
     }
 
     companion object {
-        const val DEFAULT_DEEPSEEK_BASE_URL = "https://api.deepseek.com"
-        const val DEFAULT_DEEPSEEK_MODEL = "deepseek-chat"
-        // Doubao = Volcengine Ark, OpenAI-compatible. The "model" is either an
-        // Ark inference endpoint id (ep-...) or a model name like doubao-pro-32k.
-        const val DEFAULT_DOUBAO_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
-        const val DEFAULT_DOUBAO_MODEL = "doubao-pro-32k"
         // WeChat + Soul + Hertz out of the box.
         const val DEFAULT_TARGET_PACKAGES = "com.tencent.mm,cn.soulapp.android,com.immomo.vchat"
         // WeChat + Hertz use OCR by default; Soul keeps precise node-tree parsing.

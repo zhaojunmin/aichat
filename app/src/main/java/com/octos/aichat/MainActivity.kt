@@ -57,7 +57,6 @@ import androidx.compose.runtime.DisposableEffect
 import com.octos.aichat.accessibility.ChatAccessibilityService
 import com.octos.aichat.ai.AiRepository
 import com.octos.aichat.data.AiBackend
-import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.PersonaPresets
@@ -175,16 +174,16 @@ private fun SettingsScreen(repo: SettingsRepository) {
                     AiBackend.entries.forEach { b ->
                         FilterChip(
                             selected = settings.backend == b,
-                            onClick = { repo.update { applyBackendDefaults(it, b) } },
+                            onClick = { repo.update { it.copy(backend = b) } },
                             label = { Text(b.displayName) }
                         )
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                LabeledField("Base URL", settings.baseUrl) { v -> repo.update { it.copy(baseUrl = v) } }
-                LabeledField("模型", settings.model) { v -> repo.update { it.copy(model = v) } }
+                LabeledField("Base URL", settings.baseUrl) { v -> repo.update { it.withBaseUrl(v) } }
+                LabeledField("模型", settings.model) { v -> repo.update { it.withModel(v) } }
                 LabeledField("API Key", settings.apiKey, isSecret = true) { v ->
-                    repo.update { it.copy(apiKey = v) }
+                    repo.update { it.withApiKey(v) }
                 }
             }
 
@@ -408,20 +407,6 @@ private fun LabeledField(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
     )
 }
-
-private fun applyBackendDefaults(current: AppSettings, backend: AiBackend): AppSettings =
-    when (backend) {
-        AiBackend.DEEPSEEK -> current.copy(
-            backend = backend,
-            baseUrl = AppSettings.DEFAULT_DEEPSEEK_BASE_URL,
-            model = AppSettings.DEFAULT_DEEPSEEK_MODEL,
-        )
-        AiBackend.DOUBAO -> current.copy(
-            backend = backend,
-            baseUrl = AppSettings.DEFAULT_DOUBAO_BASE_URL,
-            model = AppSettings.DEFAULT_DOUBAO_MODEL,
-        )
-    }
 
 private fun isAccessibilityEnabled(context: Context): Boolean {
     val expected = "${context.packageName}/${ChatAccessibilityService::class.java.name}"
