@@ -1,8 +1,10 @@
 package com.octos.aichat.overlay
 
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -15,6 +17,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
@@ -27,6 +30,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import com.octos.aichat.AppBus
+import com.octos.aichat.MainActivity
 import com.octos.aichat.ai.AiRepository
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
@@ -74,7 +78,31 @@ class FloatingBubbleService : Service() {
         addBubble()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Re-assert the foreground notification on every (re)start — including the
+        // null-intent restart the system issues after killing us — so we never
+        // trip the "startForeground not called in time" ANR and the bubble is
+        // re-attached by onCreate. START_STICKY asks the system to recreate us.
+        startForegroundNotice()
+        return START_STICKY
+    }
+
+    /**
+     * Swiping the app out of recents kills the task on aggressive OEMs, taking
+     * this foreground service (and the bubble) with it. Schedule a prompt restart
+     * so the assistant survives being swiped away.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val restart = Intent(applicationContext, FloatingBubbleService::class.java)
+            .setPackage(packageName)
+        val pi = PendingIntent.getForegroundService(
+            this, 1, restart,
+            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val am = getSystemService(ALARM_SERVICE) as AlarmManager
+        am.set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 1000, pi)
+        super.onTaskRemoved(rootIntent)
+    }
 
     override fun onDestroy() {
         super.onDestroy()
@@ -364,18 +392,27 @@ class FloatingBubbleService : Service() {
                 NotificationChannel(channelId, "悬浮助手", NotificationManager.IMPORTANCE_LOW)
             )
         }
+        val contentIntent = PendingIntent.getActivity(
+            this, 0,
+            Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
         val notification: Notification = Notification.Builder(this, channelId)
             .setContentTitle("聊天搭子运行中")
             .setContentText("点击悬浮球生成 AI 回复建议")
             .setSmallIcon(android.R.drawable.ic_menu_edit)
+            .setContentIntent(contentIntent)
+            .setOngoing(true) // persistent: not swipe-dismissable while running
             .build()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIF_ID, notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-            )
-        } else {
-            startForeground(NOTIF_ID, notification)
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIF_ID, notification,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                startForeground(NOTIF_ID, notification)
+            }
         }
     }
 
