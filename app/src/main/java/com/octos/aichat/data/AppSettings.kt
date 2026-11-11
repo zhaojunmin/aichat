@@ -120,11 +120,11 @@ data class AppSettings(
     companion object {
         // WeChat + Soul + Hertz out of the box.
         const val DEFAULT_TARGET_PACKAGES = "com.tencent.mm,cn.soulapp.android,com.immomo.vchat"
-        // WeChat + Hertz use OCR by default; Soul keeps precise node-tree parsing.
-        const val DEFAULT_OCR_PACKAGES = "com.tencent.mm,com.immomo.vchat"
+        // Only WeChat needs OCR; Soul and Hertz are parsed from the node tree.
+        const val DEFAULT_OCR_PACKAGES = "com.tencent.mm"
 
         // Always-supported apps, merged with the user's list.
         val BUILTIN_TARGETS = setOf("com.tencent.mm", "cn.soulapp.android", "com.immomo.vchat")
-        val BUILTIN_OCR = setOf("com.tencent.mm", "com.immomo.vchat")
+        val BUILTIN_OCR = setOf("com.tencent.mm")
     }
 }

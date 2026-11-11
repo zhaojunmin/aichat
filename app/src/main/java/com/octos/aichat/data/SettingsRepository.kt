@@ -35,9 +35,17 @@ class SettingsRepository private constructor(context: Context) {
         suggestionCount = prefs.getInt(KEY_SUGGESTION_COUNT, 3),
         autoPaste = prefs.getBoolean(KEY_AUTO_PASTE, false),
         useScreenshotOcr = prefs.getBoolean(KEY_USE_OCR, false),
-        ocrPackages = prefs.getString(KEY_OCR_PKGS, AppSettings.DEFAULT_OCR_PACKAGES)!!,
+        ocrPackages = loadOcrPackages(),
         targetPackages = prefs.getString(KEY_TARGETS, AppSettings.DEFAULT_TARGET_PACKAGES)!!,
     )
+
+    // Hertz moved from OCR to precise node-tree parsing; strip the now-stale
+    // entry a previous version may have persisted into the user's OCR list.
+    private fun loadOcrPackages(): String =
+        prefs.getString(KEY_OCR_PKGS, AppSettings.DEFAULT_OCR_PACKAGES)!!
+            .split(",").map { it.trim() }
+            .filter { it.isNotEmpty() && it != "com.immomo.vchat" }
+            .joinToString(",")
 
     private fun loadBackendConfigs(): Map<AiBackend, BackendConfig> =
         AiBackend.entries.mapNotNull { b ->

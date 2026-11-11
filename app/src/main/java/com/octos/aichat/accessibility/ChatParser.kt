@@ -21,13 +21,30 @@ import com.octos.aichat.data.Speaker
  */
 object ChatParser {
 
-    /** Per-app parsing rule: which node is a message, and which is the avatar. */
-    private data class AppRule(val messageId: String, val avatarId: String)
+    /**
+     * Per-app parsing rule. Two shapes, matched by view-id *name* (the part after
+     * ':id/', so a differing resource package doesn't matter):
+     *  - [selfId]/[othersId]: the message text node's own id tells the author
+     *    (e.g. Hertz: tv_chat_content_self / tv_chat_content_others).
+     *  - [messageId]+[avatarId]: a single message id; the author is read from the
+     *    row's avatar position (e.g. Soul).
+     */
+    private data class AppRule(
+        val selfId: String? = null,
+        val othersId: String? = null,
+        val messageId: String? = null,
+        val avatarId: String? = null,
+    )
 
     private val APP_RULES: Map<String, AppRule> = mapOf(
         "cn.soulapp.android" to AppRule(
-            messageId = "cn.soulapp.android:id/content_text",
-            avatarId = "cn.soulapp.android:id/chat_avatar",
+            messageId = "content_text",
+            avatarId = "chat_avatar",
+        ),
+        // Hertz: the text node's id distinguishes speaker directly.
+        "com.immomo.vchat" to AppRule(
+            selfId = "tv_chat_content_self",
+            othersId = "tv_chat_content_others",
         ),
     )
 
@@ -83,12 +100,22 @@ object ChatParser {
         out: MutableList<Raw>,
     ) {
         if (node == null) return
-        if (node.viewIdResourceName == rule.messageId) {
+        val id = node.viewIdResourceName?.substringAfterLast('/')
+        val speaker: Speaker? = when (id) {
+            null -> null
+            rule.selfId -> Speaker.ME
+            rule.othersId -> Speaker.OTHER
+            rule.messageId -> rule.avatarId?.let { senderFromAvatar(node, it, screenWidth) }
+            else -> null
+        }
+        val isMessage = id != null &&
+            (id == rule.selfId || id == rule.othersId || id == rule.messageId)
+        if (isMessage) {
             val raw = (node.text ?: node.contentDescription)?.toString()?.trim()
             if (!raw.isNullOrEmpty()) {
                 val rect = Rect().also { node.getBoundsInScreen(it) }
                 if (rect.width() > 0 && rect.height() > 0) {
-                    out.add(Raw(rect, raw, senderFromAvatar(node, rule.avatarId, screenWidth)))
+                    out.add(Raw(rect, raw, speaker))
                 }
             }
         }
@@ -119,11 +146,11 @@ object ChatParser {
         return if (ar.centerX() > screenWidth / 2) Speaker.ME else Speaker.OTHER
     }
 
-    private fun findById(node: AccessibilityNodeInfo?, id: String): AccessibilityNodeInfo? {
+    private fun findById(node: AccessibilityNodeInfo?, idName: String): AccessibilityNodeInfo? {
         if (node == null) return null
-        if (node.viewIdResourceName == id) return node
+        if (node.viewIdResourceName?.substringAfterLast('/') == idName) return node
         for (i in 0 until node.childCount) {
-            findById(node.getChild(i), id)?.let { return it }
+            findById(node.getChild(i), idName)?.let { return it }
         }
         return null
     }
