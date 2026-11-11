@@ -33,6 +33,12 @@ object OcrReader {
     ): Conversation {
         val text = recognize(bitmap) ?: return Conversation(pkg, emptyList())
 
+        // The screenshot is the full physical display, so its own height is the
+        // authoritative reference. The caller's screenHeight (displayMetrics)
+        // excludes the nav bar and is smaller than the bitmap — using it here
+        // shifted every band upward and clipped the newest (bottom) messages.
+        val h = if (bitmap.height > 0) bitmap.height else screenHeight
+
         val all = text.textBlocks
             .mapNotNull { b -> b.boundingBox?.let { it to b.text.replace("\n", " ").trim() } }
             .filter { it.second.isNotEmpty() }
@@ -42,12 +48,14 @@ object OcrReader {
         // so the profile card above it is excluded. Fall back to a fixed band.
         val firstStamp = all.indexOfFirst { DATE_RE.containsMatchIn(it.second) }
         val minY = if (firstStamp >= 0) all[firstStamp].first.top.toFloat()
-        else screenHeight * 0.08f
-        // Lower bound: drop the input box (incl. any draft text), suggestion
-        // chips and nav icons — they occupy the bottom ~18% of the screen.
-        val maxY = screenHeight * 0.82f
+        else h * 0.08f
+        // Lower bound: only exclude the gesture nav bar at the very bottom. The
+        // input box text ("请输入消息" / "发送") is dropped by looksLikeMessage,
+        // so we can keep the band low enough to retain the latest messages that
+        // sit just above the input bar.
+        val maxY = h * 0.94f
 
-        val blocks = all.filter { screenHeight <= 0 || it.first.centerY().toFloat() in minY..maxY }
+        val blocks = all.filter { h <= 0 || it.first.centerY().toFloat() in minY..maxY }
 
         val messages = ArrayList<ChatMessage>()
         var last: String? = null
