@@ -31,6 +31,7 @@ import android.widget.TextView
 import android.widget.Toast
 import com.octos.aichat.AppBus
 import com.octos.aichat.MainActivity
+import com.octos.aichat.accessibility.BubbleLocator
 import com.octos.aichat.ai.AiRepository
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
@@ -236,6 +237,11 @@ class FloatingBubbleService : Service() {
         // Hide our own bubble so it isn't part of the captured image.
         if (::bubble.isInitialized) bubble.visibility = View.GONE
         delay(80)
+        // Grab bubble geometry from the node tree at the same moment we capture,
+        // so rects and pixels line up. Empty for apps with no geometry (WeChat).
+        val boxes = if (BubbleLocator.hasRule(pkg))
+            BubbleLocator.locate(svc.rootInActiveWindow, resources.displayMetrics.widthPixels, pkg)
+        else emptyList()
         val bmp = svc.captureScreenshot()
         if (::bubble.isInitialized) bubble.visibility = View.VISIBLE
         bmp ?: return null
@@ -243,7 +249,10 @@ class FloatingBubbleService : Service() {
         val w = resources.displayMetrics.widthPixels
         val h = resources.displayMetrics.heightPixels
         val conv = withContext(Dispatchers.Default) {
-            OcrReader.readConversation(bmp, w, h, pkg)
+            // Geometry-guided OCR when we have bubble rects (Momo); otherwise the
+            // whole-screen colour/region heuristic (WeChat).
+            if (boxes.isNotEmpty()) OcrReader.readConversation(bmp, boxes, pkg)
+            else OcrReader.readConversation(bmp, w, h, pkg)
         }
         bmp.recycle()
         AppBus.updateConversation(conv) // let the in-app debug viewer show it too

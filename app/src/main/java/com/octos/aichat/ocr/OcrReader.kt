@@ -6,6 +6,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
+import com.octos.aichat.accessibility.BubbleBox
 import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.Speaker
@@ -24,6 +25,41 @@ object OcrReader {
 
     private val recognizer =
         TextRecognition.getClient(ChineseTextRecognizerOptions.Builder().build())
+
+    /**
+     * Geometry-guided read: OCR the whole screenshot once, then keep only the text
+     * blocks that fall inside a known bubble rectangle, tagging each with that
+     * bubble's speaker. Everything outside the bubbles (suggestion panels, profile
+     * cards, input bar, nav) is dropped for free, and the author is exact.
+     */
+    suspend fun readConversation(
+        bitmap: Bitmap,
+        boxes: List<BubbleBox>,
+        pkg: String,
+    ): Conversation {
+        if (boxes.isEmpty()) return Conversation(pkg, emptyList())
+        val text = recognize(bitmap) ?: return Conversation(pkg, emptyList())
+
+        val blocks = text.textBlocks
+            .mapNotNull { b -> b.boundingBox?.let { it to b.text.replace("\n", " ").trim() } }
+            .filter { it.second.isNotEmpty() }
+
+        // Each bubble collects the text blocks whose centre sits inside it.
+        val ordered = boxes.sortedBy { it.rect.top }
+        val messages = ArrayList<ChatMessage>()
+        var last: String? = null
+        for (bubble in ordered) {
+            val content = blocks
+                .filter { bubble.rect.contains(it.first.centerX(), it.first.centerY()) }
+                .sortedBy { it.first.top }
+                .joinToString(" ") { it.second }
+                .trim()
+            if (content.isEmpty() || !looksLikeMessage(content) || content == last) continue
+            messages.add(ChatMessage(bubble.speaker, content))
+            last = content
+        }
+        return Conversation(pkg, messages)
+    }
 
     suspend fun readConversation(
         bitmap: Bitmap,
