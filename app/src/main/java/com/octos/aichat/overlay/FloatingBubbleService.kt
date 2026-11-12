@@ -10,6 +10,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
@@ -258,11 +259,22 @@ class FloatingBubbleService : Service() {
 
         val w = resources.displayMetrics.widthPixels
         val h = resources.displayMetrics.heightPixels
+        // When the soft keyboard is up, its letters get OCR'd as chat text. Crop
+        // the screenshot to just above the IME window before the whole-screen read.
+        val imeTop = svc.imeBounds()?.top ?: -1
         val conv = withContext(Dispatchers.Default) {
             // Geometry-guided OCR when we have bubble rects (Momo); otherwise the
             // whole-screen colour/region heuristic (WeChat).
-            if (boxes.isNotEmpty()) OcrReader.readConversation(bmp, boxes, pkg)
-            else OcrReader.readConversation(bmp, w, h, pkg)
+            when {
+                boxes.isNotEmpty() -> OcrReader.readConversation(bmp, boxes, pkg)
+                imeTop in 1 until bmp.height -> {
+                    val cropped = Bitmap.createBitmap(bmp, 0, 0, bmp.width, imeTop)
+                    val c = OcrReader.readConversation(cropped, w, imeTop, pkg)
+                    cropped.recycle()
+                    c
+                }
+                else -> OcrReader.readConversation(bmp, w, h, pkg)
+            }
         }
         bmp.recycle()
         AppBus.updateConversation(conv) // let the in-app debug viewer show it too

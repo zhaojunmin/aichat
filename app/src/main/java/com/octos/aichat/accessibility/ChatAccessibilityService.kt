@@ -9,6 +9,7 @@ import android.os.SystemClock
 import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import androidx.annotation.RequiresApi
 import com.octos.aichat.AppBus
 import com.octos.aichat.data.SettingsRepository
@@ -130,6 +131,20 @@ class ChatAccessibilityService : AccessibilityService() {
         } catch (e: Exception) {
             if (cont.isActive) cont.resume(null)
         }
+    }
+
+    /**
+     * Screen bounds of the on-screen IME (soft keyboard) if it's currently shown,
+     * else null. Used to crop the keyboard out of OCR screenshots so its letters
+     * aren't misread as chat text.
+     */
+    fun imeBounds(): Rect? = try {
+        windows
+            ?.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+            ?.let { w -> Rect().also { w.getBoundsInScreen(it) } }
+            ?.takeIf { !it.isEmpty }
+    } catch (_: Exception) {
+        null
     }
 
     override fun onInterrupt() {}
