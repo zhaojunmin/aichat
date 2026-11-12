@@ -80,6 +80,12 @@ data class AppSettings(
     val ocrPackages: String = DEFAULT_OCR_PACKAGES,
     /** Comma-separated package names we offer suggestions inside. */
     val targetPackages: String = DEFAULT_TARGET_PACKAGES,
+    /** Global memory: log my replies and learn a user profile the AI reuses. */
+    val memoryEnabled: Boolean = true,
+    /** Learn once this many new replies have piled up since the last run. */
+    val learnThreshold: Int = 20,
+    /** Inject only the most-recently-updated N memory items into the prompt. */
+    val memoryInjectLimit: Int = 30,
 ) {
     // Built-in supported apps are always included (union with user list), so a
     // newly supported app works without the user re-editing saved settings.

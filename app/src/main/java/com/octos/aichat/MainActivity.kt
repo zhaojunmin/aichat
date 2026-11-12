@@ -62,6 +62,7 @@ import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.PersonaPresets
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.Speaker
+import com.octos.aichat.data.memory.MemoryRepository
 import com.octos.aichat.overlay.FloatingBubbleService
 import kotlinx.coroutines.launch
 
@@ -102,6 +103,10 @@ private fun SettingsScreen(repo: SettingsRepository) {
     val tick = rememberResumeTick()
     val scope = rememberCoroutineScope()
 
+    val memoryRepo = remember { MemoryRepository.get(context) }
+    val memories by memoryRepo.memories.collectAsStateWithLifecycle()
+    val memStats by memoryRepo.stats.collectAsStateWithLifecycle()
+
     val accessibilityOn = remember(tick) { isAccessibilityEnabled(context) }
     val overlayOn = remember(tick) { Settings.canDrawOverlays(context) }
 
@@ -109,6 +114,7 @@ private fun SettingsScreen(repo: SettingsRepository) {
     var testing by remember { mutableStateOf(false) }
     var preview by remember { mutableStateOf<Conversation?>(null) }
     var rawDump by remember { mutableStateOf<String?>(null) }
+    var showMemories by remember { mutableStateOf(false) }
 
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -251,7 +257,77 @@ private fun SettingsScreen(repo: SettingsRepository) {
                 ) { v -> repo.update { it.copy(targetPackages = v) } }
             }
 
-            SectionCard("⑥ 读取调试") {
+            SectionCard("⑥ 全局记忆") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("记录我的回复并学习画像")
+                        Text(
+                            "我说过的话会追加到本地文本文件;攒够一定条数后由大模型提炼成\"我的画像/事实/偏好/风格\",并自动用于后续回复。",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = settings.memoryEnabled,
+                        onCheckedChange = { c -> repo.update { it.copy(memoryEnabled = c) } }
+                    )
+                }
+                if (settings.memoryEnabled) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("学习阈值:${settings.learnThreshold} 条", Modifier.weight(1f))
+                        OutlinedButton(onClick = {
+                            repo.update { it.copy(learnThreshold = (it.learnThreshold - 5).coerceAtLeast(5)) }
+                        }) { Text("-5") }
+                        Spacer(Modifier.width(8.dp))
+                        OutlinedButton(onClick = {
+                            repo.update { it.copy(learnThreshold = (it.learnThreshold + 5).coerceAtMost(100)) }
+                        }) { Text("+5") }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("注入上限:最近 ${settings.memoryInjectLimit} 条")
+                            Text(
+                                "记忆全部永久保存,仅把最近更新的若干条带进回复生成,避免 prompt 过长",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                        OutlinedButton(onClick = {
+                            repo.update { it.copy(memoryInjectLimit = (it.memoryInjectLimit - 5).coerceAtLeast(5)) }
+                        }) { Text("-5") }
+                        Spacer(Modifier.width(8.dp))
+                        OutlinedButton(onClick = {
+                            repo.update { it.copy(memoryInjectLimit = (it.memoryInjectLimit + 5).coerceAtMost(200)) }
+                        }) { Text("+5") }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "已记录 ${memStats.totalReplies} 条 · 待学习 ${memStats.pending} 条 · 记忆 ${memories.size} 条",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Button(
+                            enabled = !memStats.learning && memStats.pending > 0 && settings.apiKey.isNotBlank(),
+                            onClick = { scope.launch { memoryRepo.learnNow() } }
+                        ) {
+                            if (memStats.learning) {
+                                CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                                Text("学习中…")
+                            } else Text("立即学习")
+                        }
+                        OutlinedButton(onClick = { showMemories = true }) { Text("查看记忆") }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { scope.launch { memoryRepo.clearAll() } },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("清空记忆与回复记录") }
+                }
+            }
+
+            SectionCard("⑦ 读取调试") {
                 Text(
                     "先在微信/Soul 的聊天界面停留一下,再回到这里查看无障碍服务读到的内容," +
                         "可据此判断\"我/对方\"是否区分正确。",
@@ -269,7 +345,7 @@ private fun SettingsScreen(repo: SettingsRepository) {
                 ) { Text("查看原始节点树(开发者 / 适配新 App 用)") }
             }
 
-            SectionCard("⑦ 测试") {
+            SectionCard("⑧ 测试") {
                 Text("用一段示例对话测试当前 AI 配置是否可用。", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
                 Button(
@@ -310,6 +386,28 @@ private fun SettingsScreen(repo: SettingsRepository) {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     replies.forEachIndexed { i, r -> Text("${i + 1}. $r") }
+                }
+            }
+        )
+    }
+
+    if (showMemories) {
+        AlertDialog(
+            onDismissRequest = { showMemories = false },
+            confirmButton = { TextButton(onClick = { showMemories = false }) { Text("关闭") } },
+            title = { Text("我的记忆 · ${memories.size} 条") },
+            text = {
+                if (memories.isEmpty()) {
+                    Text("还没有学到记忆。先在聊天里多用几次,攒够回复后点\"立即学习\"或等待自动学习。")
+                } else {
+                    Column(
+                        Modifier
+                            .heightIn(max = 420.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        memories.forEach { m -> Text("【${m.category}】${m.content}") }
+                    }
                 }
             }
         )

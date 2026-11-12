@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.ksp)
 }
 
 // Read signing credentials from local.properties (kept out of version control).
@@ -37,11 +38,19 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8 shrink + obfuscate code, and strip unused resources — the big
+            // levers for a Compose + ML Kit app.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // ML Kit bundles native .so for 4 ABIs; real phones are ARM, so drop
+            // the x86/x86_64 (emulator-only) copies to roughly halve native size.
+            ndk {
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            }
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -77,6 +86,11 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
 
     implementation(libs.okhttp)
+
+    // Global memory: learned user profile/facts live in a Room DB.
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
 
     // On-device Chinese OCR, bundled model (no Google Play services needed — works on Huawei).
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")

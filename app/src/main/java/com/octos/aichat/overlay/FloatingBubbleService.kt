@@ -36,6 +36,7 @@ import com.octos.aichat.ai.AiRepository
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
+import com.octos.aichat.data.memory.MemoryRepository
 import com.octos.aichat.ocr.OcrReader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -214,7 +215,11 @@ class FloatingBubbleService : Service() {
                 )
                 return@launch
             }
-            val result = runCatching { AiRepository.generateReplies(settings, conv) }
+            // Log my on-screen replies into global memory, and let what's already
+            // been learned personalise the suggestions.
+            val memory = MemoryRepository.get(this@FloatingBubbleService)
+            memory.recordMyMessages(conv)
+            val result = runCatching { AiRepository.generateReplies(settings, conv, memory.memoryBlock()) }
             result.onSuccess { showPanelResults(it) }
                 .onFailure { showPanelError(it.message ?: "生成失败") }
         }
@@ -312,6 +317,7 @@ class FloatingBubbleService : Service() {
     }
 
     private fun onReplyChosen(reply: String) {
+        MemoryRepository.get(this).recordReply(reply)
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("ai_reply", reply))
 

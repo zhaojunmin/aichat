@@ -37,6 +37,9 @@ class SettingsRepository private constructor(context: Context) {
         useScreenshotOcr = prefs.getBoolean(KEY_USE_OCR, false),
         ocrPackages = loadOcrPackages(),
         targetPackages = prefs.getString(KEY_TARGETS, AppSettings.DEFAULT_TARGET_PACKAGES)!!,
+        memoryEnabled = prefs.getBoolean(KEY_MEMORY_ENABLED, true),
+        learnThreshold = prefs.getInt(KEY_LEARN_THRESHOLD, 20),
+        memoryInjectLimit = prefs.getInt(KEY_INJECT_LIMIT, 30),
     )
 
     // Hertz moved from OCR to precise node-tree parsing; strip the now-stale
@@ -80,6 +83,9 @@ class SettingsRepository private constructor(context: Context) {
             .putBoolean(KEY_USE_OCR, s.useScreenshotOcr)
             .putString(KEY_OCR_PKGS, s.ocrPackages)
             .putString(KEY_TARGETS, s.targetPackages)
+            .putBoolean(KEY_MEMORY_ENABLED, s.memoryEnabled)
+            .putInt(KEY_LEARN_THRESHOLD, s.learnThreshold)
+            .putInt(KEY_INJECT_LIMIT, s.memoryInjectLimit)
             .apply()
     }
 
@@ -100,6 +106,9 @@ class SettingsRepository private constructor(context: Context) {
         private const val KEY_USE_OCR = "use_ocr"
         private const val KEY_OCR_PKGS = "ocr_packages"
         private const val KEY_TARGETS = "target_packages"
+        private const val KEY_MEMORY_ENABLED = "memory_enabled"
+        private const val KEY_LEARN_THRESHOLD = "learn_threshold"
+        private const val KEY_INJECT_LIMIT = "memory_inject_limit"
 
         @Volatile
         private var INSTANCE: SettingsRepository? = null
