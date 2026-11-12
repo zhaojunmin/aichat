@@ -169,6 +169,21 @@ class MemoryRepository private constructor(context: Context) {
             }
     }
 
+    /** Manually delete a single memory item. */
+    suspend fun deleteMemory(id: Long) {
+        dao.deleteById(id)
+        refreshMemories()
+    }
+
+    /** Manually edit a memory item's text (keeps its category). */
+    suspend fun editMemory(id: Long, content: String) {
+        val text = content.trim()
+        if (text.isEmpty()) return
+        val item = _memories.value.firstOrNull { it.id == id } ?: return
+        dao.update(id, item.category, text, System.currentTimeMillis())
+        refreshMemories()
+    }
+
     suspend fun clearAll() = ioLock.withLock {
         dao.clear()
         runCatching { if (replyFile.exists()) replyFile.delete() }

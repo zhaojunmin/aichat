@@ -79,8 +79,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** Two screens, no nav library: a consumer home and a tucked-away advanced page. */
-private enum class Screen { Home, Advanced }
+/** State-based nav (no nav library): home, advanced, and memory management. */
+private enum class Screen { Home, Advanced, Memory }
 
 @Composable
 private fun AppRoot() {
@@ -89,8 +89,13 @@ private fun AppRoot() {
     var screen by remember { mutableStateOf(Screen.Home) }
     MaterialTheme {
         when (screen) {
-            Screen.Home -> HomeScreen(repo, onOpenAdvanced = { screen = Screen.Advanced })
+            Screen.Home -> HomeScreen(
+                repo,
+                onOpenAdvanced = { screen = Screen.Advanced },
+                onOpenMemory = { screen = Screen.Memory },
+            )
             Screen.Advanced -> AdvancedScreen(repo, onBack = { screen = Screen.Home })
+            Screen.Memory -> MemoryScreen(onBack = { screen = Screen.Home })
         }
     }
 }
@@ -114,7 +119,11 @@ private fun rememberResumeTick(): Int {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HomeScreen(repo: SettingsRepository, onOpenAdvanced: () -> Unit) {
+private fun HomeScreen(
+    repo: SettingsRepository,
+    onOpenAdvanced: () -> Unit,
+    onOpenMemory: () -> Unit,
+) {
     val context = LocalContext.current
     val settings by repo.state.collectAsStateWithLifecycle()
     val tick = rememberResumeTick()
@@ -130,7 +139,6 @@ private fun HomeScreen(repo: SettingsRepository, onOpenAdvanced: () -> Unit) {
 
     var testOutput by remember { mutableStateOf<List<String>?>(null) }
     var testing by remember { mutableStateOf(false) }
-    var showMemories by remember { mutableStateOf(false) }
     var localDownloading by remember { mutableStateOf(false) }
     var localProgress by remember { mutableStateOf("") }
     var localError by remember { mutableStateOf<String?>(null) }
@@ -428,7 +436,7 @@ private fun HomeScreen(repo: SettingsRepository, onOpenAdvanced: () -> Unit) {
                                 Text("学习中…")
                             } else Text("立即学习")
                         }
-                        OutlinedButton(onClick = { showMemories = true }) { Text("查看记忆") }
+                        OutlinedButton(onClick = onOpenMemory) { Text("管理记忆") }
                     }
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
@@ -460,26 +468,89 @@ private fun HomeScreen(repo: SettingsRepository, onOpenAdvanced: () -> Unit) {
         )
     }
 
-    if (showMemories) {
-        AlertDialog(
-            onDismissRequest = { showMemories = false },
-            confirmButton = { TextButton(onClick = { showMemories = false }) { Text("关闭") } },
-            title = { Text("我的记忆 · ${memories.size} 条") },
-            text = {
-                if (memories.isEmpty()) {
-                    Text("还没有学到记忆。先在聊天里多用几次,攒够回复后点\"立即学习\"或等待自动学习。")
-                } else {
-                    Column(
-                        Modifier
-                            .heightIn(max = 420.dp)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        memories.forEach { m -> Text("【${m.category}】${m.content}") }
-                    }
+}
+
+// ======================= Memory management =======================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MemoryScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val memoryRepo = remember { MemoryRepository.get(context) }
+    val memories by memoryRepo.memories.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+
+    BackHandler(onBack = onBack)
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("记忆管理 · ${memories.size} 条") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Text("←", style = MaterialTheme.typography.titleLarge) }
+                }
+            )
+        }
+    ) { pad ->
+        Column(
+            Modifier
+                .padding(pad)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (memories.isEmpty()) {
+                Text(
+                    "还没有学到记忆。先在聊天里多用几次,攒够回复后点\"立即学习\"或等待自动学习。",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            } else {
+                Text(
+                    "这些是助手学到的关于你的信息,会用于生成回复。可修改或删除不准确的条目。",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                memories.forEach { m ->
+                    MemoryEditRow(
+                        category = m.category,
+                        content = m.content,
+                        onSave = { c -> scope.launch { memoryRepo.editMemory(m.id, c) } },
+                        onDelete = { scope.launch { memoryRepo.deleteMemory(m.id) } },
+                    )
                 }
             }
-        )
+        }
+    }
+}
+
+@Composable
+private fun MemoryEditRow(
+    category: String,
+    content: String,
+    onSave: (String) -> Unit,
+    onDelete: () -> Unit,
+) {
+    var text by remember(content) { mutableStateOf(content) }
+    val changed = text.trim().isNotEmpty() && text != content
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text("【$category】", color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelMedium)
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = false,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onDelete) {
+                    Text("删除", color = MaterialTheme.colorScheme.error)
+                }
+                Spacer(Modifier.width(4.dp))
+                TextButton(enabled = changed, onClick = { onSave(text) }) { Text("保存") }
+            }
+        }
     }
 }
 
