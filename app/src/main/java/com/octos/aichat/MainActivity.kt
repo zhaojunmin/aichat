@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,6 +30,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -73,11 +75,20 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/** Two screens, no nav library: a consumer home and a tucked-away advanced page. */
+private enum class Screen { Home, Advanced }
+
 @Composable
 private fun AppRoot() {
     val context = LocalContext.current
     val repo = remember { SettingsRepository.get(context) }
-    MaterialTheme { SettingsScreen(repo) }
+    var screen by remember { mutableStateOf(Screen.Home) }
+    MaterialTheme {
+        when (screen) {
+            Screen.Home -> HomeScreen(repo, onOpenAdvanced = { screen = Screen.Advanced })
+            Screen.Advanced -> AdvancedScreen(repo, onBack = { screen = Screen.Home })
+        }
+    }
 }
 
 /** Bumps a counter on every ON_RESUME so permission state re-reads. */
@@ -95,9 +106,11 @@ private fun rememberResumeTick(): Int {
     return tick
 }
 
+// ======================= Consumer home =======================
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsScreen(repo: SettingsRepository) {
+private fun HomeScreen(repo: SettingsRepository, onOpenAdvanced: () -> Unit) {
     val context = LocalContext.current
     val settings by repo.state.collectAsStateWithLifecycle()
     val tick = rememberResumeTick()
@@ -109,11 +122,10 @@ private fun SettingsScreen(repo: SettingsRepository) {
 
     val accessibilityOn = remember(tick) { isAccessibilityEnabled(context) }
     val overlayOn = remember(tick) { Settings.canDrawOverlays(context) }
+    val ready = accessibilityOn && overlayOn && settings.apiKey.isNotBlank()
 
     var testOutput by remember { mutableStateOf<List<String>?>(null) }
     var testing by remember { mutableStateOf(false) }
-    var preview by remember { mutableStateOf<Conversation?>(null) }
-    var rawDump by remember { mutableStateOf<String?>(null) }
     var showMemories by remember { mutableStateOf(false) }
 
     val notifLauncher = rememberLauncherForActivityResult(
@@ -129,15 +141,21 @@ private fun SettingsScreen(repo: SettingsRepository) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            SectionCard("① 权限") {
+            // --- Setup checklist ---
+            SectionCard("开启权限") {
+                Text(
+                    "助手需要这两项权限才能读取聊天并弹出悬浮球。",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(8.dp))
                 PermissionRow(
-                    label = "无障碍服务(读取聊天内容)",
+                    label = "读取聊天内容(无障碍)",
                     granted = accessibilityOn,
                     action = "去开启"
                 ) { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
 
                 PermissionRow(
-                    label = "悬浮窗(显示悬浮球)",
+                    label = "显示悬浮球(悬浮窗)",
                     granted = overlayOn,
                     action = "去开启"
                 ) {
@@ -150,17 +168,22 @@ private fun SettingsScreen(repo: SettingsRepository) {
                 }
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    Spacer(Modifier.height(4.dp))
                     OutlinedButton(
                         onClick = { notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("授予通知权限(悬浮服务需要)") }
+                    ) { Text("允许通知(让助手保持运行)") }
                 }
             }
 
-            SectionCard("② 悬浮球") {
+            // --- Bubble on/off ---
+            SectionCard("悬浮助手") {
                 Text(
-                    if (overlayOn) "开启后,在微信/Soul 聊天界面点击悬浮球即可生成回复"
-                    else "请先授予悬浮窗权限",
+                    when {
+                        !overlayOn -> "请先在上面开启悬浮窗权限。"
+                        ready -> "一切就绪!打开微信 / Soul 等聊天界面,点悬浮球即可生成回复。"
+                        else -> "开启后,在聊天界面点悬浮球即可生成回复。"
+                    },
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(8.dp))
@@ -170,12 +193,15 @@ private fun SettingsScreen(repo: SettingsRepository) {
                         enabled = overlayOn
                     ) { Text("启动悬浮球") }
                     OutlinedButton(onClick = { FloatingBubbleService.stop(context) }) {
-                        Text("关闭悬浮球")
+                        Text("关闭")
                     }
                 }
             }
 
-            SectionCard("③ AI 后端") {
+            // --- AI service (key + model + quick test) ---
+            SectionCard("AI 服务") {
+                Text("选择服务商并填入你的 API Key。", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AiBackend.entries.forEach { b ->
                         FilterChip(
@@ -186,14 +212,43 @@ private fun SettingsScreen(repo: SettingsRepository) {
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                LabeledField("Base URL", settings.baseUrl) { v -> repo.update { it.withBaseUrl(v) } }
-                LabeledField("模型", settings.model) { v -> repo.update { it.withModel(v) } }
                 LabeledField("API Key", settings.apiKey, isSecret = true) { v ->
                     repo.update { it.withApiKey(v) }
                 }
+                LabeledField("模型", settings.model) { v -> repo.update { it.withModel(v) } }
+                Spacer(Modifier.height(4.dp))
+                Button(
+                    enabled = !testing && settings.apiKey.isNotBlank(),
+                    onClick = {
+                        testing = true
+                        scope.launch {
+                            val sample = Conversation(
+                                "test",
+                                listOf(
+                                    ChatMessage(Speaker.OTHER, "在吗?周末有空一起吃饭吗"),
+                                    ChatMessage(Speaker.ME, "在的"),
+                                    ChatMessage(Speaker.OTHER, "那你想吃什么呀"),
+                                )
+                            )
+                            testOutput = runCatching { AiRepository.generateReplies(settings, sample) }
+                                .getOrElse { listOf("错误:${it.message}") }
+                            testing = false
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (testing) {
+                        CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("测试中…")
+                    } else Text("测试连接")
+                }
             }
 
-            SectionCard("④ 聊天人设 / 场景") {
+            // --- Reply style ---
+            SectionCard("回复风格") {
+                Text("选一个场景,或自定义你想要的语气。", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PersonaPresets.DEFAULTS.forEach { preset ->
                         FilterChip(
@@ -205,15 +260,16 @@ private fun SettingsScreen(repo: SettingsRepository) {
                 }
                 Spacer(Modifier.height(8.dp))
                 LabeledField(
-                    "自定义人设(填写后覆盖上面的预设)",
+                    "自定义风格(填写后覆盖上面的场景)",
                     settings.customPersona,
                     singleLine = false
                 ) { v -> repo.update { it.copy(customPersona = v) } }
             }
 
-            SectionCard("⑤ 其他") {
+            // --- Reply preferences ---
+            SectionCard("回复偏好") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("候选条数:${settings.suggestionCount}", Modifier.weight(1f))
+                    Text("每次候选条数:${settings.suggestionCount}", Modifier.weight(1f))
                     OutlinedButton(onClick = {
                         repo.update { it.copy(suggestionCount = (it.suggestionCount - 1).coerceAtLeast(1)) }
                     }) { Text("-") }
@@ -224,45 +280,24 @@ private fun SettingsScreen(repo: SettingsRepository) {
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("自动填入输入框(需无障碍)", Modifier.weight(1f))
+                    Column(Modifier.weight(1f)) {
+                        Text("自动填入输入框")
+                        Text("选好回复后直接填进聊天输入框", style = MaterialTheme.typography.bodySmall)
+                    }
                     Switch(
                         checked = settings.autoPaste,
                         onCheckedChange = { c -> repo.update { it.copy(autoPaste = c) } }
                     )
                 }
-                Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("截图 OCR 读取")
-                        Text(
-                            "仅对下面列出的 App 生效(默认微信);Soul 等仍走无障碍精准识别",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                    Switch(
-                        checked = settings.useScreenshotOcr,
-                        onCheckedChange = { c -> repo.update { it.copy(useScreenshotOcr = c) } }
-                    )
-                }
-                if (settings.useScreenshotOcr) {
-                    LabeledField(
-                        "OCR 适用 App 包名(逗号分隔)",
-                        settings.ocrPackages
-                    ) { v -> repo.update { it.copy(ocrPackages = v) } }
-                }
-                Spacer(Modifier.height(8.dp))
-                LabeledField(
-                    "目标 App 包名(逗号分隔)",
-                    settings.targetPackages
-                ) { v -> repo.update { it.copy(targetPackages = v) } }
             }
 
-            SectionCard("⑥ 全局记忆") {
+            // --- Personal memory ---
+            SectionCard("专属记忆(越用越懂你)") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("记录我的回复并学习画像")
+                        Text("记住我的说话风格和习惯")
                         Text(
-                            "我说过的话会追加到本地文本文件;攒够一定条数后由大模型提炼成\"我的画像/事实/偏好/风格\",并自动用于后续回复。",
+                            "助手会悄悄学习你的回复,让生成的内容越来越像你本人。所有记录只存在本机。",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -273,36 +308,8 @@ private fun SettingsScreen(repo: SettingsRepository) {
                 }
                 if (settings.memoryEnabled) {
                     Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("学习阈值:${settings.learnThreshold} 条", Modifier.weight(1f))
-                        OutlinedButton(onClick = {
-                            repo.update { it.copy(learnThreshold = (it.learnThreshold - 5).coerceAtLeast(5)) }
-                        }) { Text("-5") }
-                        Spacer(Modifier.width(8.dp))
-                        OutlinedButton(onClick = {
-                            repo.update { it.copy(learnThreshold = (it.learnThreshold + 5).coerceAtMost(100)) }
-                        }) { Text("+5") }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("注入上限:最近 ${settings.memoryInjectLimit} 条")
-                            Text(
-                                "记忆全部永久保存,仅把最近更新的若干条带进回复生成,避免 prompt 过长",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                        OutlinedButton(onClick = {
-                            repo.update { it.copy(memoryInjectLimit = (it.memoryInjectLimit - 5).coerceAtLeast(5)) }
-                        }) { Text("-5") }
-                        Spacer(Modifier.width(8.dp))
-                        OutlinedButton(onClick = {
-                            repo.update { it.copy(memoryInjectLimit = (it.memoryInjectLimit + 5).coerceAtMost(200)) }
-                        }) { Text("+5") }
-                    }
-                    Spacer(Modifier.height(8.dp))
                     Text(
-                        "已记录 ${memStats.totalReplies} 条 · 待学习 ${memStats.pending} 条 · 记忆 ${memories.size} 条",
+                        "已记录 ${memStats.totalReplies} 条 · 记忆 ${memories.size} 条",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(Modifier.height(8.dp))
@@ -327,54 +334,12 @@ private fun SettingsScreen(repo: SettingsRepository) {
                 }
             }
 
-            SectionCard("⑦ 读取调试") {
-                Text(
-                    "先在微信/Soul 的聊天界面停留一下,再回到这里查看无障碍服务读到的内容," +
-                        "可据此判断\"我/对方\"是否区分正确。",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = { preview = AppBus.conversation },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("查看当前读取到的聊天记录") }
-                Spacer(Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = { rawDump = AppBus.lastRawDump },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("查看原始节点树(开发者 / 适配新 App 用)") }
-            }
-
-            SectionCard("⑧ 测试") {
-                Text("用一段示例对话测试当前 AI 配置是否可用。", style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(8.dp))
-                Button(
-                    enabled = !testing && settings.apiKey.isNotBlank(),
-                    onClick = {
-                        testing = true
-                        scope.launch {
-                            val sample = Conversation(
-                                "test",
-                                listOf(
-                                    ChatMessage(Speaker.OTHER, "在吗?周末有空一起吃饭吗"),
-                                    ChatMessage(Speaker.ME, "在的"),
-                                    ChatMessage(Speaker.OTHER, "那你想吃什么呀"),
-                                )
-                            )
-                            testOutput = runCatching { AiRepository.generateReplies(settings, sample) }
-                                .getOrElse { listOf("错误:${it.message}") }
-                            testing = false
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (testing) {
-                        CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.width(8.dp))
-                        Text("生成中…")
-                    } else Text("测试生成回复")
-                }
-            }
+            // --- Entry to advanced ---
+            OutlinedButton(
+                onClick = onOpenAdvanced,
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("⚙  高级设置 / 开发者选项") }
+            Spacer(Modifier.height(8.dp))
         }
     }
 
@@ -382,7 +347,7 @@ private fun SettingsScreen(repo: SettingsRepository) {
         AlertDialog(
             onDismissRequest = { testOutput = null },
             confirmButton = { TextButton(onClick = { testOutput = null }) { Text("关闭") } },
-            title = { Text("回复候选") },
+            title = { Text("测试结果") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     replies.forEachIndexed { i, r -> Text("${i + 1}. $r") }
@@ -412,6 +377,143 @@ private fun SettingsScreen(repo: SettingsRepository) {
             }
         )
     }
+}
+
+// ======================= Advanced / developer =======================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
+    val context = LocalContext.current
+    val settings by repo.state.collectAsStateWithLifecycle()
+    val memoryRepo = remember { MemoryRepository.get(context) }
+    val memStats by memoryRepo.stats.collectAsStateWithLifecycle()
+
+    var preview by remember { mutableStateOf<Conversation?>(null) }
+    var rawDump by remember { mutableStateOf<String?>(null) }
+
+    BackHandler(onBack = onBack)
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("高级设置") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Text("←", style = MaterialTheme.typography.titleLarge) }
+                }
+            )
+        }
+    ) { pad ->
+        Column(
+            Modifier
+                .padding(pad)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                "这些选项面向进阶用户和适配调试,普通使用无需改动。",
+                style = MaterialTheme.typography.bodyMedium
+            )
+
+            SectionCard("接口地址") {
+                Text(
+                    "仅在使用自建 / 代理服务时才需修改,默认即可。",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(Modifier.height(8.dp))
+                LabeledField("Base URL(当前:${settings.backend.displayName})", settings.baseUrl) { v ->
+                    repo.update { it.withBaseUrl(v) }
+                }
+            }
+
+            SectionCard("识别设置") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("截图 OCR 读取")
+                        Text(
+                            "仅对下面列出的 App 生效(默认微信);Soul 等仍走无障碍精准识别",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = settings.useScreenshotOcr,
+                        onCheckedChange = { c -> repo.update { it.copy(useScreenshotOcr = c) } }
+                    )
+                }
+                if (settings.useScreenshotOcr) {
+                    LabeledField(
+                        "OCR 适用 App 包名(逗号分隔)",
+                        settings.ocrPackages
+                    ) { v -> repo.update { it.copy(ocrPackages = v) } }
+                }
+                Spacer(Modifier.height(8.dp))
+                LabeledField(
+                    "目标 App 包名(逗号分隔)",
+                    settings.targetPackages
+                ) { v -> repo.update { it.copy(targetPackages = v) } }
+            }
+
+            SectionCard("记忆学习") {
+                Text(
+                    "记忆全部永久保存在本机,只增不删;学习时合并新信息、冲突以最新为准。",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("学习阈值:${settings.learnThreshold} 条", Modifier.weight(1f))
+                    OutlinedButton(onClick = {
+                        repo.update { it.copy(learnThreshold = (it.learnThreshold - 5).coerceAtLeast(5)) }
+                    }) { Text("-5") }
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedButton(onClick = {
+                        repo.update { it.copy(learnThreshold = (it.learnThreshold + 5).coerceAtMost(100)) }
+                    }) { Text("+5") }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("注入上限:最近 ${settings.memoryInjectLimit} 条")
+                        Text(
+                            "仅把最近更新的若干条带进回复生成,避免 prompt 过长",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    OutlinedButton(onClick = {
+                        repo.update { it.copy(memoryInjectLimit = (it.memoryInjectLimit - 5).coerceAtLeast(5)) }
+                    }) { Text("-5") }
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedButton(onClick = {
+                        repo.update { it.copy(memoryInjectLimit = (it.memoryInjectLimit + 5).coerceAtMost(200)) }
+                    }) { Text("+5") }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "已记录 ${memStats.totalReplies} 条 · 待学习 ${memStats.pending} 条",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            SectionCard("读取调试") {
+                Text(
+                    "先在微信 / Soul 的聊天界面停留一下,再回到这里查看无障碍服务读到的内容," +
+                        "可据此判断\"我 / 对方\"是否区分正确。",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { preview = AppBus.conversation },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("查看当前读取到的聊天记录") }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { rawDump = AppBus.lastRawDump },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("查看原始节点树(适配新 App 用)") }
+            }
+        }
+    }
 
     rawDump?.let { dump ->
         AlertDialog(
@@ -437,7 +539,7 @@ private fun SettingsScreen(repo: SettingsRepository) {
             title = { Text("读取结果 · ${conv.messages.size} 条") },
             text = {
                 if (conv.isEmpty) {
-                    Text("未读取到聊天内容。请确认已开启无障碍服务,并在微信/Soul 聊天界面停留片刻后再试。")
+                    Text("未读取到聊天内容。请确认已开启无障碍服务,并在微信 / Soul 聊天界面停留片刻后再试。")
                 } else {
                     Column(
                         Modifier
@@ -456,6 +558,8 @@ private fun SettingsScreen(repo: SettingsRepository) {
         )
     }
 }
+
+// ======================= shared =======================
 
 @Composable
 private fun SectionCard(title: String, content: @Composable () -> Unit) {
