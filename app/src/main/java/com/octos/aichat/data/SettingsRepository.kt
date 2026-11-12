@@ -33,7 +33,7 @@ class SettingsRepository private constructor(context: Context) {
         personaId = prefs.getString(KEY_PERSONA_ID, "dating")!!,
         customPersona = prefs.getString(KEY_CUSTOM_PERSONA, "")!!,
         suggestionCount = prefs.getInt(KEY_SUGGESTION_COUNT, 3),
-        autoPaste = prefs.getBoolean(KEY_AUTO_PASTE, false),
+        autoPaste = prefs.getBoolean(KEY_AUTO_PASTE, true),
         useScreenshotOcr = prefs.getBoolean(KEY_USE_OCR, false),
         ocrPackages = loadOcrPackages(),
         targetPackages = prefs.getString(KEY_TARGETS, AppSettings.DEFAULT_TARGET_PACKAGES)!!,

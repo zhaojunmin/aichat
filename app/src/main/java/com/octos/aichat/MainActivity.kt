@@ -378,31 +378,6 @@ private fun HomeScreen(
                 ) { v -> repo.update { it.copy(customPersona = v) } }
             }
 
-            // --- Reply preferences ---
-            SectionCard("回复偏好") {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("每次候选条数:${settings.suggestionCount}", Modifier.weight(1f))
-                    OutlinedButton(onClick = {
-                        repo.update { it.copy(suggestionCount = (it.suggestionCount - 1).coerceAtLeast(1)) }
-                    }) { Text("-") }
-                    Spacer(Modifier.width(8.dp))
-                    OutlinedButton(onClick = {
-                        repo.update { it.copy(suggestionCount = (it.suggestionCount + 1).coerceAtMost(5)) }
-                    }) { Text("+") }
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("自动填入输入框")
-                        Text("选好回复后直接填进聊天输入框", style = MaterialTheme.typography.bodySmall)
-                    }
-                    Switch(
-                        checked = settings.autoPaste,
-                        onCheckedChange = { c -> repo.update { it.copy(autoPaste = c) } }
-                    )
-                }
-            }
-
             // --- Personal memory ---
             SectionCard("专属记忆(越用越懂你)") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -591,6 +566,30 @@ private fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
                 "这些选项面向进阶用户和适配调试,普通使用无需改动。",
                 style = MaterialTheme.typography.bodyMedium
             )
+
+            SectionCard("回复偏好") {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("每次候选条数:${settings.suggestionCount}", Modifier.weight(1f))
+                    OutlinedButton(onClick = {
+                        repo.update { it.copy(suggestionCount = (it.suggestionCount - 1).coerceAtLeast(1)) }
+                    }) { Text("-") }
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedButton(onClick = {
+                        repo.update { it.copy(suggestionCount = (it.suggestionCount + 1).coerceAtMost(5)) }
+                    }) { Text("+") }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("自动填入输入框")
+                        Text("选好回复后直接填进聊天输入框", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(
+                        checked = settings.autoPaste,
+                        onCheckedChange = { c -> repo.update { it.copy(autoPaste = c) } }
+                    )
+                }
+            }
 
             SectionCard("接口地址") {
                 Text(

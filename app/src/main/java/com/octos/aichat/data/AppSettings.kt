@@ -76,7 +76,7 @@ data class AppSettings(
     val personaId: String = "dating",
     val customPersona: String = "",
     val suggestionCount: Int = 3,
-    val autoPaste: Boolean = false,
+    val autoPaste: Boolean = true,
     /** Read chat via screenshot + OCR instead of the accessibility node tree. */
     val useScreenshotOcr: Boolean = false,
     /** Only these packages use OCR; everything else keeps node-tree parsing. */
