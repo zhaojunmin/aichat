@@ -129,16 +129,19 @@ data class AppSettings(
     }
 
     companion object {
-        // WeChat + Soul + Hertz + Momo out of the box.
+        // WeChat + QQ + Soul + Hertz + Momo out of the box.
         const val DEFAULT_TARGET_PACKAGES =
-            "com.tencent.mm,cn.soulapp.android,com.immomo.vchat,com.immomo.momo"
+            "com.tencent.mm,com.tencent.mobileqq,cn.soulapp.android,com.immomo.vchat,com.immomo.momo"
         // Screenshot-OCR apps: WeChat (whole-screen) and Momo (bubble-geometry
-        // guided). Soul/Hertz are read straight from the node tree's text.
+        // guided). QQ/Soul/Hertz are read straight from the node tree's text.
         const val DEFAULT_OCR_PACKAGES = "com.tencent.mm,com.immomo.momo"
 
         // Always-supported apps, merged with the user's list.
         val BUILTIN_TARGETS =
-            setOf("com.tencent.mm", "cn.soulapp.android", "com.immomo.vchat", "com.immomo.momo")
+            setOf(
+                "com.tencent.mm", "com.tencent.mobileqq", "cn.soulapp.android",
+                "com.immomo.vchat", "com.immomo.momo",
+            )
         val BUILTIN_OCR = setOf("com.tencent.mm", "com.immomo.momo")
     }
 }

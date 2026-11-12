@@ -46,6 +46,15 @@ object ChatParser {
             selfId = "tv_chat_content_self",
             othersId = "tv_chat_content_others",
         ),
+        // QQ. All chat-bubble text nodes share one view-id; profile-card and
+        // header texts use different ids, so this id alone selects messages. The
+        // id is R8-obfuscated, so it changes between QQ versions — if QQ updates
+        // and this stops matching, parse() falls back to the generic path rather
+        // than returning nothing. No stable avatar id, so the author is read from
+        // bubble position (me = right, other = left), which QQ lays out reliably.
+        "com.tencent.mobileqq" to AppRule(
+            messageId = "mjn",
+        ),
     )
 
     private data class Raw(val rect: Rect, val text: String, val speaker: Speaker?)
@@ -69,7 +78,11 @@ object ChatParser {
 
         if (rule != null) {
             collectByRule(root, rule, screenWidth, raws)
-        } else {
+        }
+        // Generic path — used when the app has no rule, or when its rule matched
+        // nothing (e.g. QQ updated and its obfuscated view-id changed). Degrading
+        // to position-based parsing beats returning an empty conversation.
+        if (raws.isEmpty()) {
             val leaves = ArrayList<Pair<Rect, String>>()
             collectLeafText(root, leaves)
             applyVerticalBand(leaves, screenHeight)
@@ -185,6 +198,9 @@ object ChatParser {
         // WeChat system notices (recall / join-group) are not chat content.
         if (text.contains("撤回了一条消息")) return false
         if (text.endsWith("加入了群聊") || text.endsWith("加入群聊")) return false
+        // QQ new-friend banners are not chat content.
+        if (text.contains("已成功添加为好友")) return false
+        if (text == "以上为验证消息") return false
         // Pure timestamps like "12:34" or "昨天 20:11" are list separators, skip.
         if (text.matches(Regex("""^(上午|下午|昨天|今天)?\s*\d{1,2}:\d{2}$"""))) return false
         return true
