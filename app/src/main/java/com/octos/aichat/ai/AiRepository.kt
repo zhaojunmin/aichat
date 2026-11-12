@@ -2,6 +2,7 @@ package com.octos.aichat.ai
 
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
+import com.octos.aichat.data.local.LocalLlmEngine
 import com.octos.aichat.data.memory.MemoryDraft
 import com.octos.aichat.data.memory.MemoryEdit
 import com.octos.aichat.data.memory.MemoryEntity
@@ -18,14 +19,27 @@ import org.json.JSONObject
  */
 object AiRepository {
 
-    private val client: AiClient = OpenAiCompatClient()
+    private val cloud: AiClient = OpenAiCompatClient()
+
+    /**
+     * Local mode must never silently fall back to the cloud — that would ship the
+     * user's chat content off-device. If local is selected but the model isn't
+     * loaded, fail loudly so the caller can prompt a download instead.
+     */
+    private fun pickClient(settings: AppSettings): AiClient {
+        if (settings.useLocal) {
+            require(LocalLlmEngine.isReady) { "本地模型未就绪,请先在设置中下载并启用本地模式" }
+            return LocalLlmEngine
+        }
+        return cloud
+    }
 
     suspend fun generateReplies(
         settings: AppSettings,
         conversation: Conversation,
         memoryBlock: String = "",
     ): List<String> = withContext(Dispatchers.IO) {
-        require(settings.apiKey.isNotBlank()) { "尚未填写 API Key" }
+        require(settings.useLocal || settings.apiKey.isNotBlank()) { "尚未填写 API Key" }
 
         val n = settings.suggestionCount.coerceIn(1, 5)
         // Exclude my own trailing messages so the model replies to the other
@@ -48,7 +62,7 @@ object AiRepository {
                 append(memoryBlock)
             }
         }
-        val raw = client.complete(settings, system, user)
+        val raw = pickClient(settings).complete(settings, system, user)
 
         parseReplies(raw, n)
     }
@@ -64,7 +78,8 @@ object AiRepository {
         existing: List<MemoryEntity>,
         replies: List<String>,
     ): MemoryLearnResult? = withContext(Dispatchers.IO) {
-        if (settings.apiKey.isBlank() || replies.isEmpty()) return@withContext null
+        if ((!settings.useLocal && settings.apiKey.isBlank()) || replies.isEmpty()) return@withContext null
+        if (settings.useLocal && !LocalLlmEngine.isReady) return@withContext null
 
         val system = "你是用户画像分析助手。从用户的历史发言中提炼稳定、长期有用的个人信息,维护一份只增不删的记忆库。"
         val user = buildString {
@@ -86,7 +101,8 @@ object AiRepository {
             append("\"updates\":[{\"id\":12,\"category\":\"偏好\",\"content\":\"现在改喝拿铁\"}]},不要多余文字。")
         }
 
-        val raw = runCatching { client.complete(settings, system, user) }.getOrNull() ?: return@withContext null
+        val raw = runCatching { pickClient(settings).complete(settings, system, user) }.getOrNull()
+            ?: return@withContext null
         parseLearnResult(raw)
     }
 

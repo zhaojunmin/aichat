@@ -22,6 +22,9 @@ enum class AiBackend(
     }
 }
 
+/** Where inference runs: the cloud API, or the on-device model (privacy mode). */
+enum class InferenceMode { CLOUD, LOCAL }
+
 /** Per-backend connection settings, so each provider keeps its own values. */
 data class BackendConfig(
     val baseUrl: String,
@@ -86,7 +89,10 @@ data class AppSettings(
     val learnThreshold: Int = 20,
     /** Inject only the most-recently-updated N memory items into the prompt. */
     val memoryInjectLimit: Int = 30,
+    /** Cloud API vs on-device model. Local keeps chat content on the phone. */
+    val inferenceMode: InferenceMode = InferenceMode.CLOUD,
 ) {
+    val useLocal: Boolean get() = inferenceMode == InferenceMode.LOCAL
     // Built-in supported apps are always included (union with user list), so a
     // newly supported app works without the user re-editing saved settings.
     val targetPackageSet: Set<String>

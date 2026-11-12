@@ -40,6 +40,9 @@ class SettingsRepository private constructor(context: Context) {
         memoryEnabled = prefs.getBoolean(KEY_MEMORY_ENABLED, true),
         learnThreshold = prefs.getInt(KEY_LEARN_THRESHOLD, 20),
         memoryInjectLimit = prefs.getInt(KEY_INJECT_LIMIT, 30),
+        inferenceMode = runCatching {
+            InferenceMode.valueOf(prefs.getString(KEY_INFER_MODE, null) ?: "CLOUD")
+        }.getOrDefault(InferenceMode.CLOUD),
     )
 
     // Hertz moved from OCR to precise node-tree parsing; strip the now-stale
@@ -86,6 +89,7 @@ class SettingsRepository private constructor(context: Context) {
             .putBoolean(KEY_MEMORY_ENABLED, s.memoryEnabled)
             .putInt(KEY_LEARN_THRESHOLD, s.learnThreshold)
             .putInt(KEY_INJECT_LIMIT, s.memoryInjectLimit)
+            .putString(KEY_INFER_MODE, s.inferenceMode.name)
             .apply()
     }
 
@@ -109,6 +113,7 @@ class SettingsRepository private constructor(context: Context) {
         private const val KEY_MEMORY_ENABLED = "memory_enabled"
         private const val KEY_LEARN_THRESHOLD = "learn_threshold"
         private const val KEY_INJECT_LIMIT = "memory_inject_limit"
+        private const val KEY_INFER_MODE = "inference_mode"
 
         @Volatile
         private var INSTANCE: SettingsRepository? = null

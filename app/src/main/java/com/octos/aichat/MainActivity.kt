@@ -63,7 +63,10 @@ import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.PersonaPresets
 import com.octos.aichat.data.SettingsRepository
+import com.octos.aichat.data.InferenceMode
 import com.octos.aichat.data.Speaker
+import com.octos.aichat.data.local.LocalLlmEngine
+import com.octos.aichat.data.local.LocalModelManager
 import com.octos.aichat.data.memory.MemoryRepository
 import com.octos.aichat.overlay.FloatingBubbleService
 import kotlinx.coroutines.launch
@@ -127,6 +130,10 @@ private fun HomeScreen(repo: SettingsRepository, onOpenAdvanced: () -> Unit) {
     var testOutput by remember { mutableStateOf<List<String>?>(null) }
     var testing by remember { mutableStateOf(false) }
     var showMemories by remember { mutableStateOf(false) }
+    var localDownloading by remember { mutableStateOf(false) }
+    var localProgress by remember { mutableStateOf("") }
+    var localReadyTick by remember { mutableIntStateOf(0) }
+    val localReady = remember(localReadyTick) { LocalModelManager.isReady(context) }
 
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -200,25 +207,82 @@ private fun HomeScreen(repo: SettingsRepository, onOpenAdvanced: () -> Unit) {
 
             // --- AI service (key + model + quick test) ---
             SectionCard("AI 服务") {
-                Text("选择服务商并填入你的 API Key。", style = MaterialTheme.typography.bodyMedium)
+                Text("选择推理方式。本地模式:聊天内容不出设备。", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AiBackend.entries.forEach { b ->
-                        FilterChip(
-                            selected = settings.backend == b,
-                            onClick = { repo.update { it.copy(backend = b) } },
-                            label = { Text(b.displayName) }
-                        )
+                    FilterChip(
+                        selected = !settings.useLocal,
+                        onClick = { repo.update { it.copy(inferenceMode = InferenceMode.CLOUD) } },
+                        label = { Text("云端") }
+                    )
+                    FilterChip(
+                        selected = settings.useLocal,
+                        onClick = { repo.update { it.copy(inferenceMode = InferenceMode.LOCAL) } },
+                        label = { Text("本地(隐私)") }
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                if (!settings.useLocal) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AiBackend.entries.forEach { b ->
+                            FilterChip(
+                                selected = settings.backend == b,
+                                onClick = { repo.update { it.copy(backend = b) } },
+                                label = { Text(b.displayName) }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    LabeledField("API Key", settings.apiKey, isSecret = true) { v ->
+                        repo.update { it.withApiKey(v) }
+                    }
+                    LabeledField("模型", settings.model) { v -> repo.update { it.withModel(v) } }
+                } else if (!LocalLlmEngine.isSupported) {
+                    Text("本机不支持本地模型(仅 arm64 设备)", color = MaterialTheme.colorScheme.error)
+                } else {
+                    Text(
+                        if (localReady) "✅ 本地模型已就绪(Qwen2.5-3B)"
+                        else "本地模型未下载(约 2.3GB,建议 Wi-Fi)",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (localDownloading) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(localProgress, style = MaterialTheme.typography.bodySmall)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    if (!localReady) {
+                        Button(
+                            enabled = !localDownloading,
+                            onClick = {
+                                localDownloading = true; localProgress = "准备下载…"
+                                scope.launch {
+                                    val r = LocalModelManager.download(context) { p ->
+                                        localProgress =
+                                            "下载 ${p.file} (${p.index}/${p.total}) ${p.fileBytes / 1_000_000}MB"
+                                    }
+                                    localDownloading = false
+                                    localProgress = if (r.isSuccess) "下载完成"
+                                    else "下载失败:${r.exceptionOrNull()?.message}"
+                                    localReadyTick++
+                                }
+                            }
+                        ) {
+                            if (localDownloading) {
+                                CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp)); Text("下载中…")
+                            } else Text("下载模型")
+                        }
+                    } else {
+                        OutlinedButton(onClick = {
+                            scope.launch {
+                                LocalLlmEngine.unload(); LocalModelManager.delete(context); localReadyTick++
+                            }
+                        }) { Text("删除模型") }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                LabeledField("API Key", settings.apiKey, isSecret = true) { v ->
-                    repo.update { it.withApiKey(v) }
-                }
-                LabeledField("模型", settings.model) { v -> repo.update { it.withModel(v) } }
-                Spacer(Modifier.height(4.dp))
                 Button(
-                    enabled = !testing && settings.apiKey.isNotBlank(),
+                    enabled = !testing && (if (settings.useLocal) localReady else settings.apiKey.isNotBlank()),
                     onClick = {
                         testing = true
                         scope.launch {
@@ -230,8 +294,17 @@ private fun HomeScreen(repo: SettingsRepository, onOpenAdvanced: () -> Unit) {
                                     ChatMessage(Speaker.OTHER, "那你想吃什么呀"),
                                 )
                             )
-                            testOutput = runCatching { AiRepository.generateReplies(settings, sample) }
-                                .getOrElse { listOf("错误:${it.message}") }
+                            testOutput = runCatching {
+                                if (settings.useLocal) {
+                                    check(
+                                        LocalLlmEngine.ensureLoaded(
+                                            LocalModelManager.configPath(context),
+                                            LocalModelManager.tmpDir(context)
+                                        )
+                                    ) { "本地模型加载失败" }
+                                }
+                                AiRepository.generateReplies(settings, sample)
+                            }.getOrElse { listOf("错误:${it.message}") }
                             testing = false
                         }
                     },
@@ -240,7 +313,7 @@ private fun HomeScreen(repo: SettingsRepository, onOpenAdvanced: () -> Unit) {
                     if (testing) {
                         CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
-                        Text("测试中…")
+                        Text(if (settings.useLocal) "本地生成中…" else "测试中…")
                     } else Text("测试连接")
                 }
             }
