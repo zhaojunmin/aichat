@@ -43,6 +43,8 @@ class SettingsRepository private constructor(context: Context) {
         inferenceMode = runCatching {
             InferenceMode.valueOf(prefs.getString(KEY_INFER_MODE, null) ?: "CLOUD")
         }.getOrDefault(InferenceMode.CLOUD),
+        localModelId = prefs.getString(KEY_LOCAL_MODEL, null)
+            ?: com.octos.aichat.data.local.LocalModel.DEFAULT.id,
     )
 
     // Hertz moved from OCR to precise node-tree parsing; strip the now-stale
@@ -90,6 +92,7 @@ class SettingsRepository private constructor(context: Context) {
             .putInt(KEY_LEARN_THRESHOLD, s.learnThreshold)
             .putInt(KEY_INJECT_LIMIT, s.memoryInjectLimit)
             .putString(KEY_INFER_MODE, s.inferenceMode.name)
+            .putString(KEY_LOCAL_MODEL, s.localModelId)
             .apply()
     }
 
@@ -114,6 +117,7 @@ class SettingsRepository private constructor(context: Context) {
         private const val KEY_LEARN_THRESHOLD = "learn_threshold"
         private const val KEY_INJECT_LIMIT = "memory_inject_limit"
         private const val KEY_INFER_MODE = "inference_mode"
+        private const val KEY_LOCAL_MODEL = "local_model_id"
 
         @Volatile
         private var INSTANCE: SettingsRepository? = null

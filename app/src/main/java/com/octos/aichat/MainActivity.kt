@@ -66,6 +66,7 @@ import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.InferenceMode
 import com.octos.aichat.data.Speaker
 import com.octos.aichat.data.local.LocalLlmEngine
+import com.octos.aichat.data.local.LocalModel
 import com.octos.aichat.data.local.LocalModelManager
 import com.octos.aichat.data.memory.MemoryRepository
 import com.octos.aichat.overlay.FloatingBubbleService
@@ -132,8 +133,11 @@ private fun HomeScreen(repo: SettingsRepository, onOpenAdvanced: () -> Unit) {
     var showMemories by remember { mutableStateOf(false) }
     var localDownloading by remember { mutableStateOf(false) }
     var localProgress by remember { mutableStateOf("") }
+    var localError by remember { mutableStateOf<String?>(null) }
     var localReadyTick by remember { mutableIntStateOf(0) }
-    val localReady = remember(localReadyTick) { LocalModelManager.isReady(context) }
+    val localReady = remember(localReadyTick, settings.localModelId) {
+        LocalModelManager.isReady(context, settings.localModel)
+    }
 
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -240,44 +244,71 @@ private fun HomeScreen(repo: SettingsRepository, onOpenAdvanced: () -> Unit) {
                 } else if (!LocalLlmEngine.isSupported) {
                     Text("本机不支持本地模型(仅 arm64 设备)", color = MaterialTheme.colorScheme.error)
                 } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        LocalModel.entries.forEach { m ->
+                            FilterChip(
+                                selected = settings.localModelId == m.id,
+                                enabled = !localDownloading,
+                                onClick = { repo.update { it.copy(localModelId = m.id) }; localError = null },
+                                label = { Text(m.displayName) }
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
                     Text(
-                        if (localReady) "✅ 本地模型已就绪(Qwen2.5-3B)"
-                        else "本地模型未下载(约 2.3GB,建议 Wi-Fi)",
+                        "${settings.localModel.hint} · 约 ${settings.localModel.approxMB}MB",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        if (localReady) "✅ 已就绪" else "未下载(建议 Wi-Fi)",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     if (localDownloading) {
                         Spacer(Modifier.height(6.dp))
                         Text(localProgress, style = MaterialTheme.typography.bodySmall)
                     }
+                    localError?.let { err ->
+                        Spacer(Modifier.height(6.dp))
+                        Text("⚠ $err", color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
                     Spacer(Modifier.height(8.dp))
-                    if (!localReady) {
-                        Button(
-                            enabled = !localDownloading,
-                            onClick = {
-                                localDownloading = true; localProgress = "准备下载…"
-                                scope.launch {
-                                    val r = LocalModelManager.download(context) { p ->
-                                        localProgress =
-                                            "下载 ${p.file} (${p.index}/${p.total}) ${p.fileBytes / 1_000_000}MB"
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (!localReady) {
+                            Button(
+                                enabled = !localDownloading,
+                                onClick = {
+                                    val model = settings.localModel
+                                    localDownloading = true; localError = null; localProgress = "连接中…"
+                                    scope.launch {
+                                        val r = LocalModelManager.download(context, model) { p ->
+                                            localProgress = "${p.percent}% · ${p.file} (${p.index}/${p.total}) " +
+                                                "${p.doneBytes / 1_000_000}/${p.totalBytes / 1_000_000}MB"
+                                        }
+                                        localDownloading = false
+                                        if (r.isSuccess) localProgress = "下载完成"
+                                        else { localProgress = ""; localError = r.exceptionOrNull()?.message ?: "下载失败" }
+                                        localReadyTick++
                                     }
-                                    localDownloading = false
-                                    localProgress = if (r.isSuccess) "下载完成"
-                                    else "下载失败:${r.exceptionOrNull()?.message}"
-                                    localReadyTick++
                                 }
+                            ) {
+                                if (localDownloading) {
+                                    CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
+                                    Spacer(Modifier.width(8.dp)); Text("下载中…")
+                                } else Text("下载 ${settings.localModel.displayName}")
                             }
-                        ) {
-                            if (localDownloading) {
-                                CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
-                                Spacer(Modifier.width(8.dp)); Text("下载中…")
-                            } else Text("下载模型")
+                        } else {
+                            OutlinedButton(
+                                enabled = !localDownloading,
+                                onClick = {
+                                    val model = settings.localModel
+                                    scope.launch {
+                                        LocalLlmEngine.unload(); LocalModelManager.delete(context, model); localReadyTick++
+                                    }
+                                }
+                            ) { Text("删除") }
                         }
-                    } else {
-                        OutlinedButton(onClick = {
-                            scope.launch {
-                                LocalLlmEngine.unload(); LocalModelManager.delete(context); localReadyTick++
-                            }
-                        }) { Text("删除模型") }
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -298,7 +329,7 @@ private fun HomeScreen(repo: SettingsRepository, onOpenAdvanced: () -> Unit) {
                                 if (settings.useLocal) {
                                     check(
                                         LocalLlmEngine.ensureLoaded(
-                                            LocalModelManager.configPath(context),
+                                            LocalModelManager.configPath(context, settings.localModel),
                                             LocalModelManager.tmpDir(context)
                                         )
                                     ) { "本地模型加载失败" }

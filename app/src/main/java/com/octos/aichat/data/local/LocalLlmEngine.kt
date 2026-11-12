@@ -19,7 +19,9 @@ import java.util.concurrent.Executors
  */
 object LocalLlmEngine : AiClient {
 
-    private const val MAX_TOKENS = 256
+    // A few short replies as JSON fit well under this; capping avoids a rambling
+    // model dragging out latency on slower on-device inference.
+    private const val MAX_TOKENS = 180
 
     @Volatile private var available = false
     @Volatile private var handle: Long = 0L
