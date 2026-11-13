@@ -3,4 +3,46 @@
     <string name="app_name">聊天助手</string>
     <string name="accessibility_label">聊天助手 · 读屏助手</string>
     <string name="accessibility_description">读取当前聊天界面的文字,用于生成 AI 回复建议。内容仅在本机处理并发送到你配置的 AI 接口,不做其他用途。</string>
+
+    <!-- Shared actions / status -->
+    <string name="action_enable">去开启</string>
+    <string name="action_delete">删除</string>
+    <string name="action_close">关闭</string>
+    <string name="status_ready">✅ 已就绪</string>
+    <string name="test_connection">测试连接</string>
+
+    <!-- Home -->
+    <string name="home_title">聊天回复AI助手</string>
+    <string name="home_permissions_title">开启权限</string>
+    <string name="home_permissions_desc">助手需要这两项权限才能读取聊天并弹出悬浮球。</string>
+    <string name="home_perm_accessibility">读取聊天内容(无障碍)</string>
+    <string name="home_perm_overlay">显示悬浮球(悬浮窗)</string>
+    <string name="home_perm_notification">允许通知(让助手保持运行)</string>
+    <string name="home_ai_service_title">AI 服务</string>
+    <string name="home_inference_desc">选择推理方式。本地模式:聊天内容不出设备。</string>
+    <string name="inference_cloud">云端</string>
+    <string name="inference_local">本地(隐私)</string>
+    <string name="label_api_key">API Key</string>
+    <string name="label_model">模型</string>
+    <string name="home_local_unsupported">本机不支持本地模型(仅 arm64 设备)</string>
+    <string name="home_model_size">%1$s · 约 %2$d MB</string>
+    <string name="home_model_not_downloaded">未下载(建议 Wi-Fi)</string>
+    <string name="home_error_prefix">⚠ %1$s</string>
+    <string name="home_downloading">下载中…</string>
+    <string name="home_download_model">下载 %1$s</string>
+    <string name="home_testing_local">本地生成中…</string>
+    <string name="home_testing_cloud">测试中…</string>
+    <string name="home_reply_style_title">回复风格</string>
+    <string name="home_reply_style_desc">选一个场景,或自定义你想要的语气。</string>
+    <string name="home_custom_persona_label">自定义风格(填写后覆盖上面的场景)</string>
+    <string name="home_memory_title">专属记忆(越用越懂你)</string>
+    <string name="home_memory_switch_label">记住我的说话风格和习惯</string>
+    <string name="home_memory_desc">助手会悄悄学习你的回复,让生成的内容越来越像你本人。所有记录只存在本机。</string>
+    <string name="home_memory_stats">已记录 %1$d 条 · 记忆 %2$d 条</string>
+    <string name="home_learning">学习中…</string>
+    <string name="home_learn_now">立即学习</string>
+    <string name="home_manage_memory">管理记忆</string>
+    <string name="home_clear_memory">清空记忆与回复记录</string>
+    <string name="home_advanced_entry">⚙  高级设置 / 开发者选项</string>
+    <string name="home_test_result_title">测试结果</string>
 </resources>

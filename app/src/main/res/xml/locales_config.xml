@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Supported UI languages. Enables the system per-app language picker on
+     Android 13+; on older versions the app still follows the device locale. -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="zh" />
+    <locale android:name="en" />
+</locale-config>

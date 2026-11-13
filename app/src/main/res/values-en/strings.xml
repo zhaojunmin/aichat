@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Chat Assistant</string>
+    <string name="accessibility_label">Chat Assistant · Screen Reader</string>
+    <string name="accessibility_description">Reads the text on the current chat screen to generate AI reply suggestions. Content is processed on-device and sent only to the AI endpoint you configure, for no other purpose.</string>
+
+    <!-- Shared actions / status -->
+    <string name="action_enable">Enable</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_close">Close</string>
+    <string name="status_ready">✅ Ready</string>
+    <string name="test_connection">Test connection</string>
+
+    <!-- Home -->
+    <string name="home_title">Chat Reply AI Assistant</string>
+    <string name="home_permissions_title">Enable permissions</string>
+    <string name="home_permissions_desc">The assistant needs these two permissions to read chats and show the floating bubble.</string>
+    <string name="home_perm_accessibility">Read chat content (Accessibility)</string>
+    <string name="home_perm_overlay">Show floating bubble (Overlay)</string>
+    <string name="home_perm_notification">Allow notifications (keep the assistant running)</string>
+    <string name="home_ai_service_title">AI service</string>
+    <string name="home_inference_desc">Choose how inference runs. Local mode: chat content never leaves the device.</string>
+    <string name="inference_cloud">Cloud</string>
+    <string name="inference_local">Local (private)</string>
+    <string name="label_api_key">API Key</string>
+    <string name="label_model">Model</string>
+    <string name="home_local_unsupported">This device does not support local models (arm64 only)</string>
+    <string name="home_model_size">%1$s · ~%2$d MB</string>
+    <string name="home_model_not_downloaded">Not downloaded (Wi-Fi recommended)</string>
+    <string name="home_error_prefix">⚠ %1$s</string>
+    <string name="home_downloading">Downloading…</string>
+    <string name="home_download_model">Download %1$s</string>
+    <string name="home_testing_local">Generating locally…</string>
+    <string name="home_testing_cloud">Testing…</string>
+    <string name="home_reply_style_title">Reply style</string>
+    <string name="home_reply_style_desc">Pick a scenario, or customize the tone you want.</string>
+    <string name="home_custom_persona_label">Custom style (overrides the scenario above)</string>
+    <string name="home_memory_title">Personal memory (learns you over time)</string>
+    <string name="home_memory_switch_label">Remember my speaking style and habits</string>
+    <string name="home_memory_desc">The assistant quietly learns from your replies so suggestions sound more like you. All records stay on this device.</string>
+    <string name="home_memory_stats">%1$d recorded · %2$d memories</string>
+    <string name="home_learning">Learning…</string>
+    <string name="home_learn_now">Learn now</string>
+    <string name="home_manage_memory">Manage memory</string>
+    <string name="home_clear_memory">Clear memory &amp; reply history</string>
+    <string name="home_advanced_entry">⚙  Advanced / Developer options</string>
+    <string name="home_test_result_title">Test result</string>
+</resources>
