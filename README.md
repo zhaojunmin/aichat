@@ -1,69 +1,86 @@
-# 聊天搭子 · AI 回复助手 (Android MVP)
+# 聊天搭子 · AI 回复助手 (Android)
 
-在微信、Soul 等第三方聊天 App 里,用 AI 辅助生成回复。通过 **无障碍服务读屏** 读取当前聊天界面的文字,点击 **悬浮球** 即可调用你配置的 AI 接口生成多条回复候选,一键复制或自动填入输入框。
+在微信、QQ、Soul 等第三方聊天 App 里,用 AI 辅助生成回复。通过 **无障碍服务读屏**(或 **截图 OCR**)读取当前聊天界面,点击 **悬浮球** 即可生成多条回复候选,一键复制或自动填入输入框。支持 **云端 / 端侧本地** 两种推理,并带一个 **越用越懂你的专属记忆**。
 
 > ⚠️ 仅供学习与个人使用。读屏/悬浮窗能力强大,请勿用于侵犯他人隐私、骚扰或违反相关 App 用户协议的场景。
+
+## 功能特性
+
+- **多后端**:云端 OpenAI 兼容接口(DeepSeek / 豆包),或 **端侧本地模型**(MNN + Qwen2.5,聊天内容不出设备)。
+- **两种读屏**:默认走无障碍控件树;对气泡复杂的 App(如微信)可切 **截图 OCR**(ML Kit 中文识别),按包名分流。
+- **专属记忆**:记录你发出的回复,LLM 定期蒸馏成稳定的「画像 / 事实 / 偏好 / 风格」,回复生成时按相关性注入,让建议更像你本人。
+- **语义召回**:记忆检索用端侧 bge-small-zh 向量做语义匹配(离线、隐私),不就绪时自动回退本地关键词匹配。
+- **人设/场景**:恋爱、破冰、商务、客服等预设,或自定义语气。
+- **自动填入**:选中的回复自动复制;可选无障碍 `ACTION_SET_TEXT` 直接写进输入框。
 
 ## 工作原理
 
 ```
-第三方聊天 App (微信/Soul)
-        │  屏幕内容
+第三方聊天 App(微信 / QQ / Soul)
+        │ 屏幕内容
         ▼
-AccessibilityService ──► ChatParser(按水平位置判断"我/对方") ──► Conversation
-        │                                                           │
-        │ 前台包名变化切换悬浮球                                      ▼
-        ▼                                             AiRepository ──► Claude / OpenAI 兼容后端
-FloatingBubbleService(悬浮球 + 建议面板) ◄──── 回复候选 ◄───────────────┘
-        │ 选中一条
+AccessibilityService ──► ChatParser(控件树)┐
+        │                                   ├──► Conversation ──► AiRepository ──┬─► 云端(DeepSeek/豆包,OpenAI 兼容)
+        │                 截图 OCR(OcrReader)┘            ▲                      └─► 本地(MNN + Qwen2.5,隐私)
+        │ 前台包名变化切换悬浮球                            │
+        ▼                                      MemoryRepository(三因子召回:
+FloatingBubbleService(悬浮球 + 建议面板)        recency + importance + relevance)
+        │ 选中一条                                    relevance = 本地词法 / bge 语义向量
         ├─► 复制到剪贴板
-        └─► (可选)无障碍 ACTION_SET_TEXT 自动填入输入框
+        └─►(可选)无障碍 ACTION_SET_TEXT 自动填入输入框
 ```
 
-核心模块:
+## 核心模块
 
 | 模块 | 文件 |
 |---|---|
 | 读屏服务 | `accessibility/ChatAccessibilityService.kt` |
-| 聊天解析(启发式) | `accessibility/ChatParser.kt` |
+| 聊天解析(控件树,按水平位置分「我/对方」) | `accessibility/ChatParser.kt`、`BubbleLocator.kt` |
+| 截图 OCR(ML Kit 中文) | `ocr/OcrReader.kt` |
 | 悬浮球 + 面板 | `overlay/FloatingBubbleService.kt` |
 | AI 接口抽象 | `ai/AiClient.kt`、`ai/HttpClients.kt`、`ai/AiRepository.kt` |
-| 设置/人设/存储 | `data/*`、`MainActivity.kt` |
-| 进程内总线 | `AppBus.kt` |
+| 本地推理(MNN Qwen2.5) | `data/local/LocalLlmEngine.kt`、`LocalModel.kt`、`LocalModelManager.kt` |
+| 专属记忆 | `data/memory/`(`MemoryRepository`、`MemoryRetrieval`、`EmbeddingEngine`、`WordPieceTokenizer` …) |
+| 设置 / 人设 / 存储 | `data/*`、`MainActivity.kt` |
+| 原生 | `native/mnn-llm/`(本地 LLM JNI)、`native/mnn-embed/`(bge encoder JNI) |
+| 设计文档 | `docs/`(记忆系统 / embedding 选型基准 / LLM 引擎 A/B / 集成设计) |
 
 ## 构建
 
-需要 JDK 17、Android SDK(platform 36 / build-tools 36)。
+需要 JDK 17、Android SDK(platform 36 / build-tools 36)。仓库用 **git-lfs** 存 `*.so` 与 `*.mnn`(本地模型),clone 后需 `git lfs pull`。
 
 ```bash
 export JAVA_HOME=/path/to/jdk-17
 export ANDROID_HOME=$HOME/Android/Sdk
-./gradlew :app:assembleDebug
+./gradlew :app:assembleDebug      # 或 assembleRelease
 # 产物:app/build/outputs/apk/debug/app-debug.apk
-```
-
-安装到手机:
-
-```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-> 使用 AGP 9 的内置 Kotlin(不单独 apply `kotlin.android`),并在 `gradle.properties` 设置
-> `android.disallowKotlinSourceSets=false`。
+> - 用 AGP 9 内置 Kotlin(不单独 apply `kotlin.android`),`gradle.properties` 设 `android.disallowKotlinSourceSets=false`。
+> - 本地 LLM / embedding 的原生库仅构建 **arm64-v8a**;非 arm64 设备自动回退云端 / 词法。
+> - 重建原生库见 `native/mnn-llm/BUILD.md`、`native/mnn-embed/BUILD.md`。
 
 ## 使用步骤
 
-1. 打开 App,在 **① 权限** 中依次开启:**无障碍服务**、**悬浮窗**、(Android 13+)**通知权限**。
-2. 在 **③ AI 后端** 选择 Claude 或 OpenAI 兼容,填入 Base URL、模型、API Key。
-3. 在 **④ 聊天人设** 选一个场景(恋爱/破冰/商务/客服)或填自定义人设。
-4. 点 **⑥ 测试生成回复** 验证接口通不通。
-5. 回到 **② 悬浮球** 点"启动悬浮球"。
-6. 打开微信/Soul 聊天界面 → 点悬浮球 → 选一条回复(自动复制;开了"自动填入"会直接写进输入框)。
+1. 打开 App,在 **权限** 中依次开启:**无障碍服务**、**悬浮窗**、(Android 13+)**通知权限**。
+2. **AI 服务**:选 **云端**(DeepSeek / 豆包,填 Base URL、模型、API Key)或 **本地(隐私)**(下载 Qwen2.5 0.5B/1.5B/3B 其一)。
+3. 选一个 **回复风格**(恋爱/破冰/商务)或自定义。
+4. 点 **测试连接** 验证接口。
+5. 回到首页点 **启动悬浮球**。
+6. 打开聊天界面 → 点悬浮球 → 选一条回复(自动复制;开了「自动填入」会直接写进输入框)。
 
-## MVP 的已知局限 / 后续方向
+## 专属记忆
 
-- **解析是启发式的**:靠文字节点的水平位置区分"我/对方",复杂气泡(图片、引用、合并转发)可能识别不准。可按包名做专用解析器提升准确率。
-- 悬浮球目前常驻显示;`AppBus.onForeground` 已预留"仅在目标 App 显示"的开关,可接 `setBubbleVisible` 完善。
-- 自动填入依赖目标 App 的输入框是标准可编辑控件;部分 App 自绘输入框时会失败,此时回退到"已复制"。
-- API Key 以明文存于 SharedPreferences,生产环境建议改用 EncryptedSharedPreferences / Keystore。
-- 未做多轮记忆、草稿管理、回复风格微调等;接口已预留 `suggestionCount`、人设等扩展点。
+- 每条你发出的回复会被记录;累计到阈值后 LLM 蒸馏出稳定的个人信息(画像/事实/偏好/风格),写入时顺带产出关键词、重要度与语义向量。
+- 生成回复时按 **三因子打分**(时效 + 重要度 + 与当前对话的相关性)挑选 top-N 注入 prompt。相关性优先用 **bge-small-zh 语义向量**,不可用时回退本地关键词匹配。
+- 学习时做 Mem0 式 **ADD/UPDATE/DELETE**;删除为 **软删除**(进「回收站」,可恢复),规避 LLM 误删。「管理记忆」界面可逐条编辑/删除/恢复。
+- 全部数据(回复记录、记忆、向量)只存在本机。
+
+## 已知局限 / 后续方向
+
+- **解析是启发式的**:控件树按水平位置分「我/对方」,复杂气泡(图片、引用、合并转发)可能不准;可按包名加专用解析器或用截图 OCR 兜底。
+- **本地 LLM / embedding 仅 arm64-v8a**:其他 ABI 自动回退云端 / 词法。
+- **自动填入** 依赖标准可编辑输入框;自绘输入框会失败,此时回退「已复制」。
+- **API Key 明文存于 SharedPreferences**;生产建议改 EncryptedSharedPreferences / Keystore。
+- 语义召回为实验特性(可在高级设置一键关闭);召回质量、tokenizer 与 HF 的对齐建议用真实语料继续回归。
