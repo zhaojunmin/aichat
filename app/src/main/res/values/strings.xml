@@ -144,12 +144,14 @@
 
     <!-- Appearance / theme -->
     <string name="adv_appearance_title">外观</string>
-    <string name="adv_appearance_desc">深蓝 · 日系极简,冷暖相映;可选多种明暗变体。</string>
+    <string name="adv_appearance_desc">日系深蓝 / 新中式莫兰迪(天青·月白),细腻质感,多种明暗变体随心切换。</string>
     <string name="theme_system">跟随系统</string>
     <string name="theme_paper">纸(浅)</string>
     <string name="theme_mist">雾(浅)</string>
+    <string name="theme_qingbai">月白·新中式(浅)</string>
     <string name="theme_ink">蓝夜(深)</string>
     <string name="theme_midnight">墨(深)</string>
+    <string name="theme_daiqing">黛青·新中式(深)</string>
 
     <!-- Persona preset titles -->
     <string name="persona_dating">恋爱/暧昧</string>
