@@ -4,6 +4,8 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,12 +21,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.BubbleChart
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,8 +53,9 @@ import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.Speaker
 import com.octos.aichat.ai.embedding.Encoder
 import com.octos.aichat.bubble.FloatingBubbleService
+import com.octos.aichat.ui.theme.ThemeVariant
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun AdvancedScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -88,6 +93,31 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 stringResource(R.string.adv_desc),
                 style = MaterialTheme.typography.bodyMedium
             )
+
+            SectionCard(stringResource(R.string.adv_appearance_title), icon = Icons.Outlined.Palette) {
+                Text(
+                    stringResource(R.string.adv_appearance_desc),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(Modifier.height(8.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = settings.themeVariantId == "system",
+                        onClick = { vm.update { it.copy(themeVariantId = "system") } },
+                        label = { Text(stringResource(R.string.theme_system)) }
+                    )
+                    ThemeVariant.entries.forEach { v ->
+                        FilterChip(
+                            selected = settings.themeVariantId == v.id,
+                            onClick = { vm.update { it.copy(themeVariantId = v.id) } },
+                            label = { Text(stringResource(v.labelRes)) }
+                        )
+                    }
+                }
+            }
 
             SectionCard(stringResource(R.string.adv_bubble_title), icon = Icons.Outlined.BubbleChart) {
                 val overlayOn = Settings.canDrawOverlays(context)

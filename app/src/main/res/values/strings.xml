@@ -142,6 +142,15 @@
     <string name="svc_notif_title">聊天助手运行中</string>
     <string name="svc_notif_text">点击悬浮球生成 AI 回复建议</string>
 
+    <!-- Appearance / theme -->
+    <string name="adv_appearance_title">外观</string>
+    <string name="adv_appearance_desc">深蓝 · 日系极简,冷暖相映;可选多种明暗变体。</string>
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_paper">纸(浅)</string>
+    <string name="theme_mist">雾(浅)</string>
+    <string name="theme_ink">蓝夜(深)</string>
+    <string name="theme_midnight">墨(深)</string>
+
     <!-- Persona preset titles -->
     <string name="persona_dating">恋爱/暧昧</string>
     <string name="persona_icebreak">社交破冰</string>

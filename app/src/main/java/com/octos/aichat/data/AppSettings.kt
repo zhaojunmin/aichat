@@ -100,6 +100,8 @@ data class AppSettings(
     val inferenceMode: InferenceMode = InferenceMode.CLOUD,
     /** Which on-device model is selected (id of a [com.octos.aichat.ai.local.LocalModel]). */
     val localModelId: String = com.octos.aichat.ai.local.LocalModel.DEFAULT.id,
+    /** Appearance variant id ("system", or a [com.octos.aichat.ui.theme.ThemeVariant] id). */
+    val themeVariantId: String = "system",
 ) {
     val useLocal: Boolean get() = inferenceMode == InferenceMode.LOCAL
     val localModel: com.octos.aichat.ai.local.LocalModel

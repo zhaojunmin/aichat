@@ -142,6 +142,15 @@
     <string name="svc_notif_title">Chat Assistant is running</string>
     <string name="svc_notif_text">Tap the bubble to generate AI reply suggestions</string>
 
+    <!-- Appearance / theme -->
+    <string name="adv_appearance_title">Appearance</string>
+    <string name="adv_appearance_desc">Deep-blue Japanese minimalism, cool meets warm; choose from several light/dark variants.</string>
+    <string name="theme_system">System</string>
+    <string name="theme_paper">Paper (light)</string>
+    <string name="theme_mist">Mist (light)</string>
+    <string name="theme_ink">Indigo (dark)</string>
+    <string name="theme_midnight">Midnight (dark)</string>
+
     <!-- Persona preset titles -->
     <string name="persona_dating">Dating / Flirty</string>
     <string name="persona_icebreak">Icebreaker</string>

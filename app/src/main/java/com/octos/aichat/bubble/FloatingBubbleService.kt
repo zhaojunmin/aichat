@@ -147,7 +147,7 @@ class FloatingBubbleService : Service() {
             setTextColor(Color.WHITE)
             textSize = 16f
             gravity = Gravity.CENTER
-            background = BubbleStyle.circle(0xFF6C5CE7.toInt())
+            background = BubbleStyle.circle(0xFF35557A.toInt())
         }
         val lp = BubbleStyle.params(size, size).apply {
             gravity = Gravity.TOP or Gravity.START

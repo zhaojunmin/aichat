@@ -13,6 +13,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.bubble.FloatingBubbleService
 import com.octos.aichat.ui.theme.AiChatTheme
@@ -39,7 +41,9 @@ private enum class Screen { Home, Advanced, Memory }
 @Composable
 private fun AppRoot() {
     var screen by remember { mutableStateOf(Screen.Home) }
-    AiChatTheme {
+    val context = LocalContext.current
+    val settings by SettingsRepository.get(context).state.collectAsStateWithLifecycle()
+    AiChatTheme(settings.themeVariantId) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (screen) {
                 Screen.Home -> HomeScreen(
