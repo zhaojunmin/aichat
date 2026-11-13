@@ -41,7 +41,7 @@
         </service>
 
         <service
-            android:name=".overlay.FloatingBubbleService"
+            android:name=".bubble.FloatingBubbleService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property

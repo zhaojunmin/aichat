@@ -2,6 +2,7 @@ package com.octos.aichat.data.memory
 
 import android.content.Context
 import com.octos.aichat.ai.AiRepository
+import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.Speaker
@@ -13,8 +14,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
-import java.io.File
 
 /** Snapshot of memory state for the settings UI. */
 data class MemoryStats(
@@ -26,10 +25,10 @@ data class MemoryStats(
 }
 
 /**
- * Global memory: every reply I make is appended to a plain-text log; once enough
- * un-learned lines pile up, the LLM distills them into a small set of
- * [MemoryEntity] rows (my profile / facts / preferences / style). Those rows are
- * then fed back into reply generation so suggestions sound more like me.
+ * Coordinates the long-term memory feature, delegating the real work to focused
+ * collaborators: [ReplyLog] (raw reply record), [AiRepository] (the learner),
+ * [MemoryDao] (persistence), [MemoryEmbedder] (vectors) and [MemoryInjector]
+ * (prompt block). Owns only the orchestration + the UI-facing state flows.
  *
  * Singleton, mirroring [SettingsRepository] — background services and the UI all
  * talk to the one instance.
@@ -39,17 +38,11 @@ class MemoryRepository private constructor(context: Context) {
     private val appContext = context.applicationContext
     private val dao = MemoryDatabase.get(appContext).memoryDao()
     private val settingsRepo = SettingsRepository.get(appContext)
-
-    /** Human-readable, exportable record of everything I've said. */
-    private val replyFile = File(appContext.filesDir, "my_replies.txt")
-    private val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private val replyLog = ReplyLog(appContext)
+    private val embedder = MemoryEmbedder(appContext, dao)
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val ioLock = Mutex() // serialises file + learning access
-
-    // Bounded set of recently logged replies so we don't record the same
-    // on-screen message every time the accessibility reader re-scans the window.
-    private val recent = LinkedHashSet<String>()
+    private val learnLock = Mutex() // only one learning pass at a time
 
     private val _memories = MutableStateFlow<List<MemoryEntity>>(emptyList())
     val memories: StateFlow<List<MemoryEntity>> = _memories
@@ -62,15 +55,12 @@ class MemoryRepository private constructor(context: Context) {
     val stats: StateFlow<MemoryStats> = _stats
 
     init {
-        scope.launch { initLoad(); prepareEmbedding() }
-    }
-
-    private suspend fun initLoad() = ioLock.withLock {
-        val lines = if (replyFile.exists()) replyFile.readLines().filter { it.isNotBlank() } else emptyList()
-        lines.takeLast(RECENT_MEMORY).forEach { recent.add(textOf(it)) }
-        val learned = prefs.getInt(KEY_LEARNED, 0).coerceIn(0, lines.size)
-        _stats.value = _stats.value.copy(totalReplies = lines.size, learnedReplies = learned)
-        refreshMemories()
+        scope.launch {
+            val counts = replyLog.primeRecent()
+            _stats.value = _stats.value.copy(totalReplies = counts.total, learnedReplies = counts.learned)
+            refreshMemories()
+            prepareEmbedding()
+        }
     }
 
     // ---- recording ------------------------------------------------------
@@ -80,23 +70,24 @@ class MemoryRepository private constructor(context: Context) {
         if (!settingsRepo.current().memoryEnabled) return
         val mine = conv.messages.filter { it.speaker == Speaker.ME }.map { it.text }
         if (mine.isEmpty()) return
-        scope.launch { mine.forEach { appendReply(it) }; maybeLearn() }
+        scope.launch {
+            val added = mine.count { replyLog.append(it) }
+            if (added > 0) bumpTotal(added)
+            maybeLearn()
+        }
     }
 
     /** Record a single reply I chose/sent through the assistant. */
     fun recordReply(text: String) {
         if (!settingsRepo.current().memoryEnabled) return
-        scope.launch { appendReply(text); maybeLearn() }
+        scope.launch {
+            if (replyLog.append(text)) bumpTotal(1)
+            maybeLearn()
+        }
     }
 
-    private suspend fun appendReply(raw: String) = ioLock.withLock {
-        val text = normalize(raw)
-        if (text.isEmpty() || !recent.add(text)) return@withLock
-        if (recent.size > RECENT_MEMORY) recent.iterator().let { it.next(); it.remove() }
-        runCatching {
-            replyFile.appendText("${System.currentTimeMillis()}\t$text\n")
-        }
-        _stats.value = _stats.value.copy(totalReplies = _stats.value.totalReplies + 1)
+    private fun bumpTotal(n: Int) {
+        _stats.value = _stats.value.copy(totalReplies = _stats.value.totalReplies + n)
     }
 
     // ---- learning -------------------------------------------------------
@@ -116,28 +107,23 @@ class MemoryRepository private constructor(context: Context) {
         runLearning(settings)
     }
 
-    private suspend fun runLearning(settings: com.octos.aichat.data.AppSettings) {
+    private suspend fun runLearning(settings: AppSettings) = learnLock.withLock {
         if (settings.apiKey.isBlank()) return
         _stats.value = _stats.value.copy(learning = true)
         try {
-            val (newReplies, total) = ioLock.withLock {
-                val lines = if (replyFile.exists()) replyFile.readLines().filter { it.isNotBlank() } else emptyList()
-                val from = prefs.getInt(KEY_LEARNED, 0).coerceIn(0, lines.size)
-                lines.subList(from, lines.size).map { textOf(it) } to lines.size
-            }
-            if (newReplies.isEmpty()) return
+            val pending = replyLog.pending()
+            if (pending.replies.isEmpty()) return
             val existing = dao.all()
-            val result = AiRepository.learnMemory(settings, existing, newReplies) ?: return
+            val result = AiRepository.instance.learnMemory(settings, existing, pending.replies) ?: return
 
-            // Memory is permanent: only add new rows and overwrite the specific
-            // existing rows the learner flagged as conflicting (newest wins).
+            // Memory is permanent: add new rows, overwrite conflicting rows (newest
+            // wins), and soft-delete clearly-obsolete rows (recoverable).
             val now = System.currentTimeMillis()
             val knownIds = existing.mapTo(HashSet()) { it.id }
             result.updates.filter { it.id in knownIds }.forEach {
                 dao.updateFull(it.id, it.category, it.content, it.keywords, it.importance, now)
                 dao.clearEmbedding(it.id) // text changed → stale vector, let backfill recompute
             }
-            // Soft-delete so a wrong call stays recoverable from the recycle bin.
             result.deletions.filter { it in knownIds }.forEach {
                 dao.softDelete(it, now, DELETED_BY_LEARNER)
             }
@@ -152,10 +138,10 @@ class MemoryRepository private constructor(context: Context) {
                     )
                 })
             }
-            prefs.edit().putInt(KEY_LEARNED, total).apply()
-            _stats.value = _stats.value.copy(learnedReplies = total)
+            replyLog.markLearned(pending.total)
+            _stats.value = _stats.value.copy(learnedReplies = pending.total)
             refreshMemories()
-            embedBackfill() // embed new/updated rows (no-op until the engine is ready)
+            if (embedder.backfill()) refreshMemories()
         } catch (_: Exception) {
             // Leave the learned offset untouched so it retries on the next trigger.
         } finally {
@@ -165,41 +151,11 @@ class MemoryRepository private constructor(context: Context) {
 
     // ---- reads ----------------------------------------------------------
 
-    /**
-     * Formatted memory for injection into the reply-generation system prompt.
-     * Everything is kept in the DB forever, but we only inject the top-N items so
-     * the prompt stays bounded as memory grows. When [conv] is supplied we rank by
-     * the three-factor score (recency + importance + relevance-to-this-chat);
-     * otherwise we fall back to most-recently-updated.
-     */
-    fun memoryBlock(conv: Conversation? = null): String {
-        val settings = settingsRepo.current()
-        if (!settings.memoryEnabled) return ""
-        val items = _memories.value
-        if (items.isEmpty()) return ""
-        val limit = settings.memoryInjectLimit.coerceAtLeast(1)
-        // Query = the recent transcript; the other party's latest lines are what we
-        // are about to reply to, so relevance should favour memories about them.
-        val query = conv?.toTranscript(maxLines = 12).orEmpty()
-        // Semantic embedding召回 when enabled and the on-device model is ready; else local lexical.
-        val relevance = if (settings.memoryEmbeddingEnabled && EmbeddingEngine.isReady) {
-            MemoryRetrieval.EmbeddingRelevance(EmbeddingEngine::embedQuery)
-        } else {
-            MemoryRetrieval.LexicalRelevance
-        }
-        val selected = MemoryRetrieval.retrieve(
-            items = items,
-            query = query,
-            now = System.currentTimeMillis(),
-            k = limit,
-            relevance = relevance,
-        )
-        return selected
-            .groupBy { it.category }
-            .entries.joinToString("\n") { (cat, rows) ->
-                "【$cat】" + rows.joinToString("；") { it.content }
-            }
-    }
+    /** Formatted memory for injection into the reply-generation system prompt. */
+    fun memoryBlock(conv: Conversation? = null): String =
+        MemoryInjector.block(_memories.value, settingsRepo.current(), conv)
+
+    // ---- manual edits ---------------------------------------------------
 
     /** Manually remove a memory item — soft-delete so it can be restored. */
     suspend fun deleteMemory(id: Long) {
@@ -227,38 +183,24 @@ class MemoryRepository private constructor(context: Context) {
         dao.update(id, item.category, text, System.currentTimeMillis())
         dao.clearEmbedding(id) // text changed → recompute vector
         refreshMemories()
-        embedBackfill()
+        if (embedder.backfill()) refreshMemories()
     }
 
-    suspend fun clearAll() = ioLock.withLock {
+    suspend fun clearAll() {
         dao.clear()
-        runCatching { if (replyFile.exists()) replyFile.delete() }
-        prefs.edit().putInt(KEY_LEARNED, 0).apply()
-        recent.clear()
+        replyLog.clear()
         _memories.value = emptyList()
         _deleted.value = emptyList()
         _stats.value = MemoryStats()
     }
 
-    // ---- semantic embedding --------------------------------------------
+    // ---- internals ------------------------------------------------------
 
     /** Load the on-device embedding model (if enabled) and backfill missing vectors. */
     private suspend fun prepareEmbedding() {
-        if (!settingsRepo.current().memoryEmbeddingEnabled) return
-        if (EmbeddingModelManager.ensureReady(appContext)) embedBackfill()
-    }
-
-    /** Compute + store vectors for active rows missing/stale embeddings. No-op until ready. */
-    private suspend fun embedBackfill() {
-        if (!EmbeddingEngine.isReady) return
-        val todo = dao.needingEmbedding(EmbeddingEngine.VERSION)
-        if (todo.isEmpty()) return
-        todo.forEach { m ->
-            val text = listOf(m.content, m.keywords).filter { it.isNotBlank() }.joinToString(" ")
-            val v = EmbeddingEngine.embed(text) ?: return@forEach
-            dao.setEmbedding(m.id, EmbeddingCodec.encode(v), EmbeddingEngine.VERSION)
+        if (embedder.prepare(settingsRepo.current().memoryEmbeddingEnabled) && embedder.backfill()) {
+            refreshMemories()
         }
-        refreshMemories()
     }
 
     private suspend fun refreshMemories() {
@@ -266,18 +208,7 @@ class MemoryRepository private constructor(context: Context) {
         _deleted.value = dao.allDeleted()
     }
 
-    // ---- helpers --------------------------------------------------------
-
-    /** One reply per line as "epochMillis\ttext"; grab the text half. */
-    private fun textOf(line: String): String = line.substringAfter('\t', line).trim()
-
-    private fun normalize(s: String): String =
-        s.replace('\n', ' ').replace('\r', ' ').trim().replace(Regex("\\s+"), " ")
-
     companion object {
-        private const val PREFS = "ai_chat_memory"
-        private const val KEY_LEARNED = "learned_reply_count"
-        private const val RECENT_MEMORY = 300
         private const val DELETED_BY_LEARNER = "learner"
         private const val DELETED_BY_USER = "user"
 

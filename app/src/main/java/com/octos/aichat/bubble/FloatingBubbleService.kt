@@ -1,4 +1,4 @@
-package com.octos.aichat.overlay
+package com.octos.aichat.bubble
 
 import android.app.AlarmManager
 import android.app.Notification
@@ -12,8 +12,6 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
-import android.graphics.PixelFormat
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -22,12 +20,7 @@ import android.os.SystemClock
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
-import android.view.ViewGroup
 import android.view.WindowManager
-import android.widget.FrameLayout
-import android.widget.LinearLayout
-import android.widget.ProgressBar
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import com.octos.aichat.AppBus
@@ -55,21 +48,24 @@ import kotlin.math.abs
 /**
  * Foreground service that paints a draggable bubble over other apps. Tapping it
  * asks the configured AI for reply candidates based on whatever the accessibility
- * reader last captured, and shows them in a panel. Tapping a candidate copies it
- * (and optionally auto-pastes into the chat input).
+ * reader last captured, and shows them in a panel ([BubblePanel]). Tapping a
+ * candidate copies it (and optionally auto-pastes into the chat input).
+ *
+ * This class owns the service lifecycle, the bubble, and orchestration; the panel's
+ * view construction lives in [BubblePanel] and shared drawables in [BubbleStyle].
  */
 class FloatingBubbleService : Service() {
 
     private lateinit var wm: WindowManager
     private lateinit var bubble: View
-    private var panel: View? = null
+    private lateinit var panel: BubblePanel
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var generating: Job? = null
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private val hideRunnable = Runnable {
         if (::bubble.isInitialized) bubble.visibility = View.GONE
-        removePanel()
+        if (::panel.isInitialized) panel.remove()
     }
 
     private val dp get() = resources.displayMetrics.density
@@ -80,6 +76,7 @@ class FloatingBubbleService : Service() {
         super.onCreate()
         AppBus.bubbleService = this
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        panel = BubblePanel(this, wm, ::onReplyChosen)
         startForegroundNotice()
         addBubble()
     }
@@ -115,7 +112,7 @@ class FloatingBubbleService : Service() {
         uiHandler.removeCallbacks(hideRunnable)
         generating?.cancel()
         scope.cancel()
-        removePanel()
+        if (::panel.isInitialized) panel.remove()
         runCatching { if (::bubble.isInitialized) wm.removeView(bubble) }
         if (AppBus.bubbleService === this) AppBus.bubbleService = null
     }
@@ -148,9 +145,9 @@ class FloatingBubbleService : Service() {
             setTextColor(Color.WHITE)
             textSize = 16f
             gravity = Gravity.CENTER
-            background = circle(0xFF6C5CE7.toInt())
+            background = BubbleStyle.circle(0xFF6C5CE7.toInt())
         }
-        val lp = overlayParams(size, size).apply {
+        val lp = BubbleStyle.params(size, size).apply {
             gravity = Gravity.TOP or Gravity.START
             x = (16 * dp).toInt()
             y = (240 * dp).toInt()
@@ -199,8 +196,10 @@ class FloatingBubbleService : Service() {
 
     private fun clamp(value: Int, max: Int): Int = value.coerceIn(0, max.coerceAtLeast(0))
 
+    // ---- Orchestration ---------------------------------------------------
+
     private fun onBubbleTapped() {
-        if (panel != null) { removePanel(); return }
+        if (panel.isShowing) { panel.remove(); return }
         val settings = SettingsRepository.get(this).current()
         if (!settings.useLocal && settings.apiKey.isBlank()) {
             toast("请先在 App 内填写 API Key")
@@ -211,9 +210,9 @@ class FloatingBubbleService : Service() {
             // Resolve the conversation first (may involve a screenshot); only then
             // show the loading panel so it isn't captured into the screenshot.
             val conv = resolveConversation(settings)
-            showPanelLoading()
+            panel.showLoading()
             if (conv == null || conv.isEmpty) {
-                showPanelError(
+                panel.showError(
                     if (settings.useScreenshotOcr) "截图未识别到聊天内容(需无障碍已开启)"
                     else "未读取到聊天内容,请打开聊天界面并开启无障碍服务"
                 )
@@ -225,9 +224,9 @@ class FloatingBubbleService : Service() {
             // been learned personalise the suggestions.
             val memory = MemoryRepository.get(this@FloatingBubbleService)
             memory.recordMyMessages(conv)
-            val result = runCatching { AiRepository.generateReplies(settings, conv, memory.memoryBlock(conv)) }
-            result.onSuccess { showPanelResults(it) }
-                .onFailure { showPanelError(it.message ?: "生成失败") }
+            val result = runCatching { AiRepository.instance.generateReplies(settings, conv, memory.memoryBlock(conv)) }
+            result.onSuccess { panel.showResults(it, AppBus.conversation.lastFromOther()) }
+                .onFailure { panel.showError(it.message ?: "生成失败") }
         }
     }
 
@@ -281,73 +280,21 @@ class FloatingBubbleService : Service() {
         return conv
     }
 
-    // ---- Panel -----------------------------------------------------------
-
     /** Ensure the on-device model is loaded; shows an error panel and returns false if not. */
     private suspend fun ensureLocalReady(model: LocalModel): Boolean {
         if (!LocalLlmEngine.isSupported) {
-            showPanelError("本机不支持本地模型(仅 arm64 设备)"); return false
+            panel.showError("本机不支持本地模型(仅 arm64 设备)"); return false
         }
         if (!LocalModelManager.isReady(this, model)) {
-            showPanelError("本地模型(${model.displayName})未下载,请在 App 设置里下载后再用"); return false
+            panel.showError("本地模型(${model.displayName})未下载,请在 App 设置里下载后再用"); return false
         }
-        if (!LocalLlmEngine.isReady) showPanelLoading("正在加载本地模型…")
+        if (!LocalLlmEngine.isReady) panel.showLoading("正在加载本地模型…")
         // Idempotent when the same model is already loaded; reloads on a size switch.
         val ok = LocalLlmEngine.ensureLoaded(
             LocalModelManager.configPath(this, model), LocalModelManager.tmpDir(this)
         )
-        if (!ok) { showPanelError("本地模型加载失败"); return false }
+        if (!ok) { panel.showError("本地模型加载失败"); return false }
         return true
-    }
-
-    private fun showPanelLoading(title: String = "正在生成回复…") {
-        val container = basePanel()
-        container.addView(header(title))
-        container.addView(ProgressBar(this).apply {
-            val p = (12 * dp).toInt(); setPadding(p, p, p, p)
-        })
-        swapPanel(container)
-    }
-
-    private fun showPanelError(msg: String) {
-        val container = basePanel()
-        container.addView(header("生成失败"))
-        container.addView(bodyText(msg))
-        swapPanel(container)
-    }
-
-    private fun showPanelResults(replies: List<String>) {
-        val container = basePanel()
-        val other = AppBus.conversation.lastFromOther()
-        container.addView(header(if (other != null) "对方: ${other.take(40)}" else "AI 回复建议"))
-        val scroll = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                (320 * dp).toInt()
-            )
-        }
-        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        replies.forEachIndexed { i, reply ->
-            list.addView(replyCard(i + 1, reply))
-        }
-        scroll.addView(list)
-        container.addView(scroll)
-        swapPanel(container)
-    }
-
-    private fun replyCard(index: Int, reply: String): View = TextView(this).apply {
-        text = "$index.  $reply"
-        setTextColor(0xFF1A1A1A.toInt())
-        textSize = 15f
-        val p = (14 * dp).toInt()
-        setPadding(p, p, p, p)
-        background = roundedRect(0xFFF1F0FE.toInt(), 12f)
-        layoutParams = LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ).apply { topMargin = (8 * dp).toInt() }
-        isClickable = true
-        setOnClickListener { onReplyChosen(reply) }
     }
 
     private fun onReplyChosen(reply: String) {
@@ -358,78 +305,10 @@ class FloatingBubbleService : Service() {
         val autoPaste = SettingsRepository.get(this).current().autoPaste
         val pasted = autoPaste && AppBus.accessibilityService?.pasteText(reply) == true
         toast(if (pasted) "已填入输入框" else "已复制,去粘贴发送")
-        removePanel()
-    }
-
-    private fun basePanel(): LinearLayout = LinearLayout(this).apply {
-        orientation = LinearLayout.VERTICAL
-        val p = (16 * dp).toInt()
-        setPadding(p, p, p, p)
-        background = roundedRect(Color.WHITE, 20f)
-    }
-
-    private fun header(title: String): View = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        addView(TextView(context).apply {
-            text = title
-            setTextColor(0xFF6C5CE7.toInt())
-            textSize = 16f
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        addView(TextView(context).apply {
-            text = "✕"
-            setTextColor(0xFF999999.toInt())
-            textSize = 18f
-            val pad = (4 * dp).toInt(); setPadding(pad * 2, pad, pad * 2, pad)
-            setOnClickListener { removePanel() }
-        })
-    }
-
-    private fun bodyText(msg: String): View = TextView(this).apply {
-        text = msg
-        setTextColor(0xFF666666.toInt())
-        textSize = 14f
-        setPadding(0, (8 * dp).toInt(), 0, 0)
-    }
-
-    private fun swapPanel(view: View) {
-        removePanel()
-        val lp = overlayParams(
-            (320 * dp).toInt(),
-            WindowManager.LayoutParams.WRAP_CONTENT
-        ).apply {
-            gravity = Gravity.CENTER
-        }
-        panel = view
-        wm.addView(view, lp)
-    }
-
-    private fun removePanel() {
-        panel?.let { runCatching { wm.removeView(it) } }
-        panel = null
+        panel.remove()
     }
 
     // ---- helpers ---------------------------------------------------------
-
-    private fun overlayParams(w: Int, h: Int): WindowManager.LayoutParams =
-        WindowManager.LayoutParams(
-            w, h,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT
-        )
-
-    private fun circle(color: Int) = GradientDrawable().apply {
-        shape = GradientDrawable.OVAL
-        setColor(color)
-    }
-
-    private fun roundedRect(color: Int, radiusDp: Float) = GradientDrawable().apply {
-        shape = GradientDrawable.RECTANGLE
-        setColor(color)
-        cornerRadius = radiusDp * dp
-    }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 

@@ -2,7 +2,7 @@ package com.octos.aichat
 
 import com.octos.aichat.accessibility.ChatAccessibilityService
 import com.octos.aichat.data.Conversation
-import com.octos.aichat.overlay.FloatingBubbleService
+import com.octos.aichat.bubble.FloatingBubbleService
 
 /**
  * Tiny in-process bus that lets the accessibility reader, the overlay and the
