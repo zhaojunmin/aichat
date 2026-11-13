@@ -1,8 +1,8 @@
 package com.octos.aichat.ai
 
+import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
-import com.octos.aichat.data.local.LocalLlmEngine
 import com.octos.aichat.data.memory.MemoryDraft
 import com.octos.aichat.data.memory.MemoryEdit
 import com.octos.aichat.data.memory.MemoryEntity
@@ -17,7 +17,7 @@ import org.json.JSONObject
  * Turns an extracted [Conversation] into a handful of candidate replies via the
  * configured OpenAI-compatible chat API (DeepSeek / Doubao).
  */
-class AiRepository(
+class AiService(
     // Which AiClient to use for a given request — injected so reply generation and
     // learning can be unit-tested with a fake client. Default = cloud/local selection.
     private val clientFor: (AppSettings) -> AiClient = { defaultClientFor(it) },
@@ -68,7 +68,7 @@ class AiRepository(
         replies: List<String>,
     ): MemoryLearnResult? = withContext(Dispatchers.IO) {
         if ((!settings.useLocal && settings.apiKey.isBlank()) || replies.isEmpty()) return@withContext null
-        if (settings.useLocal && !LocalLlmEngine.isReady) return@withContext null
+        if (settings.useLocal && !LlmEngine.isReady) return@withContext null
 
         val system = "你是用户画像分析助手。从用户的历史发言中提炼稳定、长期有用的个人信息,维护一份干净、不矛盾的记忆库。"
         val user = buildString {
@@ -201,7 +201,7 @@ class AiRepository(
     }
 
     companion object {
-        private val cloud: AiClient = OpenAiCompatClient()
+        private val cloud: AiClient = CloudClient()
 
         /**
          * Local mode must never silently fall back to the cloud — that would ship
@@ -210,13 +210,13 @@ class AiRepository(
          */
         private fun defaultClientFor(settings: AppSettings): AiClient {
             if (settings.useLocal) {
-                require(LocalLlmEngine.isReady) { "本地模型未就绪,请先在设置中下载并启用本地模式" }
-                return LocalLlmEngine
+                require(LlmEngine.isReady) { "本地模型未就绪,请先在设置中下载并启用本地模式" }
+                return LocalClient
             }
             return cloud
         }
 
         /** Production singleton with the real cloud/local client selection. */
-        val instance: AiRepository by lazy { AiRepository() }
+        val instance: AiService by lazy { AiService() }
     }
 }

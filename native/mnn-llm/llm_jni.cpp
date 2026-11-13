@@ -14,7 +14,7 @@ using ChatMessages = std::vector<std::pair<std::string, std::string>>;
 extern "C" {
 
 JNIEXPORT jlong JNICALL
-Java_com_octos_aichat_data_local_LocalLlmEngine_nativeLoad(
+Java_com_octos_aichat_ai_local_LlmEngine_nativeLoad(
         JNIEnv* env, jobject, jstring jConfig, jstring jTmp) {
     const char* cfg = env->GetStringUTFChars(jConfig, nullptr);
     std::string config(cfg ? cfg : "");
@@ -35,7 +35,7 @@ Java_com_octos_aichat_data_local_LocalLlmEngine_nativeLoad(
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_octos_aichat_data_local_LocalLlmEngine_nativeChat(
+Java_com_octos_aichat_ai_local_LlmEngine_nativeChat(
         JNIEnv* env, jobject, jlong handle, jstring jSys, jstring jUser, jint maxTokens) {
     Llm* llm = reinterpret_cast<Llm*>(handle);
     if (!llm) return env->NewStringUTF("");
@@ -54,7 +54,7 @@ Java_com_octos_aichat_data_local_LocalLlmEngine_nativeChat(
 }
 
 JNIEXPORT void JNICALL
-Java_com_octos_aichat_data_local_LocalLlmEngine_nativeRelease(
+Java_com_octos_aichat_ai_local_LlmEngine_nativeRelease(
         JNIEnv* env, jobject, jlong handle) {
     Llm* llm = reinterpret_cast<Llm*>(handle);
     if (llm) delete llm;

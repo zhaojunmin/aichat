@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 # Headers from an MNN source checkout (only include/ is needed for the core
 # Interpreter/Tensor API). Override with -DMNN_ROOT=... if elsewhere.
 if(NOT DEFINED MNN_ROOT)
-    set(MNN_ROOT /home/zhao/mnn_spike/MNN)
+    set(MNN_ROOT /tmp/MNN-headers)
 endif()
 
 # Link against the SAME prebuilt MNN libs the app ships, so ABI matches.

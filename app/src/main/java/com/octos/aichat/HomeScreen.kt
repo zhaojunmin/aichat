@@ -34,9 +34,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,20 +44,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.DisposableEffect
 import com.octos.aichat.accessibility.ChatAccessibilityService
-import com.octos.aichat.ai.AiRepository
 import com.octos.aichat.data.AiBackend
-import com.octos.aichat.data.ChatMessage
-import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.PersonaPresets
-import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.InferenceMode
-import com.octos.aichat.data.Speaker
-import com.octos.aichat.data.local.LocalLlmEngine
-import com.octos.aichat.data.local.LocalModel
-import com.octos.aichat.data.local.LocalModelManager
-import com.octos.aichat.data.memory.MemoryRepository
+import com.octos.aichat.ai.local.LlmEngine
+import com.octos.aichat.ai.local.LocalModel
 import kotlinx.coroutines.launch
 
 /** Bumps a counter on every ON_RESUME so permission state re-reads. */
@@ -79,30 +71,28 @@ private fun rememberResumeTick(): Int {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HomeScreen(
-    repo: SettingsRepository,
     onOpenAdvanced: () -> Unit,
     onOpenMemory: () -> Unit,
 ) {
     val context = LocalContext.current
-    val settings by repo.state.collectAsStateWithLifecycle()
+    val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(context))
+    val settings by vm.settingsState.collectAsStateWithLifecycle()
     val tick = rememberResumeTick()
-    val scope = rememberCoroutineScope()
 
-    val memoryRepo = remember { MemoryRepository.get(context) }
-    val memories by memoryRepo.memories.collectAsStateWithLifecycle()
-    val memStats by memoryRepo.stats.collectAsStateWithLifecycle()
+    val memories by vm.memories.collectAsStateWithLifecycle()
+    val memStats by vm.stats.collectAsStateWithLifecycle()
 
     val accessibilityOn = remember(tick) { isAccessibilityEnabled(context) }
     val overlayOn = remember(tick) { Settings.canDrawOverlays(context) }
 
-    var testOutput by remember { mutableStateOf<List<String>?>(null) }
-    var testing by remember { mutableStateOf(false) }
-    var localDownloading by remember { mutableStateOf(false) }
-    var localProgress by remember { mutableStateOf("") }
-    var localError by remember { mutableStateOf<String?>(null) }
-    var localReadyTick by remember { mutableIntStateOf(0) }
+    val testOutput by vm.testOutput.collectAsStateWithLifecycle()
+    val testing by vm.testing.collectAsStateWithLifecycle()
+    val localDownloading by vm.downloading.collectAsStateWithLifecycle()
+    val localProgress by vm.progress.collectAsStateWithLifecycle()
+    val localError by vm.modelError.collectAsStateWithLifecycle()
+    val localReadyTick by vm.readyTick.collectAsStateWithLifecycle()
     val localReady = remember(localReadyTick, settings.localModelId) {
-        LocalModelManager.isReady(context, settings.localModel)
+        vm.isModelReady(settings.localModel)
     }
 
     val notifLauncher = rememberLauncherForActivityResult(
@@ -160,12 +150,12 @@ internal fun HomeScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = !settings.useLocal,
-                        onClick = { repo.update { it.copy(inferenceMode = InferenceMode.CLOUD) } },
+                        onClick = { vm.update { it.copy(inferenceMode = InferenceMode.CLOUD) } },
                         label = { Text("云端") }
                     )
                     FilterChip(
                         selected = settings.useLocal,
-                        onClick = { repo.update { it.copy(inferenceMode = InferenceMode.LOCAL) } },
+                        onClick = { vm.update { it.copy(inferenceMode = InferenceMode.LOCAL) } },
                         label = { Text("本地(隐私)") }
                     )
                 }
@@ -175,17 +165,17 @@ internal fun HomeScreen(
                         AiBackend.entries.forEach { b ->
                             FilterChip(
                                 selected = settings.backend == b,
-                                onClick = { repo.update { it.copy(backend = b) } },
+                                onClick = { vm.update { it.copy(backend = b) } },
                                 label = { Text(b.displayName) }
                             )
                         }
                     }
                     Spacer(Modifier.height(8.dp))
                     LabeledField("API Key", settings.apiKey, isSecret = true) { v ->
-                        repo.update { it.withApiKey(v) }
+                        vm.update { it.withApiKey(v) }
                     }
-                    LabeledField("模型", settings.model) { v -> repo.update { it.withModel(v) } }
-                } else if (!LocalLlmEngine.isSupported) {
+                    LabeledField("模型", settings.model) { v -> vm.update { it.withModel(v) } }
+                } else if (!LlmEngine.isSupported) {
                     Text("本机不支持本地模型(仅 arm64 设备)", color = MaterialTheme.colorScheme.error)
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -193,7 +183,7 @@ internal fun HomeScreen(
                             FilterChip(
                                 selected = settings.localModelId == m.id,
                                 enabled = !localDownloading,
-                                onClick = { repo.update { it.copy(localModelId = m.id) }; localError = null },
+                                onClick = { vm.update { it.copy(localModelId = m.id) }; vm.clearModelError() },
                                 label = { Text(m.displayName) }
                             )
                         }
@@ -222,20 +212,7 @@ internal fun HomeScreen(
                         if (!localReady) {
                             Button(
                                 enabled = !localDownloading,
-                                onClick = {
-                                    val model = settings.localModel
-                                    localDownloading = true; localError = null; localProgress = "连接中…"
-                                    scope.launch {
-                                        val r = LocalModelManager.download(context, model) { p ->
-                                            localProgress = "${p.percent}% · ${p.file} (${p.index}/${p.total}) " +
-                                                "${p.doneBytes / 1_000_000}/${p.totalBytes / 1_000_000}MB"
-                                        }
-                                        localDownloading = false
-                                        if (r.isSuccess) localProgress = "下载完成"
-                                        else { localProgress = ""; localError = r.exceptionOrNull()?.message ?: "下载失败" }
-                                        localReadyTick++
-                                    }
-                                }
+                                onClick = { vm.downloadModel(settings.localModel) }
                             ) {
                                 if (localDownloading) {
                                     CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
@@ -245,12 +222,7 @@ internal fun HomeScreen(
                         } else {
                             OutlinedButton(
                                 enabled = !localDownloading,
-                                onClick = {
-                                    val model = settings.localModel
-                                    scope.launch {
-                                        LocalLlmEngine.unload(); LocalModelManager.delete(context, model); localReadyTick++
-                                    }
-                                }
+                                onClick = { vm.deleteModel(settings.localModel) }
                             ) { Text("删除") }
                         }
                     }
@@ -258,31 +230,7 @@ internal fun HomeScreen(
                 Spacer(Modifier.height(8.dp))
                 Button(
                     enabled = !testing && (if (settings.useLocal) localReady else settings.apiKey.isNotBlank()),
-                    onClick = {
-                        testing = true
-                        scope.launch {
-                            val sample = Conversation(
-                                "test",
-                                listOf(
-                                    ChatMessage(Speaker.OTHER, "在吗?周末有空一起吃饭吗"),
-                                    ChatMessage(Speaker.ME, "在的"),
-                                    ChatMessage(Speaker.OTHER, "那你想吃什么呀"),
-                                )
-                            )
-                            testOutput = runCatching {
-                                if (settings.useLocal) {
-                                    check(
-                                        LocalLlmEngine.ensureLoaded(
-                                            LocalModelManager.configPath(context, settings.localModel),
-                                            LocalModelManager.tmpDir(context)
-                                        )
-                                    ) { "本地模型加载失败" }
-                                }
-                                AiRepository.instance.generateReplies(settings, sample)
-                            }.getOrElse { listOf("错误:${it.message}") }
-                            testing = false
-                        }
-                    },
+                    onClick = { vm.runConnectionTest() },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     if (testing) {
@@ -301,7 +249,7 @@ internal fun HomeScreen(
                     PersonaPresets.DEFAULTS.forEach { preset ->
                         FilterChip(
                             selected = settings.customPersona.isBlank() && settings.personaId == preset.id,
-                            onClick = { repo.update { it.copy(personaId = preset.id, customPersona = "") } },
+                            onClick = { vm.update { it.copy(personaId = preset.id, customPersona = "") } },
                             label = { Text(preset.title) }
                         )
                     }
@@ -311,7 +259,7 @@ internal fun HomeScreen(
                     "自定义风格(填写后覆盖上面的场景)",
                     settings.customPersona,
                     singleLine = false
-                ) { v -> repo.update { it.copy(customPersona = v) } }
+                ) { v -> vm.update { it.copy(customPersona = v) } }
             }
 
             // --- Personal memory ---
@@ -326,7 +274,7 @@ internal fun HomeScreen(
                     }
                     Switch(
                         checked = settings.memoryEnabled,
-                        onCheckedChange = { c -> repo.update { it.copy(memoryEnabled = c) } }
+                        onCheckedChange = { c -> vm.update { it.copy(memoryEnabled = c) } }
                     )
                 }
                 if (settings.memoryEnabled) {
@@ -339,7 +287,7 @@ internal fun HomeScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(
                             enabled = !memStats.learning && memStats.pending > 0 && settings.apiKey.isNotBlank(),
-                            onClick = { scope.launch { memoryRepo.learnNow() } }
+                            onClick = { vm.learnNow() }
                         ) {
                             if (memStats.learning) {
                                 CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
@@ -351,7 +299,7 @@ internal fun HomeScreen(
                     }
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
-                        onClick = { scope.launch { memoryRepo.clearAll() } },
+                        onClick = { vm.clearMemory() },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("清空记忆与回复记录") }
                 }
@@ -368,8 +316,8 @@ internal fun HomeScreen(
 
     testOutput?.let { replies ->
         AlertDialog(
-            onDismissRequest = { testOutput = null },
-            confirmButton = { TextButton(onClick = { testOutput = null }) { Text("关闭") } },
+            onDismissRequest = { vm.dismissTest() },
+            confirmButton = { TextButton(onClick = { vm.dismissTest() }) { Text("关闭") } },
             title = { Text("测试结果") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

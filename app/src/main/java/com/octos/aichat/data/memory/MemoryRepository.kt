@@ -1,7 +1,7 @@
 package com.octos.aichat.data.memory
 
 import android.content.Context
-import com.octos.aichat.ai.AiRepository
+import com.octos.aichat.ai.AiService
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
@@ -26,14 +26,14 @@ data class MemoryStats(
 
 /**
  * Coordinates the long-term memory feature, delegating the real work to focused
- * collaborators: [ReplyLog] (raw reply record), [AiRepository] (the learner),
+ * collaborators: [ReplyLog] (raw reply record), [AiService] (the learner),
  * [MemoryDao] (persistence), [MemoryEmbedder] (vectors) and [MemoryInjector]
  * (prompt block). Owns only the orchestration + the UI-facing state flows.
  *
  * Singleton, mirroring [SettingsRepository] — background services and the UI all
  * talk to the one instance.
  */
-class MemoryRepository private constructor(context: Context) {
+class MemoryRepository private constructor(context: Context) : MemoryStore {
 
     private val appContext = context.applicationContext
     private val dao = MemoryDatabase.get(appContext).memoryDao()
@@ -45,14 +45,14 @@ class MemoryRepository private constructor(context: Context) {
     private val learnLock = Mutex() // only one learning pass at a time
 
     private val _memories = MutableStateFlow<List<MemoryEntity>>(emptyList())
-    val memories: StateFlow<List<MemoryEntity>> = _memories
+    override val memories: StateFlow<List<MemoryEntity>> = _memories
 
     /** Soft-deleted memories (recycle bin): restorable, not yet purged. */
     private val _deleted = MutableStateFlow<List<MemoryEntity>>(emptyList())
-    val deleted: StateFlow<List<MemoryEntity>> = _deleted
+    override val deleted: StateFlow<List<MemoryEntity>> = _deleted
 
     private val _stats = MutableStateFlow(MemoryStats())
-    val stats: StateFlow<MemoryStats> = _stats
+    override val stats: StateFlow<MemoryStats> = _stats
 
     init {
         scope.launch {
@@ -66,7 +66,7 @@ class MemoryRepository private constructor(context: Context) {
     // ---- recording ------------------------------------------------------
 
     /** Record every message I authored in [conv] (skips the other party). */
-    fun recordMyMessages(conv: Conversation) {
+    override fun recordMyMessages(conv: Conversation) {
         if (!settingsRepo.current().memoryEnabled) return
         val mine = conv.messages.filter { it.speaker == Speaker.ME }.map { it.text }
         if (mine.isEmpty()) return
@@ -78,7 +78,7 @@ class MemoryRepository private constructor(context: Context) {
     }
 
     /** Record a single reply I chose/sent through the assistant. */
-    fun recordReply(text: String) {
+    override fun recordReply(text: String) {
         if (!settingsRepo.current().memoryEnabled) return
         scope.launch {
             if (replyLog.append(text)) bumpTotal(1)
@@ -101,7 +101,7 @@ class MemoryRepository private constructor(context: Context) {
     }
 
     /** Manual trigger from the UI; learns whatever is pending regardless of threshold. */
-    suspend fun learnNow() {
+    override suspend fun learnNow() {
         val settings = settingsRepo.current()
         if (_stats.value.learning || _stats.value.pending <= 0) return
         runLearning(settings)
@@ -114,7 +114,7 @@ class MemoryRepository private constructor(context: Context) {
             val pending = replyLog.pending()
             if (pending.replies.isEmpty()) return
             val existing = dao.all()
-            val result = AiRepository.instance.learnMemory(settings, existing, pending.replies) ?: return
+            val result = AiService.instance.learnMemory(settings, existing, pending.replies) ?: return
 
             // Memory is permanent: add new rows, overwrite conflicting rows (newest
             // wins), and soft-delete clearly-obsolete rows (recoverable).
@@ -152,31 +152,31 @@ class MemoryRepository private constructor(context: Context) {
     // ---- reads ----------------------------------------------------------
 
     /** Formatted memory for injection into the reply-generation system prompt. */
-    fun memoryBlock(conv: Conversation? = null): String =
+    override fun memoryBlock(conv: Conversation?): String =
         MemoryInjector.block(_memories.value, settingsRepo.current(), conv)
 
     // ---- manual edits ---------------------------------------------------
 
     /** Manually remove a memory item — soft-delete so it can be restored. */
-    suspend fun deleteMemory(id: Long) {
+    override suspend fun deleteMemory(id: Long) {
         dao.softDelete(id, System.currentTimeMillis(), DELETED_BY_USER)
         refreshMemories()
     }
 
     /** Restore a soft-deleted memory from the recycle bin back to active. */
-    suspend fun restoreMemory(id: Long) {
+    override suspend fun restoreMemory(id: Long) {
         dao.restore(id)
         refreshMemories()
     }
 
     /** Permanently drop a memory from the recycle bin (unrecoverable). */
-    suspend fun purgeMemory(id: Long) {
+    override suspend fun purgeMemory(id: Long) {
         dao.deleteById(id)
         refreshMemories()
     }
 
     /** Manually edit a memory item's text (keeps its category). */
-    suspend fun editMemory(id: Long, content: String) {
+    override suspend fun editMemory(id: Long, content: String) {
         val text = content.trim()
         if (text.isEmpty()) return
         val item = _memories.value.firstOrNull { it.id == id } ?: return
@@ -186,7 +186,7 @@ class MemoryRepository private constructor(context: Context) {
         if (embedder.backfill()) refreshMemories()
     }
 
-    suspend fun clearAll() {
+    override suspend fun clearAll() {
         dao.clear()
         replyLog.clear()
         _memories.value = emptyList()

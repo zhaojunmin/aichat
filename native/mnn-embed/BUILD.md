@@ -1,7 +1,7 @@
 # 端侧 Embedding 原生库 (bge-small-zh via MNN)
 
 `app/src/main/jniLibs/arm64-v8a/libembedjni.so` 由此目录构建:MNN 核心 `Interpreter`
-跑 bge-small-zh 编码器,CLS 池化 + L2 归一,对接 `EmbeddingEngine.kt`。
+跑 bge-small-zh 编码器,CLS 池化 + L2 归一,对接 `Encoder.kt`。
 
 ## 组成
 - `embed_jni.cpp` —— JNI 桥(`nativeEmbedLoad/Embed/Release`),**复用** app 已有的

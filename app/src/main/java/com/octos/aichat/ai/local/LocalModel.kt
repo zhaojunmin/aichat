@@ -1,4 +1,4 @@
-package com.octos.aichat.data.local
+package com.octos.aichat.ai.local
 
 /**
  * Selectable on-device models (MNN-converted Qwen2.5, hosted by taobao-mnn).

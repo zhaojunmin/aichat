@@ -34,21 +34,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.octos.aichat.data.Conversation
-import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.Speaker
-import com.octos.aichat.data.memory.EmbeddingEngine
-import com.octos.aichat.data.memory.MemoryRepository
+import com.octos.aichat.ai.embedding.Encoder
 import com.octos.aichat.bubble.FloatingBubbleService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
+internal fun AdvancedScreen(onBack: () -> Unit) {
     val context = LocalContext.current
-    val settings by repo.state.collectAsStateWithLifecycle()
-    val memoryRepo = remember { MemoryRepository.get(context) }
-    val memStats by memoryRepo.stats.collectAsStateWithLifecycle()
-    val memories by memoryRepo.memories.collectAsStateWithLifecycle()
+    val vm: AdvancedViewModel = viewModel(factory = AdvancedViewModel.factory(context))
+    val settings by vm.settingsState.collectAsStateWithLifecycle()
+    val memStats by vm.stats.collectAsStateWithLifecycle()
+    val memories by vm.memories.collectAsStateWithLifecycle()
 
     var preview by remember { mutableStateOf<Conversation?>(null) }
     var rawDump by remember { mutableStateOf<String?>(null) }
@@ -93,7 +92,7 @@ internal fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
                         checked = settings.bubbleAutoStart,
                         enabled = overlayOn,
                         onCheckedChange = { c ->
-                            repo.update { it.copy(bubbleAutoStart = c) }
+                            vm.update { it.copy(bubbleAutoStart = c) }
                             if (c) FloatingBubbleService.start(context) else FloatingBubbleService.stop(context)
                         }
                     )
@@ -104,11 +103,11 @@ internal fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("每次候选条数:${settings.suggestionCount}", Modifier.weight(1f))
                     OutlinedButton(onClick = {
-                        repo.update { it.copy(suggestionCount = (it.suggestionCount - 1).coerceAtLeast(1)) }
+                        vm.update { it.copy(suggestionCount = (it.suggestionCount - 1).coerceAtLeast(1)) }
                     }) { Text("-") }
                     Spacer(Modifier.width(8.dp))
                     OutlinedButton(onClick = {
-                        repo.update { it.copy(suggestionCount = (it.suggestionCount + 1).coerceAtMost(5)) }
+                        vm.update { it.copy(suggestionCount = (it.suggestionCount + 1).coerceAtMost(5)) }
                     }) { Text("+") }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -119,7 +118,7 @@ internal fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
                     }
                     Switch(
                         checked = settings.autoPaste,
-                        onCheckedChange = { c -> repo.update { it.copy(autoPaste = c) } }
+                        onCheckedChange = { c -> vm.update { it.copy(autoPaste = c) } }
                     )
                 }
             }
@@ -131,7 +130,7 @@ internal fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
                 )
                 Spacer(Modifier.height(8.dp))
                 LabeledField("Base URL(当前:${settings.backend.displayName})", settings.baseUrl) { v ->
-                    repo.update { it.withBaseUrl(v) }
+                    vm.update { it.withBaseUrl(v) }
                 }
             }
 
@@ -146,20 +145,20 @@ internal fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
                     }
                     Switch(
                         checked = settings.useScreenshotOcr,
-                        onCheckedChange = { c -> repo.update { it.copy(useScreenshotOcr = c) } }
+                        onCheckedChange = { c -> vm.update { it.copy(useScreenshotOcr = c) } }
                     )
                 }
                 if (settings.useScreenshotOcr) {
                     LabeledField(
                         "OCR 适用 App 包名(逗号分隔)",
                         settings.ocrPackages
-                    ) { v -> repo.update { it.copy(ocrPackages = v) } }
+                    ) { v -> vm.update { it.copy(ocrPackages = v) } }
                 }
                 Spacer(Modifier.height(8.dp))
                 LabeledField(
                     "目标 App 包名(逗号分隔)",
                     settings.targetPackages
-                ) { v -> repo.update { it.copy(targetPackages = v) } }
+                ) { v -> vm.update { it.copy(targetPackages = v) } }
             }
 
             SectionCard("记忆学习") {
@@ -171,11 +170,11 @@ internal fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("学习阈值:${settings.learnThreshold} 条", Modifier.weight(1f))
                     OutlinedButton(onClick = {
-                        repo.update { it.copy(learnThreshold = (it.learnThreshold - 5).coerceAtLeast(5)) }
+                        vm.update { it.copy(learnThreshold = (it.learnThreshold - 5).coerceAtLeast(5)) }
                     }) { Text("-5") }
                     Spacer(Modifier.width(8.dp))
                     OutlinedButton(onClick = {
-                        repo.update { it.copy(learnThreshold = (it.learnThreshold + 5).coerceAtMost(100)) }
+                        vm.update { it.copy(learnThreshold = (it.learnThreshold + 5).coerceAtMost(100)) }
                     }) { Text("+5") }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -188,11 +187,11 @@ internal fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
                         )
                     }
                     OutlinedButton(onClick = {
-                        repo.update { it.copy(memoryInjectLimit = (it.memoryInjectLimit - 5).coerceAtLeast(5)) }
+                        vm.update { it.copy(memoryInjectLimit = (it.memoryInjectLimit - 5).coerceAtLeast(5)) }
                     }) { Text("-5") }
                     Spacer(Modifier.width(8.dp))
                     OutlinedButton(onClick = {
-                        repo.update { it.copy(memoryInjectLimit = (it.memoryInjectLimit + 5).coerceAtMost(200)) }
+                        vm.update { it.copy(memoryInjectLimit = (it.memoryInjectLimit + 5).coerceAtMost(200)) }
                     }) { Text("+5") }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -200,7 +199,7 @@ internal fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
                     Column(Modifier.weight(1f)) {
                         Text("语义召回(实验)")
                         val embedded = memories.count { it.embedding != null }
-                        val diag = if (embedded == 0) " · ${EmbeddingEngine.status}" else ""
+                        val diag = if (embedded == 0) " · ${Encoder.status}" else ""
                         Text(
                             "端上向量按语义挑选相关记忆 · 已向量化 $embedded/${memories.size} 条$diag",
                             style = MaterialTheme.typography.bodySmall
@@ -208,7 +207,7 @@ internal fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
                     }
                     Switch(
                         checked = settings.memoryEmbeddingEnabled,
-                        onCheckedChange = { c -> repo.update { it.copy(memoryEmbeddingEnabled = c) } }
+                        onCheckedChange = { c -> vm.update { it.copy(memoryEmbeddingEnabled = c) } }
                     )
                 }
                 Spacer(Modifier.height(8.dp))

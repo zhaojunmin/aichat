@@ -1,7 +1,5 @@
-package com.octos.aichat.data.local
+package com.octos.aichat.ai.local
 
-import com.octos.aichat.ai.AiClient
-import com.octos.aichat.data.AppSettings
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -9,19 +7,15 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 
 /**
- * On-device LLM (MNN + Qwen2.5 Q4) as an [AiClient], so reply generation can run
- * fully offline — chat content never leaves the phone.
+ * On-device LLM engine (MNN + Qwen2.5 Q4): owns the native model lifecycle —
+ * loading/holding the model, the native handle, and serialising inference on one
+ * dedicated thread (MNN calls are blocking and not re-entrant). Only arm64-v8a
+ * ships the native libs, so [isSupported] is false elsewhere.
  *
- * The model is loaded once and kept resident; all native calls are serialised on
- * a single dedicated thread (MNN inference is blocking and not re-entrant). Only
- * arm64-v8a ships the native libs, so [isSupported] is false elsewhere and the
- * app falls back to the cloud client.
+ * This is the *engine*; [LocalClient] is the thin [AiClient] over it (so reply
+ * generation can run fully offline — chat content never leaves the phone).
  */
-object LocalLlmEngine : AiClient {
-
-    // A few short replies as JSON fit well under this; capping avoids a rambling
-    // model dragging out latency on slower on-device inference.
-    private const val MAX_TOKENS = 180
+object LlmEngine {
 
     @Volatile private var available = false
     @Volatile private var handle: Long = 0L
@@ -65,11 +59,12 @@ object LocalLlmEngine : AiClient {
         } else false
     }
 
-    override suspend fun complete(settings: AppSettings, system: String, user: String): String {
+    /** Run one inference turn on the loaded model. Serialised; blocking native call. */
+    suspend fun chat(system: String, user: String, maxTokens: Int): String {
         require(available) { "本地推理库不可用(仅 arm64 设备支持)" }
         return mutex.withLock {
             require(handle != 0L) { "本地模型尚未加载" }
-            withContext(infra) { nativeChat(handle, system, user, MAX_TOKENS) }.trim()
+            withContext(infra) { nativeChat(handle, system, user, maxTokens) }.trim()
         }
     }
 

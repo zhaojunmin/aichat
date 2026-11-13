@@ -1,5 +1,6 @@
 package com.octos.aichat.data.memory
 
+import com.octos.aichat.ai.embedding.Embedder
 import kotlin.math.pow
 
 /**
@@ -109,15 +110,15 @@ object MemoryRetrieval {
      * Semantic relevance via on-device embeddings: encode the query once (bge CLS
      * vector) and cosine it against each memory's stored vector. Memories without a
      * vector (not yet embedded) score 0 — they still rank via recency + importance.
-     * [embedQuery] returns null when the engine isn't ready → all-zero → lexical-like fallback.
+     * [embedder] returns null for the query when not ready → all-zero → lexical-like fallback.
      */
-    class EmbeddingRelevance(private val embedQuery: (String) -> FloatArray?) : RelevanceScorer {
+    class EmbeddingRelevance(private val embedder: Embedder) : RelevanceScorer {
         override fun scores(items: List<MemoryEntity>, query: String): DoubleArray {
             if (query.isBlank()) return DoubleArray(items.size)
-            val q = embedQuery(query) ?: return DoubleArray(items.size)
+            val q = embedder.embedQuery(query) ?: return DoubleArray(items.size)
             return DoubleArray(items.size) { i ->
                 val bytes = items[i].embedding ?: return@DoubleArray 0.0
-                val v = EmbeddingCodec.decode(bytes)
+                val v = embedder.decode(bytes)
                 if (v.size == q.size) cosine(q, v) else 0.0
             }
         }

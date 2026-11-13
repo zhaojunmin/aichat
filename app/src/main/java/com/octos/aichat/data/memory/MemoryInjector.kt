@@ -1,5 +1,6 @@
 package com.octos.aichat.data.memory
 
+import com.octos.aichat.ai.embedding.Embedder
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 
@@ -12,14 +13,19 @@ import com.octos.aichat.data.Conversation
  */
 object MemoryInjector {
 
-    fun block(items: List<MemoryEntity>, settings: AppSettings, conv: Conversation?): String {
+    fun block(
+        items: List<MemoryEntity>,
+        settings: AppSettings,
+        conv: Conversation?,
+        embedder: Embedder = Embedder.onDevice,
+    ): String {
         if (!settings.memoryEnabled || items.isEmpty()) return ""
         val limit = settings.memoryInjectLimit.coerceAtLeast(1)
         // Query = the recent transcript; the other party's latest lines are what we
         // are about to reply to, so relevance should favour memories about them.
         val query = conv?.toTranscript(maxLines = 12).orEmpty()
-        val relevance = if (settings.memoryEmbeddingEnabled && EmbeddingEngine.isReady) {
-            MemoryRetrieval.EmbeddingRelevance(EmbeddingEngine::embedQuery)
+        val relevance = if (settings.memoryEmbeddingEnabled && embedder.isReady) {
+            MemoryRetrieval.EmbeddingRelevance(embedder)
         } else {
             MemoryRetrieval.LexicalRelevance
         }

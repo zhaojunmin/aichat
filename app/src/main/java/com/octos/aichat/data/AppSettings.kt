@@ -95,12 +95,12 @@ data class AppSettings(
     val memoryEmbeddingEnabled: Boolean = true,
     /** Cloud API vs on-device model. Local keeps chat content on the phone. */
     val inferenceMode: InferenceMode = InferenceMode.CLOUD,
-    /** Which on-device model is selected (id of a [com.octos.aichat.data.local.LocalModel]). */
-    val localModelId: String = com.octos.aichat.data.local.LocalModel.DEFAULT.id,
+    /** Which on-device model is selected (id of a [com.octos.aichat.ai.local.LocalModel]). */
+    val localModelId: String = com.octos.aichat.ai.local.LocalModel.DEFAULT.id,
 ) {
     val useLocal: Boolean get() = inferenceMode == InferenceMode.LOCAL
-    val localModel: com.octos.aichat.data.local.LocalModel
-        get() = com.octos.aichat.data.local.LocalModel.of(localModelId)
+    val localModel: com.octos.aichat.ai.local.LocalModel
+        get() = com.octos.aichat.ai.local.LocalModel.of(localModelId)
     // Built-in supported apps are always included (union with user list), so a
     // newly supported app works without the user re-editing saved settings.
     val targetPackageSet: Set<String>

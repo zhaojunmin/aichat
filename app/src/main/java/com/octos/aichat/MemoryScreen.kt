@@ -25,24 +25,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.octos.aichat.data.memory.MemoryRepository
-import kotlinx.coroutines.launch
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun MemoryScreen(onBack: () -> Unit) {
-    val context = LocalContext.current
-    val memoryRepo = remember { MemoryRepository.get(context) }
-    val memories by memoryRepo.memories.collectAsStateWithLifecycle()
-    val deleted by memoryRepo.deleted.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
+    val vm: MemoryViewModel = viewModel(factory = MemoryViewModel.factory(LocalContext.current))
+    val memories by vm.memories.collectAsStateWithLifecycle()
+    val deleted by vm.deleted.collectAsStateWithLifecycle()
 
     BackHandler(onBack = onBack)
 
@@ -78,8 +74,8 @@ internal fun MemoryScreen(onBack: () -> Unit) {
                     MemoryEditRow(
                         category = m.category,
                         content = m.content,
-                        onSave = { c -> scope.launch { memoryRepo.editMemory(m.id, c) } },
-                        onDelete = { scope.launch { memoryRepo.deleteMemory(m.id) } },
+                        onSave = { c -> vm.edit(m.id, c) },
+                        onDelete = { vm.delete(m.id) },
                     )
                 }
             }
@@ -100,8 +96,8 @@ internal fun MemoryScreen(onBack: () -> Unit) {
                         category = m.category,
                         content = m.content,
                         byLearner = m.deletedBy == "learner",
-                        onRestore = { scope.launch { memoryRepo.restoreMemory(m.id) } },
-                        onPurge = { scope.launch { memoryRepo.purgeMemory(m.id) } },
+                        onRestore = { vm.restore(m.id) },
+                        onPurge = { vm.purge(m.id) },
                     )
                 }
             }
