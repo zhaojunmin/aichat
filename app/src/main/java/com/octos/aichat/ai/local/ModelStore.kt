@@ -1,6 +1,7 @@
 package com.octos.aichat.ai.local
 
 import android.content.Context
+import com.octos.aichat.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -64,8 +65,8 @@ object ModelStore {
         onProgress: (Progress) -> Unit,
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
-            val files = treeFiles(model.repo)
-            require(files.isNotEmpty()) { "未获取到模型文件清单" }
+            val files = treeFiles(ctx, model.repo)
+            require(files.isNotEmpty()) { ctx.getString(R.string.ms_no_manifest) }
             val totalBytes = files.sumOf { it.second }
             val d = dir(ctx, model).apply { mkdirs() }
             var done = 0L
@@ -81,8 +82,8 @@ object ModelStore {
                     .url("https://modelscope.cn/models/${model.repo}/resolve/master/$name")
                     .build()
                 http.newCall(req).execute().use { resp ->
-                    if (!resp.isSuccessful) error("下载失败 $name:HTTP ${resp.code}")
-                    val body = resp.body ?: error("空响应:$name")
+                    if (!resp.isSuccessful) error(ctx.getString(R.string.ms_download_http, name, resp.code))
+                    val body = resp.body ?: error(ctx.getString(R.string.ms_empty_resp, name))
                     part.outputStream().use { out ->
                         body.byteStream().use { input ->
                             val buf = ByteArray(1 shl 16)
@@ -96,20 +97,20 @@ object ModelStore {
                         }
                     }
                 }
-                check(part.renameTo(dest)) { "写入失败:$name" }
+                check(part.renameTo(dest)) { ctx.getString(R.string.ms_write_failed, name) }
             }
         }
     }
 
     /** Discover downloadable files + sizes from the ModelScope files API. */
-    private fun treeFiles(repo: String): List<Pair<String, Long>> {
+    private fun treeFiles(ctx: Context, repo: String): List<Pair<String, Long>> {
         val req = Request.Builder()
             .url("https://modelscope.cn/api/v1/models/$repo/repo/files?Revision=master")
             .build()
         http.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) error("无法获取文件清单:HTTP ${resp.code}")
+            if (!resp.isSuccessful) error(ctx.getString(R.string.ms_manifest_http, resp.code))
             val files = JSONObject(resp.body?.string().orEmpty())
-                .optJSONObject("Data")?.optJSONArray("Files") ?: error("文件清单为空")
+                .optJSONObject("Data")?.optJSONArray("Files") ?: error(ctx.getString(R.string.ms_manifest_empty))
             val out = ArrayList<Pair<String, Long>>()
             for (i in 0 until files.length()) {
                 val o = files.optJSONObject(i) ?: continue

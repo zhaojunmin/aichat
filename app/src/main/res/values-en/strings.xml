@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Chat Assistant</string>
+    <string name="accessibility_label">Chat Assistant · Screen Reader</string>
+    <string name="accessibility_description">Reads the text on the current chat screen to generate AI reply suggestions. Content is processed on-device and sent only to the AI endpoint you configure, for no other purpose.</string>
+
+    <!-- Shared actions / status -->
+    <string name="action_enable">Enable</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_close">Close</string>
+    <string name="status_ready">✅ Ready</string>
+    <string name="test_connection">Test connection</string>
+
+    <!-- Home -->
+    <string name="home_title">Chat Reply AI Assistant</string>
+    <string name="home_permissions_title">Enable permissions</string>
+    <string name="home_permissions_desc">The assistant needs these two permissions to read chats and show the floating bubble.</string>
+    <string name="home_perm_accessibility">Read chat content (Accessibility)</string>
+    <string name="home_perm_overlay">Show floating bubble (Overlay)</string>
+    <string name="home_perm_notification">Allow notifications (keep the assistant running)</string>
+    <string name="home_ai_service_title">AI service</string>
+    <string name="home_inference_desc">Choose how inference runs. Local mode: chat content never leaves the device.</string>
+    <string name="inference_cloud">Cloud</string>
+    <string name="inference_local">Local (private)</string>
+    <string name="label_api_key">API Key</string>
+    <string name="label_model">Model</string>
+    <string name="home_local_unsupported">This device does not support local models (arm64 only)</string>
+    <string name="home_model_size">%1$s · ~%2$d MB</string>
+    <string name="home_model_not_downloaded">Not downloaded (Wi-Fi recommended)</string>
+    <string name="home_error_prefix">⚠ %1$s</string>
+    <string name="home_downloading">Downloading…</string>
+    <string name="home_download_model">Download %1$s</string>
+    <string name="home_testing_local">Generating locally…</string>
+    <string name="home_testing_cloud">Testing…</string>
+    <string name="home_reply_style_title">Reply style</string>
+    <string name="home_reply_style_desc">Pick a scenario, or customize the tone you want.</string>
+    <string name="home_custom_persona_label">Custom style (overrides the scenario above)</string>
+    <string name="home_memory_title">Personal memory (learns you over time)</string>
+    <string name="home_memory_switch_label">Remember my speaking style and habits</string>
+    <string name="home_memory_desc">The assistant quietly learns from your replies so suggestions sound more like you. All records stay on this device.</string>
+    <string name="home_memory_stats">%1$d recorded · %2$d memories</string>
+    <string name="home_learning">Learning…</string>
+    <string name="home_learn_now">Learn now</string>
+    <string name="home_manage_memory">Manage memory</string>
+    <string name="home_clear_memory">Clear memory &amp; reply history</string>
+    <string name="home_advanced_entry">⚙  Advanced / Developer options</string>
+    <string name="home_test_result_title">Test result</string>
+
+    <!-- Shared speaker labels -->
+    <string name="speaker_me">Me</string>
+    <string name="speaker_other">Them</string>
+
+    <!-- Advanced -->
+    <string name="adv_title">Advanced</string>
+    <string name="adv_desc">These options are for advanced users and adaptation debugging; normal use needs no changes.</string>
+    <string name="adv_bubble_title">Floating bubble</string>
+    <string name="adv_bubble_autostart">Auto-start with the app</string>
+    <string name="adv_bubble_on_desc">Works once you open WeChat / QQ / Soul etc.; off means it won\'t auto-start</string>
+    <string name="adv_bubble_off_desc">Grant the overlay permission on the home screen first</string>
+    <string name="adv_reply_pref_title">Reply preferences</string>
+    <string name="adv_suggestion_count">Suggestions per round: %1$d</string>
+    <string name="adv_autopaste_title">Auto-fill the input box</string>
+    <string name="adv_autopaste_desc">Fill the chosen reply straight into the chat input</string>
+    <string name="adv_endpoint_title">Endpoint</string>
+    <string name="adv_endpoint_desc">Only needed for self-hosted / proxy services; the default is fine.</string>
+    <string name="adv_base_url">Base URL (current: %1$s)</string>
+    <string name="adv_recognition_title">Recognition</string>
+    <string name="adv_ocr_title">Read via screenshot OCR</string>
+    <string name="adv_ocr_desc">Applies only to the apps listed below (WeChat by default); Soul etc. still use precise accessibility parsing</string>
+    <string name="adv_ocr_packages_label">OCR app package names (comma-separated)</string>
+    <string name="adv_target_packages_label">Target app package names (comma-separated)</string>
+    <string name="adv_memory_learn_title">Memory learning</string>
+    <string name="adv_memory_learn_desc">All memory stays on-device; learning merges new info (newest wins on conflict), and clearly outdated items move to the recycle bin (restorable in Manage memory).</string>
+    <string name="adv_learn_threshold">Learning threshold: %1$d</string>
+    <string name="adv_inject_limit">Injection cap: latest %1$d</string>
+    <string name="adv_inject_limit_desc">Only the most recently updated items are brought into reply generation, to keep the prompt short</string>
+    <string name="adv_semantic_title">Semantic recall (experimental)</string>
+    <string name="adv_semantic_desc">On-device vectors pick relevant memories by meaning · %1$d/%2$d embedded%3$s</string>
+    <string name="adv_memory_stats">%1$d recorded · %2$d pending</string>
+    <string name="adv_debug_title">Read debugging</string>
+    <string name="adv_debug_desc">Stay on a WeChat / Soul chat screen for a moment, then come back here to see what the accessibility service read — useful to check whether “Me / Them” is distinguished correctly.</string>
+    <string name="adv_debug_view_chat">View the chat currently read</string>
+    <string name="adv_debug_view_tree">View the raw node tree (for adapting new apps)</string>
+    <string name="adv_raw_tree_title">Raw node tree</string>
+    <string name="adv_read_result_title">Read result · %1$d messages</string>
+    <string name="adv_read_empty">No chat content read. Make sure the accessibility service is on, stay on a WeChat / Soul chat screen for a bit, then try again.</string>
+    <string name="adv_read_source">Source: %1$s</string>
+
+    <!-- Memory management -->
+    <string name="action_save">Save</string>
+    <string name="mem_title">Manage memory · %1$d</string>
+    <string name="mem_empty">No memories learned yet. Use it in a few more chats, then tap “Learn now” once enough replies pile up, or wait for auto-learning.</string>
+    <string name="mem_intro">These are things the assistant learned about you, used to generate replies. Edit or delete anything inaccurate.</string>
+    <string name="mem_recycle_title">Recycle bin · %1$d</string>
+    <string name="mem_recycle_desc">Removed memories (including ones auto-judged outdated during learning) are no longer used for replies. Restore or delete permanently.</string>
+    <string name="mem_removed_by_learner"> · removed while learning</string>
+    <string name="mem_removed_by_user"> · removed manually</string>
+    <string name="mem_purge">Delete permanently</string>
+    <string name="mem_restore">Restore</string>
+
+    <!-- Shared status / errors -->
+    <string name="status_enabled">Enabled</string>
+    <string name="error_local_load_failed">Failed to load local model</string>
+    <string name="generation_failed">Generation failed</string>
+
+    <!-- Local model hints -->
+    <string name="model_hint_fast">Fastest · basic quality</string>
+    <string name="model_hint_balanced">Balanced</string>
+    <string name="model_hint_best">Best · slower</string>
+
+    <!-- Floating bubble panel -->
+    <string name="bubble_generating">Generating replies…</string>
+    <string name="bubble_other_preview">Them: %1$s</string>
+    <string name="bubble_suggestions_title">AI reply suggestions</string>
+
+    <!-- Home ViewModel (test / download) -->
+    <string name="vm_connecting">Connecting…</string>
+    <string name="vm_download_done">Download complete</string>
+    <string name="vm_download_failed">Download failed</string>
+    <string name="vm_error_prefix">Error: %1$s</string>
+    <string name="vm_sample_other_1">Hey, free for dinner this weekend?</string>
+    <string name="vm_sample_me">Yeah, I\'m around</string>
+    <string name="vm_sample_other_2">So what do you feel like eating?</string>
+
+    <!-- Model download errors -->
+    <string name="ms_no_manifest">Could not fetch the model file list</string>
+    <string name="ms_download_http">Download failed %1$s: HTTP %2$d</string>
+    <string name="ms_empty_resp">Empty response: %1$s</string>
+    <string name="ms_write_failed">Write failed: %1$s</string>
+    <string name="ms_manifest_http">Could not fetch file list: HTTP %1$d</string>
+    <string name="ms_manifest_empty">File list is empty</string>
+
+    <!-- Floating bubble service / notification -->
+    <string name="svc_need_api_key">Please enter your API Key in the app first</string>
+    <string name="svc_ocr_no_content">Screenshot OCR found no chat content (Accessibility must be on)</string>
+    <string name="svc_no_content">No chat content read — open a chat and enable the accessibility service</string>
+    <string name="svc_local_not_downloaded">Local model (%1$s) not downloaded — download it in app settings first</string>
+    <string name="svc_loading_local">Loading local model…</string>
+    <string name="svc_filled">Filled into the input box</string>
+    <string name="svc_copied">Copied — paste to send</string>
+    <string name="svc_bubble_name">Floating assistant</string>
+    <string name="svc_notif_title">Chat Assistant is running</string>
+    <string name="svc_notif_text">Tap the bubble to generate AI reply suggestions</string>
+
+    <!-- Persona preset titles -->
+    <string name="persona_dating">Dating / Flirty</string>
+    <string name="persona_icebreak">Icebreaker</string>
+    <string name="persona_business">Business / Formal</string>
+    <string name="persona_support">Support / Q&amp;A</string>
+</resources>

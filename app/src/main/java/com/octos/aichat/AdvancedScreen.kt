@@ -32,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -57,7 +58,7 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("高级设置") },
+                title = { Text(stringResource(R.string.adv_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Text("←", style = MaterialTheme.typography.titleLarge) }
                 }
@@ -73,18 +74,18 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                "这些选项面向进阶用户和适配调试,普通使用无需改动。",
+                stringResource(R.string.adv_desc),
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            SectionCard("悬浮球") {
+            SectionCard(stringResource(R.string.adv_bubble_title)) {
                 val overlayOn = Settings.canDrawOverlays(context)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("随应用启动自动开启")
+                        Text(stringResource(R.string.adv_bubble_autostart))
                         Text(
-                            if (overlayOn) "打开微信 / QQ / Soul 等聊天界面即可用;关闭则不自动启动"
-                            else "需先在首页授予悬浮窗权限",
+                            if (overlayOn) stringResource(R.string.adv_bubble_on_desc)
+                            else stringResource(R.string.adv_bubble_off_desc),
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -99,9 +100,9 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 }
             }
 
-            SectionCard("回复偏好") {
+            SectionCard(stringResource(R.string.adv_reply_pref_title)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("每次候选条数:${settings.suggestionCount}", Modifier.weight(1f))
+                    Text(stringResource(R.string.adv_suggestion_count, settings.suggestionCount), Modifier.weight(1f))
                     OutlinedButton(onClick = {
                         vm.update { it.copy(suggestionCount = (it.suggestionCount - 1).coerceAtLeast(1)) }
                     }) { Text("-") }
@@ -113,8 +114,8 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("自动填入输入框")
-                        Text("选好回复后直接填进聊天输入框", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.adv_autopaste_title))
+                        Text(stringResource(R.string.adv_autopaste_desc), style = MaterialTheme.typography.bodySmall)
                     }
                     Switch(
                         checked = settings.autoPaste,
@@ -123,23 +124,23 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 }
             }
 
-            SectionCard("接口地址") {
+            SectionCard(stringResource(R.string.adv_endpoint_title)) {
                 Text(
-                    "仅在使用自建 / 代理服务时才需修改,默认即可。",
+                    stringResource(R.string.adv_endpoint_desc),
                     style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(Modifier.height(8.dp))
-                LabeledField("Base URL(当前:${settings.backend.displayName})", settings.baseUrl) { v ->
+                LabeledField(stringResource(R.string.adv_base_url, settings.backend.displayName), settings.baseUrl) { v ->
                     vm.update { it.withBaseUrl(v) }
                 }
             }
 
-            SectionCard("识别设置") {
+            SectionCard(stringResource(R.string.adv_recognition_title)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("截图 OCR 读取")
+                        Text(stringResource(R.string.adv_ocr_title))
                         Text(
-                            "仅对下面列出的 App 生效(默认微信);Soul 等仍走无障碍精准识别",
+                            stringResource(R.string.adv_ocr_desc),
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -150,25 +151,25 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 }
                 if (settings.useScreenshotOcr) {
                     LabeledField(
-                        "OCR 适用 App 包名(逗号分隔)",
+                        stringResource(R.string.adv_ocr_packages_label),
                         settings.ocrPackages
                     ) { v -> vm.update { it.copy(ocrPackages = v) } }
                 }
                 Spacer(Modifier.height(8.dp))
                 LabeledField(
-                    "目标 App 包名(逗号分隔)",
+                    stringResource(R.string.adv_target_packages_label),
                     settings.targetPackages
                 ) { v -> vm.update { it.copy(targetPackages = v) } }
             }
 
-            SectionCard("记忆学习") {
+            SectionCard(stringResource(R.string.adv_memory_learn_title)) {
                 Text(
-                    "记忆全部保存在本机;学习时合并新信息、冲突以最新为准,明显失效的会移入回收站(可在管理记忆里恢复)。",
+                    stringResource(R.string.adv_memory_learn_desc),
                     style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("学习阈值:${settings.learnThreshold} 条", Modifier.weight(1f))
+                    Text(stringResource(R.string.adv_learn_threshold, settings.learnThreshold), Modifier.weight(1f))
                     OutlinedButton(onClick = {
                         vm.update { it.copy(learnThreshold = (it.learnThreshold - 5).coerceAtLeast(5)) }
                     }) { Text("-5") }
@@ -180,9 +181,9 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("注入上限:最近 ${settings.memoryInjectLimit} 条")
+                        Text(stringResource(R.string.adv_inject_limit, settings.memoryInjectLimit))
                         Text(
-                            "仅把最近更新的若干条带进回复生成,避免 prompt 过长",
+                            stringResource(R.string.adv_inject_limit_desc),
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -197,11 +198,11 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("语义召回(实验)")
+                        Text(stringResource(R.string.adv_semantic_title))
                         val embedded = memories.count { it.embedding != null }
                         val diag = if (embedded == 0) " · ${Encoder.status}" else ""
                         Text(
-                            "端上向量按语义挑选相关记忆 · 已向量化 $embedded/${memories.size} 条$diag",
+                            stringResource(R.string.adv_semantic_desc, embedded, memories.size, diag),
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -212,27 +213,26 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "已记录 ${memStats.totalReplies} 条 · 待学习 ${memStats.pending} 条",
+                    stringResource(R.string.adv_memory_stats, memStats.totalReplies, memStats.pending),
                     style = MaterialTheme.typography.bodySmall
                 )
             }
 
-            SectionCard("读取调试") {
+            SectionCard(stringResource(R.string.adv_debug_title)) {
                 Text(
-                    "先在微信 / Soul 的聊天界面停留一下,再回到这里查看无障碍服务读到的内容," +
-                        "可据此判断\"我 / 对方\"是否区分正确。",
+                    stringResource(R.string.adv_debug_desc),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { preview = AppBus.conversation },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("查看当前读取到的聊天记录") }
+                ) { Text(stringResource(R.string.adv_debug_view_chat)) }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = { rawDump = AppBus.lastRawDump },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("查看原始节点树(适配新 App 用)") }
+                ) { Text(stringResource(R.string.adv_debug_view_tree)) }
             }
         }
     }
@@ -240,8 +240,8 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
     rawDump?.let { dump ->
         AlertDialog(
             onDismissRequest = { rawDump = null },
-            confirmButton = { TextButton(onClick = { rawDump = null }) { Text("关闭") } },
-            title = { Text("原始节点树") },
+            confirmButton = { TextButton(onClick = { rawDump = null }) { Text(stringResource(R.string.action_close)) } },
+            title = { Text(stringResource(R.string.adv_raw_tree_title)) },
             text = {
                 Column(
                     Modifier
@@ -257,11 +257,11 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
     preview?.let { conv ->
         AlertDialog(
             onDismissRequest = { preview = null },
-            confirmButton = { TextButton(onClick = { preview = null }) { Text("关闭") } },
-            title = { Text("读取结果 · ${conv.messages.size} 条") },
+            confirmButton = { TextButton(onClick = { preview = null }) { Text(stringResource(R.string.action_close)) } },
+            title = { Text(stringResource(R.string.adv_read_result_title, conv.messages.size)) },
             text = {
                 if (conv.isEmpty) {
-                    Text("未读取到聊天内容。请确认已开启无障碍服务,并在微信 / Soul 聊天界面停留片刻后再试。")
+                    Text(stringResource(R.string.adv_read_empty))
                 } else {
                     Column(
                         Modifier
@@ -269,9 +269,10 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Text("来源: ${conv.packageName}", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.adv_read_source, conv.packageName), style = MaterialTheme.typography.bodySmall)
                         conv.messages.forEach { m ->
-                            val who = if (m.speaker == Speaker.ME) "我" else "对方"
+                            val who = if (m.speaker == Speaker.ME) stringResource(R.string.speaker_me)
+                                      else stringResource(R.string.speaker_other)
                             Text("$who: ${m.text}")
                         }
                     }

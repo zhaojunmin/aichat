@@ -1,5 +1,7 @@
 package com.octos.aichat.bubble
 
+import com.octos.aichat.R
+
 import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -202,7 +204,7 @@ class FloatingBubbleService : Service() {
         if (panel.isShowing) { panel.remove(); return }
         val settings = SettingsRepository.get(this).current()
         if (!settings.useLocal && settings.apiKey.isBlank()) {
-            toast("请先在 App 内填写 API Key")
+            toast(getString(R.string.svc_need_api_key))
             return
         }
         generating?.cancel()
@@ -213,8 +215,8 @@ class FloatingBubbleService : Service() {
             panel.showLoading()
             if (conv == null || conv.isEmpty) {
                 panel.showError(
-                    if (settings.useScreenshotOcr) "截图未识别到聊天内容(需无障碍已开启)"
-                    else "未读取到聊天内容,请打开聊天界面并开启无障碍服务"
+                    if (settings.useScreenshotOcr) getString(R.string.svc_ocr_no_content)
+                    else getString(R.string.svc_no_content)
                 )
                 return@launch
             }
@@ -226,7 +228,7 @@ class FloatingBubbleService : Service() {
             memory.recordMyMessages(conv)
             val result = runCatching { AiService.instance.generateReplies(settings, conv, memory.memoryBlock(conv)) }
             result.onSuccess { panel.showResults(it, AppBus.conversation.lastFromOther()) }
-                .onFailure { panel.showError(it.message ?: "生成失败") }
+                .onFailure { panel.showError(it.message ?: getString(R.string.generation_failed)) }
         }
     }
 
@@ -283,17 +285,17 @@ class FloatingBubbleService : Service() {
     /** Ensure the on-device model is loaded; shows an error panel and returns false if not. */
     private suspend fun ensureLocalReady(model: LocalModel): Boolean {
         if (!LlmEngine.isSupported) {
-            panel.showError("本机不支持本地模型(仅 arm64 设备)"); return false
+            panel.showError(getString(R.string.home_local_unsupported)); return false
         }
         if (!ModelStore.isReady(this, model)) {
-            panel.showError("本地模型(${model.displayName})未下载,请在 App 设置里下载后再用"); return false
+            panel.showError(getString(R.string.svc_local_not_downloaded, model.displayName)); return false
         }
-        if (!LlmEngine.isReady) panel.showLoading("正在加载本地模型…")
+        if (!LlmEngine.isReady) panel.showLoading(getString(R.string.svc_loading_local))
         // Idempotent when the same model is already loaded; reloads on a size switch.
         val ok = LlmEngine.ensureLoaded(
             ModelStore.configPath(this, model), ModelStore.tmpDir(this)
         )
-        if (!ok) { panel.showError("本地模型加载失败"); return false }
+        if (!ok) { panel.showError(getString(R.string.error_local_load_failed)); return false }
         return true
     }
 
@@ -304,7 +306,7 @@ class FloatingBubbleService : Service() {
 
         val autoPaste = SettingsRepository.get(this).current().autoPaste
         val pasted = autoPaste && AppBus.accessibilityService?.pasteText(reply) == true
-        toast(if (pasted) "已填入输入框" else "已复制,去粘贴发送")
+        toast(if (pasted) getString(R.string.svc_filled) else getString(R.string.svc_copied))
         panel.remove()
     }
 
@@ -317,7 +319,7 @@ class FloatingBubbleService : Service() {
         val nm = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             nm.createNotificationChannel(
-                NotificationChannel(channelId, "悬浮助手", NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel(channelId, getString(R.string.svc_bubble_name), NotificationManager.IMPORTANCE_LOW)
             )
         }
         val contentIntent = PendingIntent.getActivity(
@@ -327,8 +329,8 @@ class FloatingBubbleService : Service() {
             PendingIntent.FLAG_IMMUTABLE,
         )
         val notification: Notification = Notification.Builder(this, channelId)
-            .setContentTitle("聊天助手运行中")
-            .setContentText("点击悬浮球生成 AI 回复建议")
+            .setContentTitle(getString(R.string.svc_notif_title))
+            .setContentText(getString(R.string.svc_notif_text))
             .setSmallIcon(android.R.drawable.ic_menu_edit)
             .setContentIntent(contentIntent)
             .setOngoing(true) // persistent: not swipe-dismissable while running

@@ -1,5 +1,8 @@
 package com.octos.aichat.data
 
+import androidx.annotation.StringRes
+import com.octos.aichat.R
+
 /**
  * Which model provider to call. Both speak the OpenAI-compatible
  * chat-completions shape, so they share one HTTP client; the backend only
@@ -39,7 +42,7 @@ data class BackendConfig(
  */
 data class PersonaPreset(
     val id: String,
-    val title: String,
+    @StringRes val titleRes: Int,
     val systemPrompt: String,
 )
 
@@ -47,22 +50,22 @@ object PersonaPresets {
     val DEFAULTS: List<PersonaPreset> = listOf(
         PersonaPreset(
             id = "dating",
-            title = "恋爱/暧昧",
+            titleRes = R.string.persona_dating,
             systemPrompt = "高情商恋爱助手。回复自然有趣、略带调侃和暖意,不油腻、不肉麻,顺势接话题。"
         ),
         PersonaPreset(
             id = "icebreak",
-            title = "社交破冰",
+            titleRes = R.string.persona_icebreak,
             systemPrompt = "社交破冰助手。回复礼貌轻松、好接话,结尾可带一个开放式问题。"
         ),
         PersonaPreset(
             id = "business",
-            title = "商务/正式",
+            titleRes = R.string.persona_business,
             systemPrompt = "商务沟通助手。语气得体专业,态度清晰、给出下一步,不口语化、不用表情。"
         ),
         PersonaPreset(
             id = "support",
-            title = "客服/答疑",
+            titleRes = R.string.persona_support,
             systemPrompt = "客服助手。先共情再解决,答复明确可执行,语气温和专业。"
         ),
     )
