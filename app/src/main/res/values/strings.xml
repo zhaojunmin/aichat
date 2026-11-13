@@ -45,4 +45,106 @@
     <string name="home_clear_memory">清空记忆与回复记录</string>
     <string name="home_advanced_entry">⚙  高级设置 / 开发者选项</string>
     <string name="home_test_result_title">测试结果</string>
+
+    <!-- Shared speaker labels -->
+    <string name="speaker_me">我</string>
+    <string name="speaker_other">对方</string>
+
+    <!-- Advanced -->
+    <string name="adv_title">高级设置</string>
+    <string name="adv_desc">这些选项面向进阶用户和适配调试,普通使用无需改动。</string>
+    <string name="adv_bubble_title">悬浮球</string>
+    <string name="adv_bubble_autostart">随应用启动自动开启</string>
+    <string name="adv_bubble_on_desc">打开微信 / QQ / Soul 等聊天界面即可用;关闭则不自动启动</string>
+    <string name="adv_bubble_off_desc">需先在首页授予悬浮窗权限</string>
+    <string name="adv_reply_pref_title">回复偏好</string>
+    <string name="adv_suggestion_count">每次候选条数:%1$d</string>
+    <string name="adv_autopaste_title">自动填入输入框</string>
+    <string name="adv_autopaste_desc">选好回复后直接填进聊天输入框</string>
+    <string name="adv_endpoint_title">接口地址</string>
+    <string name="adv_endpoint_desc">仅在使用自建 / 代理服务时才需修改,默认即可。</string>
+    <string name="adv_base_url">Base URL(当前:%1$s)</string>
+    <string name="adv_recognition_title">识别设置</string>
+    <string name="adv_ocr_title">截图 OCR 读取</string>
+    <string name="adv_ocr_desc">仅对下面列出的 App 生效(默认微信);Soul 等仍走无障碍精准识别</string>
+    <string name="adv_ocr_packages_label">OCR 适用 App 包名(逗号分隔)</string>
+    <string name="adv_target_packages_label">目标 App 包名(逗号分隔)</string>
+    <string name="adv_memory_learn_title">记忆学习</string>
+    <string name="adv_memory_learn_desc">记忆全部保存在本机;学习时合并新信息、冲突以最新为准,明显失效的会移入回收站(可在管理记忆里恢复)。</string>
+    <string name="adv_learn_threshold">学习阈值:%1$d 条</string>
+    <string name="adv_inject_limit">注入上限:最近 %1$d 条</string>
+    <string name="adv_inject_limit_desc">仅把最近更新的若干条带进回复生成,避免 prompt 过长</string>
+    <string name="adv_semantic_title">语义召回(实验)</string>
+    <string name="adv_semantic_desc">端上向量按语义挑选相关记忆 · 已向量化 %1$d/%2$d 条%3$s</string>
+    <string name="adv_memory_stats">已记录 %1$d 条 · 待学习 %2$d 条</string>
+    <string name="adv_debug_title">读取调试</string>
+    <string name="adv_debug_desc">先在微信 / Soul 的聊天界面停留一下,再回到这里查看无障碍服务读到的内容,可据此判断「我 / 对方」是否区分正确。</string>
+    <string name="adv_debug_view_chat">查看当前读取到的聊天记录</string>
+    <string name="adv_debug_view_tree">查看原始节点树(适配新 App 用)</string>
+    <string name="adv_raw_tree_title">原始节点树</string>
+    <string name="adv_read_result_title">读取结果 · %1$d 条</string>
+    <string name="adv_read_empty">未读取到聊天内容。请确认已开启无障碍服务,并在微信 / Soul 聊天界面停留片刻后再试。</string>
+    <string name="adv_read_source">来源: %1$s</string>
+
+    <!-- Memory management -->
+    <string name="action_save">保存</string>
+    <string name="mem_title">记忆管理 · %1$d 条</string>
+    <string name="mem_empty">还没有学到记忆。先在聊天里多用几次,攒够回复后点「立即学习」或等待自动学习。</string>
+    <string name="mem_intro">这些是助手学到的关于你的信息,会用于生成回复。可修改或删除不准确的条目。</string>
+    <string name="mem_recycle_title">回收站 · %1$d 条</string>
+    <string name="mem_recycle_desc">已移除的记忆(含学习时自动判定失效的),不再用于回复。可恢复或彻底删除。</string>
+    <string name="mem_removed_by_learner"> · 学习时移除</string>
+    <string name="mem_removed_by_user"> · 手动移除</string>
+    <string name="mem_purge">彻底删除</string>
+    <string name="mem_restore">恢复</string>
+
+    <!-- Shared status / errors -->
+    <string name="status_enabled">已开启</string>
+    <string name="error_local_load_failed">本地模型加载失败</string>
+    <string name="generation_failed">生成失败</string>
+
+    <!-- Local model hints -->
+    <string name="model_hint_fast">最快·质量一般</string>
+    <string name="model_hint_balanced">均衡</string>
+    <string name="model_hint_best">最佳·较慢</string>
+
+    <!-- Floating bubble panel -->
+    <string name="bubble_generating">正在生成回复…</string>
+    <string name="bubble_other_preview">对方: %1$s</string>
+    <string name="bubble_suggestions_title">AI 回复建议</string>
+
+    <!-- Home ViewModel (test / download) -->
+    <string name="vm_connecting">连接中…</string>
+    <string name="vm_download_done">下载完成</string>
+    <string name="vm_download_failed">下载失败</string>
+    <string name="vm_error_prefix">错误:%1$s</string>
+    <string name="vm_sample_other_1">在吗?周末有空一起吃饭吗</string>
+    <string name="vm_sample_me">在的</string>
+    <string name="vm_sample_other_2">那你想吃什么呀</string>
+
+    <!-- Model download errors -->
+    <string name="ms_no_manifest">未获取到模型文件清单</string>
+    <string name="ms_download_http">下载失败 %1$s:HTTP %2$d</string>
+    <string name="ms_empty_resp">空响应:%1$s</string>
+    <string name="ms_write_failed">写入失败:%1$s</string>
+    <string name="ms_manifest_http">无法获取文件清单:HTTP %1$d</string>
+    <string name="ms_manifest_empty">文件清单为空</string>
+
+    <!-- Floating bubble service / notification -->
+    <string name="svc_need_api_key">请先在 App 内填写 API Key</string>
+    <string name="svc_ocr_no_content">截图未识别到聊天内容(需无障碍已开启)</string>
+    <string name="svc_no_content">未读取到聊天内容,请打开聊天界面并开启无障碍服务</string>
+    <string name="svc_local_not_downloaded">本地模型(%1$s)未下载,请在 App 设置里下载后再用</string>
+    <string name="svc_loading_local">正在加载本地模型…</string>
+    <string name="svc_filled">已填入输入框</string>
+    <string name="svc_copied">已复制,去粘贴发送</string>
+    <string name="svc_bubble_name">悬浮助手</string>
+    <string name="svc_notif_title">聊天助手运行中</string>
+    <string name="svc_notif_text">点击悬浮球生成 AI 回复建议</string>
+
+    <!-- Persona preset titles -->
+    <string name="persona_dating">恋爱/暧昧</string>
+    <string name="persona_icebreak">社交破冰</string>
+    <string name="persona_business">商务/正式</string>
+    <string name="persona_support">客服/答疑</string>
 </resources>

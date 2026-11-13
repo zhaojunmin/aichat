@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -45,7 +46,7 @@ internal fun MemoryScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("记忆管理 · ${memories.size} 条") },
+                title = { Text(stringResource(R.string.mem_title, memories.size)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) { Text("←", style = MaterialTheme.typography.titleLarge) }
                 }
@@ -62,12 +63,12 @@ internal fun MemoryScreen(onBack: () -> Unit) {
         ) {
             if (memories.isEmpty()) {
                 Text(
-                    "还没有学到记忆。先在聊天里多用几次,攒够回复后点\"立即学习\"或等待自动学习。",
+                    stringResource(R.string.mem_empty),
                     style = MaterialTheme.typography.bodyMedium
                 )
             } else {
                 Text(
-                    "这些是助手学到的关于你的信息,会用于生成回复。可修改或删除不准确的条目。",
+                    stringResource(R.string.mem_intro),
                     style = MaterialTheme.typography.bodySmall
                 )
                 memories.forEach { m ->
@@ -83,12 +84,12 @@ internal fun MemoryScreen(onBack: () -> Unit) {
             if (deleted.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "回收站 · ${deleted.size} 条",
+                    stringResource(R.string.mem_recycle_title, deleted.size),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.error,
                 )
                 Text(
-                    "已移除的记忆(含学习时自动判定失效的),不再用于回复。可恢复或彻底删除。",
+                    stringResource(R.string.mem_recycle_desc),
                     style = MaterialTheme.typography.bodySmall,
                 )
                 deleted.forEach { m ->
@@ -116,7 +117,8 @@ private fun DeletedMemoryRow(
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Text(
-                "【$category】" + if (byLearner) " · 学习时移除" else " · 手动移除",
+                "【$category】" + if (byLearner) stringResource(R.string.mem_removed_by_learner)
+                                 else stringResource(R.string.mem_removed_by_user),
                 color = MaterialTheme.colorScheme.outline,
                 style = MaterialTheme.typography.labelMedium,
             )
@@ -128,10 +130,10 @@ private fun DeletedMemoryRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = onPurge) {
-                    Text("彻底删除", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.mem_purge), color = MaterialTheme.colorScheme.error)
                 }
                 Spacer(Modifier.width(4.dp))
-                TextButton(onClick = onRestore) { Text("恢复") }
+                TextButton(onClick = onRestore) { Text(stringResource(R.string.mem_restore)) }
             }
         }
     }
@@ -159,10 +161,10 @@ private fun MemoryEditRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = onDelete) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
                 }
                 Spacer(Modifier.width(4.dp))
-                TextButton(enabled = changed, onClick = { onSave(text) }) { Text("保存") }
+                TextButton(enabled = changed, onClick = { onSave(text) }) { Text(stringResource(R.string.action_save)) }
             }
         }
     }

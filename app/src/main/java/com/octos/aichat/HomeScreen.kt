@@ -191,7 +191,11 @@ internal fun HomeScreen(
                     }
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        stringResource(R.string.home_model_size, settings.localModel.hint, settings.localModel.approxMB),
+                        stringResource(
+                            R.string.home_model_size,
+                            stringResource(settings.localModel.hintRes),
+                            settings.localModel.approxMB
+                        ),
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(Modifier.height(8.dp))
@@ -253,7 +257,7 @@ internal fun HomeScreen(
                         FilterChip(
                             selected = settings.customPersona.isBlank() && settings.personaId == preset.id,
                             onClick = { vm.update { it.copy(personaId = preset.id, customPersona = "") } },
-                            label = { Text(preset.title) }
+                            label = { Text(stringResource(preset.titleRes)) }
                         )
                     }
                 }
