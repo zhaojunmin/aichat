@@ -75,6 +75,15 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Auto-start the floating bubble on a fresh launch so the user doesn't tap
+        // every time (only when enabled and overlay permission is granted).
+        // savedInstanceState == null skips config-change recreations (e.g. rotation).
+        if (savedInstanceState == null &&
+            SettingsRepository.get(this).current().bubbleAutoStart &&
+            Settings.canDrawOverlays(this)
+        ) {
+            FloatingBubbleService.start(this)
+        }
         setContent { AppRoot() }
     }
 }
@@ -135,7 +144,6 @@ private fun HomeScreen(
 
     val accessibilityOn = remember(tick) { isAccessibilityEnabled(context) }
     val overlayOn = remember(tick) { Settings.canDrawOverlays(context) }
-    val ready = accessibilityOn && overlayOn && settings.apiKey.isNotBlank()
 
     var testOutput by remember { mutableStateOf<List<String>?>(null) }
     var testing by remember { mutableStateOf(false) }
@@ -192,28 +200,6 @@ private fun HomeScreen(
                         onClick = { notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("允许通知(让助手保持运行)") }
-                }
-            }
-
-            // --- Bubble on/off ---
-            SectionCard("悬浮助手") {
-                Text(
-                    when {
-                        !overlayOn -> "请先在上面开启悬浮窗权限。"
-                        ready -> "一切就绪!打开微信 / Soul 等聊天界面,点悬浮球即可生成回复。"
-                        else -> "开启后,在聊天界面点悬浮球即可生成回复。"
-                    },
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(
-                        onClick = { FloatingBubbleService.start(context) },
-                        enabled = overlayOn
-                    ) { Text("启动悬浮球") }
-                    OutlinedButton(onClick = { FloatingBubbleService.stop(context) }) {
-                        Text("关闭")
-                    }
                 }
             }
 
@@ -622,6 +608,28 @@ private fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
                 "这些选项面向进阶用户和适配调试,普通使用无需改动。",
                 style = MaterialTheme.typography.bodyMedium
             )
+
+            SectionCard("悬浮球") {
+                val overlayOn = Settings.canDrawOverlays(context)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("随应用启动自动开启")
+                        Text(
+                            if (overlayOn) "打开微信 / QQ / Soul 等聊天界面即可用;关闭则不自动启动"
+                            else "需先在首页授予悬浮窗权限",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = settings.bubbleAutoStart,
+                        enabled = overlayOn,
+                        onCheckedChange = { c ->
+                            repo.update { it.copy(bubbleAutoStart = c) }
+                            if (c) FloatingBubbleService.start(context) else FloatingBubbleService.stop(context)
+                        }
+                    )
+                }
+            }
 
             SectionCard("回复偏好") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
