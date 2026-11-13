@@ -225,7 +225,7 @@ class FloatingBubbleService : Service() {
             // been learned personalise the suggestions.
             val memory = MemoryRepository.get(this@FloatingBubbleService)
             memory.recordMyMessages(conv)
-            val result = runCatching { AiRepository.generateReplies(settings, conv, memory.memoryBlock()) }
+            val result = runCatching { AiRepository.generateReplies(settings, conv, memory.memoryBlock(conv)) }
             result.onSuccess { showPanelResults(it) }
                 .onFailure { showPanelError(it.message ?: "生成失败") }
         }

@@ -453,6 +453,7 @@ private fun MemoryScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val memoryRepo = remember { MemoryRepository.get(context) }
     val memories by memoryRepo.memories.collectAsStateWithLifecycle()
+    val deleted by memoryRepo.deleted.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
     BackHandler(onBack = onBack)
@@ -493,6 +494,60 @@ private fun MemoryScreen(onBack: () -> Unit) {
                         onDelete = { scope.launch { memoryRepo.deleteMemory(m.id) } },
                     )
                 }
+            }
+
+            if (deleted.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "回收站 · ${deleted.size} 条",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                Text(
+                    "已移除的记忆(含学习时自动判定失效的),不再用于回复。可恢复或彻底删除。",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                deleted.forEach { m ->
+                    DeletedMemoryRow(
+                        category = m.category,
+                        content = m.content,
+                        byLearner = m.deletedBy == "learner",
+                        onRestore = { scope.launch { memoryRepo.restoreMemory(m.id) } },
+                        onPurge = { scope.launch { memoryRepo.purgeMemory(m.id) } },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeletedMemoryRow(
+    category: String,
+    content: String,
+    byLearner: Boolean,
+    onRestore: () -> Unit,
+    onPurge: () -> Unit,
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text(
+                "【$category】" + if (byLearner) " · 学习时移除" else " · 手动移除",
+                color = MaterialTheme.colorScheme.outline,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            Text(
+                content,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(vertical = 4.dp),
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onPurge) {
+                    Text("彻底删除", color = MaterialTheme.colorScheme.error)
+                }
+                Spacer(Modifier.width(4.dp))
+                TextButton(onClick = onRestore) { Text("恢复") }
             }
         }
     }
@@ -631,7 +686,7 @@ private fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
 
             SectionCard("记忆学习") {
                 Text(
-                    "记忆全部永久保存在本机,只增不删;学习时合并新信息、冲突以最新为准。",
+                    "记忆全部保存在本机;学习时合并新信息、冲突以最新为准,明显失效的会移入回收站(可在管理记忆里恢复)。",
                     style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(Modifier.height(8.dp))

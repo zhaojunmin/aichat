@@ -81,7 +81,7 @@ object AiRepository {
         if ((!settings.useLocal && settings.apiKey.isBlank()) || replies.isEmpty()) return@withContext null
         if (settings.useLocal && !LocalLlmEngine.isReady) return@withContext null
 
-        val system = "你是用户画像分析助手。从用户的历史发言中提炼稳定、长期有用的个人信息,维护一份只增不删的记忆库。"
+        val system = "你是用户画像分析助手。从用户的历史发言中提炼稳定、长期有用的个人信息,维护一份干净、不矛盾的记忆库。"
         val user = buildString {
             append("已有记忆(带编号,可能为空):\n")
             append(
@@ -90,15 +90,21 @@ object AiRepository {
             )
             append("\n\n用户最近的发言(每行一条,均出自\"我\"):\n")
             append(replies.joinToString("\n") { "- $it" })
-            append("\n\n请只输出两类改动,不要删除、也不要重写与发言无关的已有记忆:")
+            append("\n\n请输出三类改动,不要改动与发言无关的已有记忆:")
             append("\n1. additions:发言里新出现、已有记忆中没有的稳定信息。")
             append("\n2. updates:与某条已有记忆矛盾或是它的更新,引用该条编号 id,用最新发言覆盖它。")
+            append("\n3. deletions:已有记忆中明确不再成立、已作废的条目 id 列表(例如发言表明该事实已不存在,且无需替换)。")
+            append("\n保守对待 deletions:仅在明确失效时删除;能用 updates 修正的优先用 updates,不确定就都不动。")
             append("\n只保留对\"模仿我的口吻、了解我的事实背景\"有用的稳定信息,忽略一次性闲聊和对方的事。")
-            append("没有可提炼的信息时两个数组都返回空。")
-            append("每条记忆带一个分类标签,取值限:画像、事实、偏好、风格。")
-            append("仅返回 JSON,形如 ")
-            append("{\"additions\":[{\"category\":\"事实\",\"content\":\"在北京做程序员\"}],")
-            append("\"updates\":[{\"id\":12,\"category\":\"偏好\",\"content\":\"现在改喝拿铁\"}]},不要多余文字。")
+            append("没有可提炼的信息时三个数组都返回空。")
+            append("additions / updates 每条带:")
+            append("\n- category:分类标签,取值限 画像、事实、偏好、风格。")
+            append("\n- keywords:2-5 个便于日后检索的关键词,空格分隔(含同义词/相关实体)。")
+            append("\n- importance:重要程度 1-10 整数(越稳定、越能代表本人取值越高)。")
+            append("\n仅返回 JSON,形如 ")
+            append("{\"additions\":[{\"category\":\"事实\",\"content\":\"在北京做程序员\",\"keywords\":\"北京 程序员 工作\",\"importance\":8}],")
+            append("\"updates\":[{\"id\":12,\"category\":\"偏好\",\"content\":\"现在改喝拿铁\",\"keywords\":\"拿铁 咖啡 口味\",\"importance\":5}],")
+            append("\"deletions\":[7]},不要多余文字。")
         }
 
         val raw = runCatching { pickClient(settings).complete(settings, system, user) }.getOrNull()
@@ -124,7 +130,14 @@ object AiRepository {
                     val o = arr.optJSONObject(i) ?: continue
                     val content = o.optString("content").trim()
                     if (content.isEmpty()) continue
-                    additions.add(MemoryDraft(normCategory(o.optString("category")), content))
+                    additions.add(
+                        MemoryDraft(
+                            normCategory(o.optString("category")),
+                            content,
+                            normKeywords(o.optString("keywords")),
+                            normImportance(o.optInt("importance", 5)),
+                        )
+                    )
                 }
             }
             val updates = ArrayList<MemoryEdit>()
@@ -134,10 +147,25 @@ object AiRepository {
                     val id = o.optLong("id", -1L)
                     val content = o.optString("content").trim()
                     if (id < 0 || content.isEmpty()) continue
-                    updates.add(MemoryEdit(id, normCategory(o.optString("category")), content))
+                    updates.add(
+                        MemoryEdit(
+                            id,
+                            normCategory(o.optString("category")),
+                            content,
+                            normKeywords(o.optString("keywords")),
+                            normImportance(o.optInt("importance", 5)),
+                        )
+                    )
                 }
             }
-            MemoryLearnResult(additions, updates)
+            val deletions = ArrayList<Long>()
+            obj.optJSONArray("deletions")?.let { arr ->
+                for (i in 0 until arr.length()) {
+                    val id = arr.optLong(i, -1L)
+                    if (id >= 0) deletions.add(id)
+                }
+            }
+            MemoryLearnResult(additions, updates, deletions)
         } catch (_: JSONException) {
             null
         }
@@ -145,6 +173,12 @@ object AiRepository {
 
     private fun normCategory(raw: String): String =
         raw.trim().let { if (it in MEMORY_CATEGORIES) it else "事实" }
+
+    /** Collapse whitespace; cap at a handful of terms so the column stays small. */
+    private fun normKeywords(raw: String): String =
+        raw.trim().split(Regex("[\\s,，、]+")).filter { it.isNotBlank() }.take(8).joinToString(" ")
+
+    private fun normImportance(raw: Int): Int = raw.coerceIn(1, 10)
 
     /** Be tolerant: accept a JSON array, a fenced block, or newline-separated lines. */
     internal fun parseReplies(raw: String, max: Int): List<String> {

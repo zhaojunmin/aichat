@@ -7,17 +7,44 @@ import androidx.room.Query
 @Dao
 interface MemoryDao {
 
-    @Query("SELECT * FROM memory ORDER BY category, id")
+    /** Active memories only — feeds retrieval/injection and the main list. */
+    @Query("SELECT * FROM memory WHERE deletedAt = 0 ORDER BY category, id")
     suspend fun all(): List<MemoryEntity>
+
+    /** Soft-deleted memories, most-recently-removed first — the recycle bin. */
+    @Query("SELECT * FROM memory WHERE deletedAt > 0 ORDER BY deletedAt DESC")
+    suspend fun allDeleted(): List<MemoryEntity>
 
     @Insert
     suspend fun insertAll(items: List<MemoryEntity>)
 
-    /** Overwrite one existing row (conflict resolution, newest wins). */
+    /** Manual edit: overwrite text only, preserve retrieval columns. */
     @Query("UPDATE memory SET category = :category, content = :content, updatedAt = :updatedAt WHERE id = :id")
     suspend fun update(id: Long, category: String, content: String, updatedAt: Long)
 
-    /** Manually delete one memory item. */
+    /** Learner conflict resolution: overwrite the row including retrieval columns. */
+    @Query(
+        "UPDATE memory SET category = :category, content = :content, " +
+            "keywords = :keywords, importance = :importance, updatedAt = :updatedAt WHERE id = :id"
+    )
+    suspend fun updateFull(
+        id: Long,
+        category: String,
+        content: String,
+        keywords: String,
+        importance: Int,
+        updatedAt: Long,
+    )
+
+    /** Soft-delete: move a row to the recycle bin ([by] = "learner" / "user"). */
+    @Query("UPDATE memory SET deletedAt = :deletedAt, deletedBy = :by WHERE id = :id AND deletedAt = 0")
+    suspend fun softDelete(id: Long, deletedAt: Long, by: String)
+
+    /** Restore a soft-deleted row back to active. */
+    @Query("UPDATE memory SET deletedAt = 0, deletedBy = '' WHERE id = :id")
+    suspend fun restore(id: Long)
+
+    /** Permanently drop one memory item (from the recycle bin). */
     @Query("DELETE FROM memory WHERE id = :id")
     suspend fun deleteById(id: Long)
 

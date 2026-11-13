@@ -4,13 +4,31 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [MemoryEntity::class], version = 1, exportSchema = false)
+@Database(entities = [MemoryEntity::class], version = 3, exportSchema = false)
 abstract class MemoryDatabase : RoomDatabase() {
 
     abstract fun memoryDao(): MemoryDao
 
     companion object {
+        /** v2 adds the retrieval-scoring columns; existing rows get safe defaults. */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE memory ADD COLUMN keywords TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE memory ADD COLUMN importance INTEGER NOT NULL DEFAULT 5")
+            }
+        }
+
+        /** v3 adds soft-delete bookkeeping; existing rows stay active (deletedAt = 0). */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE memory ADD COLUMN deletedAt INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE memory ADD COLUMN deletedBy TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         @Volatile
         private var INSTANCE: MemoryDatabase? = null
 
@@ -20,7 +38,7 @@ abstract class MemoryDatabase : RoomDatabase() {
                     context.applicationContext,
                     MemoryDatabase::class.java,
                     "memory.db",
-                ).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
             }
     }
 }
