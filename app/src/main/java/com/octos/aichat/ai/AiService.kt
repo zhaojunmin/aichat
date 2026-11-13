@@ -40,6 +40,9 @@ class AiService(
             append("\n\n以\"我\"的口吻给 ").append(n).append(" 条风格各异的回复。")
             append("要求:每条一句话、像微信随手回,20 字左右、最多 40 字;")
             append("口语化、直接能发,别客套、别铺垫、别解释、别重复对方的话。")
+            // Output language follows the conversation, not the UI locale: reply in
+            // whatever language the other party is using (English chat -> English replies).
+            append("用与对方消息相同的语言回复(对方说英文就用英文、中文就用中文)。")
             append("仅返回 JSON 字符串数组,如 [\"回复1\",\"回复2\"]。")
         }
 

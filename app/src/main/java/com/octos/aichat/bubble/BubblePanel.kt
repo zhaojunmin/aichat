@@ -10,6 +10,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
+import com.octos.aichat.R
 
 /**
  * The floating result panel: builds and swaps the loading / error / results views
@@ -28,7 +29,7 @@ internal class BubblePanel(
 
     val isShowing: Boolean get() = view != null
 
-    fun showLoading(title: String = "正在生成回复…") {
+    fun showLoading(title: String = context.getString(R.string.bubble_generating)) {
         val c = basePanel()
         c.addView(header(title))
         c.addView(ProgressBar(context).apply { val p = (12 * dp).toInt(); setPadding(p, p, p, p) })
@@ -37,14 +38,17 @@ internal class BubblePanel(
 
     fun showError(msg: String) {
         val c = basePanel()
-        c.addView(header("生成失败"))
+        c.addView(header(context.getString(R.string.generation_failed)))
         c.addView(bodyText(msg))
         swap(c)
     }
 
     fun showResults(replies: List<String>, otherLine: String?) {
         val c = basePanel()
-        c.addView(header(if (otherLine != null) "对方: ${otherLine.take(40)}" else "AI 回复建议"))
+        c.addView(header(
+            if (otherLine != null) context.getString(R.string.bubble_other_preview, otherLine.take(40))
+            else context.getString(R.string.bubble_suggestions_title)
+        ))
         val scroll = ScrollView(context).apply {
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (320 * dp).toInt())
         }

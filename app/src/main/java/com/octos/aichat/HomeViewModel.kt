@@ -67,15 +67,20 @@ class HomeViewModel(
 
     fun downloadModel(model: LocalModel) {
         if (_downloading.value) return
-        _downloading.value = true; _modelError.value = null; _progress.value = "连接中…"
+        _downloading.value = true; _modelError.value = null
+        _progress.value = appContext.getString(R.string.vm_connecting)
         viewModelScope.launch {
             val r = ModelStore.download(appContext, model) { p ->
                 _progress.value = "${p.percent}% · ${p.file} (${p.index}/${p.total}) " +
                     "${p.doneBytes / 1_000_000}/${p.totalBytes / 1_000_000}MB"
             }
             _downloading.value = false
-            if (r.isSuccess) _progress.value = "下载完成"
-            else { _progress.value = ""; _modelError.value = r.exceptionOrNull()?.message ?: "下载失败" }
+            if (r.isSuccess) _progress.value = appContext.getString(R.string.vm_download_done)
+            else {
+                _progress.value = ""
+                _modelError.value = r.exceptionOrNull()?.message
+                    ?: appContext.getString(R.string.vm_download_failed)
+            }
             _readyTick.value++
         }
     }
@@ -98,9 +103,9 @@ class HomeViewModel(
             val sample = Conversation(
                 "test",
                 listOf(
-                    ChatMessage(Speaker.OTHER, "在吗?周末有空一起吃饭吗"),
-                    ChatMessage(Speaker.ME, "在的"),
-                    ChatMessage(Speaker.OTHER, "那你想吃什么呀"),
+                    ChatMessage(Speaker.OTHER, appContext.getString(R.string.vm_sample_other_1)),
+                    ChatMessage(Speaker.ME, appContext.getString(R.string.vm_sample_me)),
+                    ChatMessage(Speaker.OTHER, appContext.getString(R.string.vm_sample_other_2)),
                 )
             )
             _testOutput.value = runCatching {
@@ -110,10 +115,10 @@ class HomeViewModel(
                             ModelStore.configPath(appContext, s.localModel),
                             ModelStore.tmpDir(appContext)
                         )
-                    ) { "本地模型加载失败" }
+                    ) { appContext.getString(R.string.error_local_load_failed) }
                 }
                 AiService.instance.generateReplies(s, sample)
-            }.getOrElse { listOf("错误:${it.message}") }
+            }.getOrElse { listOf(appContext.getString(R.string.vm_error_prefix, it.message ?: "")) }
             _testing.value = false
         }
     }

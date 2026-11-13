@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -99,7 +100,7 @@ internal fun HomeScreen(
         ActivityResultContracts.RequestPermission()
     ) { }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("聊天回复AI助手") }) }) { pad ->
+    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.home_title)) }) }) { pad ->
         Column(
             Modifier
                 .padding(pad)
@@ -109,22 +110,22 @@ internal fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // --- Setup checklist ---
-            SectionCard("开启权限") {
+            SectionCard(stringResource(R.string.home_permissions_title)) {
                 Text(
-                    "助手需要这两项权限才能读取聊天并弹出悬浮球。",
+                    stringResource(R.string.home_permissions_desc),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(8.dp))
                 PermissionRow(
-                    label = "读取聊天内容(无障碍)",
+                    label = stringResource(R.string.home_perm_accessibility),
                     granted = accessibilityOn,
-                    action = "去开启"
+                    action = stringResource(R.string.action_enable)
                 ) { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
 
                 PermissionRow(
-                    label = "显示悬浮球(悬浮窗)",
+                    label = stringResource(R.string.home_perm_overlay),
                     granted = overlayOn,
-                    action = "去开启"
+                    action = stringResource(R.string.action_enable)
                 ) {
                     context.startActivity(
                         Intent(
@@ -139,24 +140,24 @@ internal fun HomeScreen(
                     OutlinedButton(
                         onClick = { notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("允许通知(让助手保持运行)") }
+                    ) { Text(stringResource(R.string.home_perm_notification)) }
                 }
             }
 
             // --- AI service (key + model + quick test) ---
-            SectionCard("AI 服务") {
-                Text("选择推理方式。本地模式:聊天内容不出设备。", style = MaterialTheme.typography.bodyMedium)
+            SectionCard(stringResource(R.string.home_ai_service_title)) {
+                Text(stringResource(R.string.home_inference_desc), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = !settings.useLocal,
                         onClick = { vm.update { it.copy(inferenceMode = InferenceMode.CLOUD) } },
-                        label = { Text("云端") }
+                        label = { Text(stringResource(R.string.inference_cloud)) }
                     )
                     FilterChip(
                         selected = settings.useLocal,
                         onClick = { vm.update { it.copy(inferenceMode = InferenceMode.LOCAL) } },
-                        label = { Text("本地(隐私)") }
+                        label = { Text(stringResource(R.string.inference_local)) }
                     )
                 }
                 Spacer(Modifier.height(8.dp))
@@ -171,12 +172,12 @@ internal fun HomeScreen(
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    LabeledField("API Key", settings.apiKey, isSecret = true) { v ->
+                    LabeledField(stringResource(R.string.label_api_key), settings.apiKey, isSecret = true) { v ->
                         vm.update { it.withApiKey(v) }
                     }
-                    LabeledField("模型", settings.model) { v -> vm.update { it.withModel(v) } }
+                    LabeledField(stringResource(R.string.label_model), settings.model) { v -> vm.update { it.withModel(v) } }
                 } else if (!LlmEngine.isSupported) {
-                    Text("本机不支持本地模型(仅 arm64 设备)", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.home_local_unsupported), color = MaterialTheme.colorScheme.error)
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         LocalModel.entries.forEach { m ->
@@ -190,12 +191,17 @@ internal fun HomeScreen(
                     }
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "${settings.localModel.hint} · 约 ${settings.localModel.approxMB}MB",
+                        stringResource(
+                            R.string.home_model_size,
+                            stringResource(settings.localModel.hintRes),
+                            settings.localModel.approxMB
+                        ),
                         style = MaterialTheme.typography.bodySmall
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        if (localReady) "✅ 已就绪" else "未下载(建议 Wi-Fi)",
+                        if (localReady) stringResource(R.string.status_ready)
+                        else stringResource(R.string.home_model_not_downloaded),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     if (localDownloading) {
@@ -204,7 +210,7 @@ internal fun HomeScreen(
                     }
                     localError?.let { err ->
                         Spacer(Modifier.height(6.dp))
-                        Text("⚠ $err", color = MaterialTheme.colorScheme.error,
+                        Text(stringResource(R.string.home_error_prefix, err), color = MaterialTheme.colorScheme.error,
                             style = MaterialTheme.typography.bodySmall)
                     }
                     Spacer(Modifier.height(8.dp))
@@ -216,14 +222,14 @@ internal fun HomeScreen(
                             ) {
                                 if (localDownloading) {
                                     CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
-                                    Spacer(Modifier.width(8.dp)); Text("下载中…")
-                                } else Text("下载 ${settings.localModel.displayName}")
+                                    Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.home_downloading))
+                                } else Text(stringResource(R.string.home_download_model, settings.localModel.displayName))
                             }
                         } else {
                             OutlinedButton(
                                 enabled = !localDownloading,
                                 onClick = { vm.deleteModel(settings.localModel) }
-                            ) { Text("删除") }
+                            ) { Text(stringResource(R.string.action_delete)) }
                         }
                     }
                 }
@@ -236,39 +242,40 @@ internal fun HomeScreen(
                     if (testing) {
                         CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
                         Spacer(Modifier.width(8.dp))
-                        Text(if (settings.useLocal) "本地生成中…" else "测试中…")
-                    } else Text("测试连接")
+                        Text(if (settings.useLocal) stringResource(R.string.home_testing_local)
+                             else stringResource(R.string.home_testing_cloud))
+                    } else Text(stringResource(R.string.test_connection))
                 }
             }
 
             // --- Reply style ---
-            SectionCard("回复风格") {
-                Text("选一个场景,或自定义你想要的语气。", style = MaterialTheme.typography.bodyMedium)
+            SectionCard(stringResource(R.string.home_reply_style_title)) {
+                Text(stringResource(R.string.home_reply_style_desc), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PersonaPresets.DEFAULTS.forEach { preset ->
                         FilterChip(
                             selected = settings.customPersona.isBlank() && settings.personaId == preset.id,
                             onClick = { vm.update { it.copy(personaId = preset.id, customPersona = "") } },
-                            label = { Text(preset.title) }
+                            label = { Text(stringResource(preset.titleRes)) }
                         )
                     }
                 }
                 Spacer(Modifier.height(8.dp))
                 LabeledField(
-                    "自定义风格(填写后覆盖上面的场景)",
+                    stringResource(R.string.home_custom_persona_label),
                     settings.customPersona,
                     singleLine = false
                 ) { v -> vm.update { it.copy(customPersona = v) } }
             }
 
             // --- Personal memory ---
-            SectionCard("专属记忆(越用越懂你)") {
+            SectionCard(stringResource(R.string.home_memory_title)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("记住我的说话风格和习惯")
+                        Text(stringResource(R.string.home_memory_switch_label))
                         Text(
-                            "助手会悄悄学习你的回复,让生成的内容越来越像你本人。所有记录只存在本机。",
+                            stringResource(R.string.home_memory_desc),
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
@@ -280,7 +287,7 @@ internal fun HomeScreen(
                 if (settings.memoryEnabled) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "已记录 ${memStats.totalReplies} 条 · 记忆 ${memories.size} 条",
+                        stringResource(R.string.home_memory_stats, memStats.totalReplies, memories.size),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(Modifier.height(8.dp))
@@ -292,16 +299,16 @@ internal fun HomeScreen(
                             if (memStats.learning) {
                                 CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
                                 Spacer(Modifier.width(8.dp))
-                                Text("学习中…")
-                            } else Text("立即学习")
+                                Text(stringResource(R.string.home_learning))
+                            } else Text(stringResource(R.string.home_learn_now))
                         }
-                        OutlinedButton(onClick = onOpenMemory) { Text("管理记忆") }
+                        OutlinedButton(onClick = onOpenMemory) { Text(stringResource(R.string.home_manage_memory)) }
                     }
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = { vm.clearMemory() },
                         modifier = Modifier.fillMaxWidth()
-                    ) { Text("清空记忆与回复记录") }
+                    ) { Text(stringResource(R.string.home_clear_memory)) }
                 }
             }
 
@@ -309,7 +316,7 @@ internal fun HomeScreen(
             OutlinedButton(
                 onClick = onOpenAdvanced,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("⚙  高级设置 / 开发者选项") }
+            ) { Text(stringResource(R.string.home_advanced_entry)) }
             Spacer(Modifier.height(8.dp))
         }
     }
@@ -317,8 +324,8 @@ internal fun HomeScreen(
     testOutput?.let { replies ->
         AlertDialog(
             onDismissRequest = { vm.dismissTest() },
-            confirmButton = { TextButton(onClick = { vm.dismissTest() }) { Text("关闭") } },
-            title = { Text("测试结果") },
+            confirmButton = { TextButton(onClick = { vm.dismissTest() }) { Text(stringResource(R.string.action_close)) } },
+            title = { Text(stringResource(R.string.home_test_result_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     replies.forEachIndexed { i, r -> Text("${i + 1}. $r") }
