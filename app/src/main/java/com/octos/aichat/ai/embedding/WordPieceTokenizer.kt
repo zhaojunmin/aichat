@@ -1,4 +1,4 @@
-package com.octos.aichat.data.memory
+package com.octos.aichat.ai.embedding
 
 import java.io.File
 

@@ -22,7 +22,7 @@ private fun String.trimTrailingSlash() = trimEnd('/')
  * OpenAI-compatible Chat Completions API (/chat/completions). Both DeepSeek and
  * Doubao (Volcengine Ark) speak this shape, differing only in Base URL + model.
  */
-class OpenAiCompatClient : AiClient {
+class CloudClient : AiClient {
     override suspend fun complete(settings: AppSettings, system: String, user: String): String {
         val messages = JSONArray()
             .put(JSONObject().apply { put("role", "system"); put("content", system) })

@@ -1,4 +1,4 @@
-package com.octos.aichat.data.local
+package com.octos.aichat.ai.local
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
  * the APK — the chosen one is downloaded on demand into the app's private files
  * dir, one directory per model so switching sizes keeps both.
  */
-object LocalModelManager {
+object ModelStore {
 
     // Docs / metadata we don't need at runtime.
     private val SKIP = setOf(

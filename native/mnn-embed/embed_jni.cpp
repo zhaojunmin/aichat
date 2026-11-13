@@ -22,7 +22,7 @@ struct EmbedCtx {
 extern "C" {
 
 JNIEXPORT jlong JNICALL
-Java_com_octos_aichat_data_memory_EmbeddingEngine_nativeEmbedLoad(
+Java_com_octos_aichat_ai_embedding_Encoder_nativeEmbedLoad(
         JNIEnv* env, jobject, jstring jPath) {
     const char* p = env->GetStringUTFChars(jPath, nullptr);
     std::string path(p ? p : "");
@@ -43,7 +43,7 @@ Java_com_octos_aichat_data_memory_EmbeddingEngine_nativeEmbedLoad(
 
 // Runs the encoder for one sentence; returns the 512-d CLS vector, L2-normalised.
 JNIEXPORT jfloatArray JNICALL
-Java_com_octos_aichat_data_memory_EmbeddingEngine_nativeEmbed(
+Java_com_octos_aichat_ai_embedding_Encoder_nativeEmbed(
         JNIEnv* env, jobject, jlong handle, jintArray jIds, jintArray jMask) {
     auto* c = reinterpret_cast<EmbedCtx*>(handle);
     if (!c) return nullptr;
@@ -94,7 +94,7 @@ Java_com_octos_aichat_data_memory_EmbeddingEngine_nativeEmbed(
 }
 
 JNIEXPORT void JNICALL
-Java_com_octos_aichat_data_memory_EmbeddingEngine_nativeEmbedRelease(
+Java_com_octos_aichat_ai_embedding_Encoder_nativeEmbedRelease(
         JNIEnv* env, jobject, jlong handle) {
     auto* c = reinterpret_cast<EmbedCtx*>(handle);
     if (c) { Interpreter::destroy(c->net); delete c; }

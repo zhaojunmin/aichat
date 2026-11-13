@@ -1,21 +1,4 @@
-package com.octos.aichat.data.memory
-
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-
-/** 512×float32 little-endian ⇄ FloatArray, for storing vectors in the memory BLOB column. */
-object EmbeddingCodec {
-    fun encode(v: FloatArray): ByteArray {
-        val buf = ByteBuffer.allocate(v.size * 4).order(ByteOrder.LITTLE_ENDIAN)
-        buf.asFloatBuffer().put(v)
-        return buf.array()
-    }
-
-    fun decode(bytes: ByteArray): FloatArray {
-        val fb = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
-        return FloatArray(fb.remaining()).also { fb.get(it) }
-    }
-}
+package com.octos.aichat.ai.embedding
 
 /**
  * On-device sentence embedding (bge-small-zh-v1.5, MNN fp16) via the shared MNN
@@ -27,9 +10,9 @@ object EmbeddingCodec {
  * (added in a later native build). Until then every call no-ops/returns null and the
  * retrieval layer falls back to lexical — so this compiles and ships inertly now.
  *
- * JNI 符号须匹配 FQN:`Java_com_octos_aichat_data_memory_EmbeddingEngine_nativeEmbed*`。
+ * JNI 符号须匹配 FQN:`Java_com_octos_aichat_ai_embedding_Encoder_nativeEmbed*`。
  */
-object EmbeddingEngine {
+object Encoder {
 
     const val DIM = 512
 

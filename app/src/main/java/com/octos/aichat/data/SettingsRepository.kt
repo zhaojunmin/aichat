@@ -10,18 +10,18 @@ import kotlinx.coroutines.flow.StateFlow
  * both the Compose UI and the background services can read it synchronously.
  * Exposes a [StateFlow] so the UI recomposes on change.
  */
-class SettingsRepository private constructor(context: Context) {
+class SettingsRepository private constructor(context: Context) : SettingsStore {
 
     private val prefs: SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     private val _state = MutableStateFlow(load())
-    val state: StateFlow<AppSettings> = _state
+    override val state: StateFlow<AppSettings> = _state
 
     /** Latest snapshot, safe to call from any thread. */
-    fun current(): AppSettings = _state.value
+    override fun current(): AppSettings = _state.value
 
-    fun update(transform: (AppSettings) -> AppSettings) {
+    override fun update(transform: (AppSettings) -> AppSettings) {
         val next = transform(_state.value)
         persist(next)
         _state.value = next
@@ -46,7 +46,7 @@ class SettingsRepository private constructor(context: Context) {
             InferenceMode.valueOf(prefs.getString(KEY_INFER_MODE, null) ?: "CLOUD")
         }.getOrDefault(InferenceMode.CLOUD),
         localModelId = prefs.getString(KEY_LOCAL_MODEL, null)
-            ?: com.octos.aichat.data.local.LocalModel.DEFAULT.id,
+            ?: com.octos.aichat.ai.local.LocalModel.DEFAULT.id,
     )
 
     // Hertz moved from OCR to precise node-tree parsing; strip the now-stale

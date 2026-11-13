@@ -26,13 +26,13 @@ import android.widget.Toast
 import com.octos.aichat.AppBus
 import com.octos.aichat.MainActivity
 import com.octos.aichat.accessibility.BubbleLocator
-import com.octos.aichat.ai.AiRepository
+import com.octos.aichat.ai.AiService
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
-import com.octos.aichat.data.local.LocalLlmEngine
-import com.octos.aichat.data.local.LocalModel
-import com.octos.aichat.data.local.LocalModelManager
+import com.octos.aichat.ai.local.LlmEngine
+import com.octos.aichat.ai.local.LocalModel
+import com.octos.aichat.ai.local.ModelStore
 import com.octos.aichat.data.memory.MemoryRepository
 import com.octos.aichat.ocr.OcrReader
 import kotlinx.coroutines.CoroutineScope
@@ -224,7 +224,7 @@ class FloatingBubbleService : Service() {
             // been learned personalise the suggestions.
             val memory = MemoryRepository.get(this@FloatingBubbleService)
             memory.recordMyMessages(conv)
-            val result = runCatching { AiRepository.instance.generateReplies(settings, conv, memory.memoryBlock(conv)) }
+            val result = runCatching { AiService.instance.generateReplies(settings, conv, memory.memoryBlock(conv)) }
             result.onSuccess { panel.showResults(it, AppBus.conversation.lastFromOther()) }
                 .onFailure { panel.showError(it.message ?: "生成失败") }
         }
@@ -282,16 +282,16 @@ class FloatingBubbleService : Service() {
 
     /** Ensure the on-device model is loaded; shows an error panel and returns false if not. */
     private suspend fun ensureLocalReady(model: LocalModel): Boolean {
-        if (!LocalLlmEngine.isSupported) {
+        if (!LlmEngine.isSupported) {
             panel.showError("本机不支持本地模型(仅 arm64 设备)"); return false
         }
-        if (!LocalModelManager.isReady(this, model)) {
+        if (!ModelStore.isReady(this, model)) {
             panel.showError("本地模型(${model.displayName})未下载,请在 App 设置里下载后再用"); return false
         }
-        if (!LocalLlmEngine.isReady) panel.showLoading("正在加载本地模型…")
+        if (!LlmEngine.isReady) panel.showLoading("正在加载本地模型…")
         // Idempotent when the same model is already loaded; reloads on a size switch.
-        val ok = LocalLlmEngine.ensureLoaded(
-            LocalModelManager.configPath(this, model), LocalModelManager.tmpDir(this)
+        val ok = LlmEngine.ensureLoaded(
+            ModelStore.configPath(this, model), ModelStore.tmpDir(this)
         )
         if (!ok) { panel.showError("本地模型加载失败"); return false }
         return true
