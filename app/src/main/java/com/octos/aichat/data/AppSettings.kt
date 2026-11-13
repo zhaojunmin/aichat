@@ -77,6 +77,8 @@ data class AppSettings(
     val customPersona: String = "",
     val suggestionCount: Int = 3,
     val autoPaste: Boolean = true,
+    /** Auto-start the floating bubble on app launch (when overlay permission is granted). */
+    val bubbleAutoStart: Boolean = true,
     /** Read chat via screenshot + OCR instead of the accessibility node tree. */
     val useScreenshotOcr: Boolean = false,
     /** Only these packages use OCR; everything else keeps node-tree parsing. */
