@@ -83,7 +83,7 @@ internal class BubblePanel(
         orientation = LinearLayout.HORIZONTAL
         addView(TextView(context).apply {
             text = title
-            setTextColor(0xFF6C5CE7.toInt())
+            setTextColor(0xFF35557A.toInt())
             textSize = 16f
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         })
@@ -109,7 +109,7 @@ internal class BubblePanel(
         textSize = 15f
         val p = (14 * dp).toInt()
         setPadding(p, p, p, p)
-        background = BubbleStyle.roundedRect(0xFFF1F0FE.toInt(), 12f, dp)
+        background = BubbleStyle.roundedRect(0xFFEAEFF5.toInt(), 12f, dp)
         layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT

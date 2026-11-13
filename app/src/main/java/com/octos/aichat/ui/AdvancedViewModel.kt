@@ -1,4 +1,4 @@
-package com.octos.aichat
+package com.octos.aichat.ui
 
 import android.content.Context
 import androidx.lifecycle.ViewModel

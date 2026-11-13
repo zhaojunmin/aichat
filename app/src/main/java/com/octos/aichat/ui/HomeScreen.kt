@@ -1,4 +1,5 @@
-package com.octos.aichat
+package com.octos.aichat.ui
+import com.octos.aichat.R
 
 import android.Manifest
 import android.content.Context
@@ -10,6 +11,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,8 +22,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -30,7 +39,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -69,7 +77,7 @@ private fun rememberResumeTick(): Int {
     }
     return tick
 }
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun HomeScreen(
     onOpenAdvanced: () -> Unit,
@@ -100,7 +108,7 @@ internal fun HomeScreen(
         ActivityResultContracts.RequestPermission()
     ) { }
 
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.home_title)) }) }) { pad ->
+    Scaffold(topBar = { CenterAlignedTopAppBar(title = { Text(stringResource(R.string.home_title)) }) }) { pad ->
         Column(
             Modifier
                 .padding(pad)
@@ -110,7 +118,7 @@ internal fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // --- Setup checklist ---
-            SectionCard(stringResource(R.string.home_permissions_title)) {
+            SectionCard(stringResource(R.string.home_permissions_title), icon = Icons.Outlined.Lock) {
                 Text(
                     stringResource(R.string.home_permissions_desc),
                     style = MaterialTheme.typography.bodyMedium
@@ -145,7 +153,7 @@ internal fun HomeScreen(
             }
 
             // --- AI service (key + model + quick test) ---
-            SectionCard(stringResource(R.string.home_ai_service_title)) {
+            SectionCard(stringResource(R.string.home_ai_service_title), icon = Icons.Outlined.AutoAwesome) {
                 Text(stringResource(R.string.home_inference_desc), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -249,10 +257,13 @@ internal fun HomeScreen(
             }
 
             // --- Reply style ---
-            SectionCard(stringResource(R.string.home_reply_style_title)) {
+            SectionCard(stringResource(R.string.home_reply_style_title), icon = Icons.Outlined.Chat) {
                 Text(stringResource(R.string.home_reply_style_desc), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     PersonaPresets.DEFAULTS.forEach { preset ->
                         FilterChip(
                             selected = settings.customPersona.isBlank() && settings.personaId == preset.id,
@@ -270,7 +281,7 @@ internal fun HomeScreen(
             }
 
             // --- Personal memory ---
-            SectionCard(stringResource(R.string.home_memory_title)) {
+            SectionCard(stringResource(R.string.home_memory_title), icon = Icons.Outlined.Psychology) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.home_memory_switch_label))

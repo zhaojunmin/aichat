@@ -26,7 +26,7 @@ import android.view.WindowManager
 import android.widget.TextView
 import android.widget.Toast
 import com.octos.aichat.AppBus
-import com.octos.aichat.MainActivity
+import com.octos.aichat.ui.MainActivity
 import com.octos.aichat.accessibility.BubbleLocator
 import com.octos.aichat.ai.AiService
 import com.octos.aichat.data.AppSettings
@@ -147,7 +147,10 @@ class FloatingBubbleService : Service() {
             setTextColor(Color.WHITE)
             textSize = 16f
             gravity = Gravity.CENTER
-            background = BubbleStyle.circle(0xFF6C5CE7.toInt())
+            background = BubbleStyle.circle(0xFF35557A.toInt())
+            // Translucent at rest so it doesn't obscure the chat underneath; it pops
+            // to full opacity while touched (see attachDragAndTap).
+            alpha = BUBBLE_IDLE_ALPHA
         }
         val lp = BubbleStyle.params(size, size).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -171,6 +174,7 @@ class FloatingBubbleService : Service() {
                 MotionEvent.ACTION_DOWN -> {
                     downX = e.rawX; downY = e.rawY
                     startX = lp.x; startY = lp.y; dragging = false
+                    v.alpha = 1f // fully opaque while the user is interacting
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -187,7 +191,12 @@ class FloatingBubbleService : Service() {
                     true
                 }
                 MotionEvent.ACTION_UP -> {
+                    v.alpha = BUBBLE_IDLE_ALPHA // fade back so it stays out of the way
                     if (!dragging) v.performClick()
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    v.alpha = BUBBLE_IDLE_ALPHA
                     true
                 }
                 else -> false
@@ -350,6 +359,8 @@ class FloatingBubbleService : Service() {
     companion object {
         private const val NOTIF_ID = 1001
         private const val HIDE_DELAY_MS = 1000L
+        // Resting transparency of the floating ball so it doesn't block content behind it.
+        private const val BUBBLE_IDLE_ALPHA = 0.45f
 
         fun start(context: Context) {
             val intent = Intent(context, FloatingBubbleService::class.java)

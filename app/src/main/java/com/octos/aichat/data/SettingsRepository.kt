@@ -47,6 +47,7 @@ class SettingsRepository private constructor(context: Context) : SettingsStore {
         }.getOrDefault(InferenceMode.CLOUD),
         localModelId = prefs.getString(KEY_LOCAL_MODEL, null)
             ?: com.octos.aichat.ai.local.LocalModel.DEFAULT.id,
+        themeVariantId = prefs.getString(KEY_THEME, null) ?: "system",
     )
 
     // Hertz moved from OCR to precise node-tree parsing; strip the now-stale
@@ -97,6 +98,7 @@ class SettingsRepository private constructor(context: Context) : SettingsStore {
             .putBoolean(KEY_EMBED_ENABLED, s.memoryEmbeddingEnabled)
             .putString(KEY_INFER_MODE, s.inferenceMode.name)
             .putString(KEY_LOCAL_MODEL, s.localModelId)
+            .putString(KEY_THEME, s.themeVariantId)
             .apply()
     }
 
@@ -124,6 +126,7 @@ class SettingsRepository private constructor(context: Context) : SettingsStore {
         private const val KEY_EMBED_ENABLED = "memory_embedding_enabled"
         private const val KEY_INFER_MODE = "inference_mode"
         private const val KEY_LOCAL_MODEL = "local_model_id"
+        private const val KEY_THEME = "theme_variant_id"
 
         @Volatile
         private var INSTANCE: SettingsRepository? = null
