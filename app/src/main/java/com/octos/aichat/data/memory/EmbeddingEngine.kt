@@ -44,6 +44,10 @@ object EmbeddingEngine {
     @Volatile private var handle = 0L
     @Volatile private var tokenizer: WordPieceTokenizer? = null
 
+    /** Diagnostic breadcrumb for the last load/embed attempt (shown in dev UI). */
+    @Volatile var status: String = "未初始化"
+        internal set
+
     /** True only after a model is loaded and the native encoder is callable. */
     val isReady: Boolean get() = handle != 0L && tokenizer != null
 
@@ -52,10 +56,9 @@ object EmbeddingEngine {
         libsLoaded = runCatching {
             System.loadLibrary("MNN")
             System.loadLibrary("MNN_Express")
-            System.loadLibrary("llm")
-            System.loadLibrary("llmjni")
+            System.loadLibrary("embedjni") // encoder JNI (bge via MNN Interpreter)
             true
-        }.getOrDefault(false)
+        }.getOrElse { status = "lib载入失败: ${it.message}"; false }
         libsLoaded
     }
 
@@ -66,12 +69,14 @@ object EmbeddingEngine {
     fun ensureLoaded(modelPath: String, vocabPath: String): Boolean = synchronized(lock) {
         if (isReady) return true
         if (!loadLibs()) return false
-        val tk = tokenizer ?: runCatching { WordPieceTokenizer.fromFile(vocabPath) }.getOrNull() ?: return false
-        // nativeEmbedLoad throws UnsatisfiedLinkError until the encoder JNI is built.
-        val h = runCatching { nativeEmbedLoad(modelPath) }.getOrDefault(0L)
-        if (h == 0L) return false
+        val tk = tokenizer ?: runCatching { WordPieceTokenizer.fromFile(vocabPath) }
+            .getOrElse { status = "词表载入失败: ${it.message}"; return false }
+        val h = runCatching { nativeEmbedLoad(modelPath) }
+            .getOrElse { status = "native异常: ${it.message}"; 0L }
+        if (h == 0L) { if (!status.startsWith("native")) status = "模型加载返回0(createFromFile/session 失败)"; return false }
         tokenizer = tk
         handle = h
+        status = "就绪"
         true
     }
 
@@ -83,7 +88,8 @@ object EmbeddingEngine {
         if (!isReady) return null
         val tk = tokenizer ?: return null
         val (ids, mask) = tk.encode(text, MAX_TOKENS)
-        runCatching { nativeEmbed(handle, ids, mask) }.getOrNull()
+        runCatching { nativeEmbed(handle, ids, mask) }
+            .getOrElse { status = "embed异常: ${it.message}"; null }
     }
 
     fun release() = synchronized(lock) {

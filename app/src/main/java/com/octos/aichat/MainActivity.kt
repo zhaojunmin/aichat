@@ -593,6 +593,7 @@ private fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
     val settings by repo.state.collectAsStateWithLifecycle()
     val memoryRepo = remember { MemoryRepository.get(context) }
     val memStats by memoryRepo.stats.collectAsStateWithLifecycle()
+    val memories by memoryRepo.memories.collectAsStateWithLifecycle()
 
     var preview by remember { mutableStateOf<Conversation?>(null) }
     var rawDump by remember { mutableStateOf<String?>(null) }
@@ -721,8 +722,10 @@ private fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("语义召回(实验)")
+                        val embedded = memories.count { it.embedding != null }
+                        val diag = if (embedded == 0) " · ${com.octos.aichat.data.memory.EmbeddingEngine.status}" else ""
                         Text(
-                            "用端上向量模型按语义挑选相关记忆;关闭则用本地关键词匹配",
+                            "端上向量按语义挑选相关记忆 · 已向量化 $embedded/${memories.size} 条$diag",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
