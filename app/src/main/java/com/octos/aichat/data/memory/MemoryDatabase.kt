@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [MemoryEntity::class], version = 3, exportSchema = false)
+@Database(entities = [MemoryEntity::class], version = 4, exportSchema = false)
 abstract class MemoryDatabase : RoomDatabase() {
 
     abstract fun memoryDao(): MemoryDao
@@ -29,6 +29,14 @@ abstract class MemoryDatabase : RoomDatabase() {
             }
         }
 
+        /** v4 adds the semantic-embedding columns; existing rows get re-embedded lazily. */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE memory ADD COLUMN embedding BLOB")
+                db.execSQL("ALTER TABLE memory ADD COLUMN embeddingVersion INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         @Volatile
         private var INSTANCE: MemoryDatabase? = null
 
@@ -38,7 +46,7 @@ abstract class MemoryDatabase : RoomDatabase() {
                     context.applicationContext,
                     MemoryDatabase::class.java,
                     "memory.db",
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build().also { INSTANCE = it }
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build().also { INSTANCE = it }
             }
     }
 }

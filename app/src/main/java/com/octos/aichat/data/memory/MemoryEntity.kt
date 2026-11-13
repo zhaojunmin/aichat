@@ -19,6 +19,10 @@ import androidx.room.PrimaryKey
  * and the row moves to the recycle bin instead of being dropped. LLM-driven
  * DELETE is error-prone (especially with on-device models), so removals stay
  * auditable and restorable. [deletedBy] records who removed it ("learner" / "user").
+ *
+ * [embedding] is the on-device bge-small-zh sentence vector (512×float32 little-endian,
+ * or null if not yet computed), used by the semantic relevance scorer. [embeddingVersion]
+ * tracks the model/pooling version so changing it triggers a lazy re-embed (0 = none yet).
  */
 @Entity(tableName = "memory")
 data class MemoryEntity(
@@ -30,6 +34,8 @@ data class MemoryEntity(
     @ColumnInfo(defaultValue = "5") val importance: Int = 5,
     @ColumnInfo(defaultValue = "0") val deletedAt: Long = 0,
     @ColumnInfo(defaultValue = "") val deletedBy: String = "",
+    @ColumnInfo(typeAffinity = ColumnInfo.BLOB) val embedding: ByteArray? = null,
+    @ColumnInfo(defaultValue = "0") val embeddingVersion: Int = 0,
 )
 
 /** A brand-new memory item the learner wants to add (no id/timestamp yet). */

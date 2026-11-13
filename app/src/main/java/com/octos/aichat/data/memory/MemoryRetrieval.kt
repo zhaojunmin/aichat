@@ -29,8 +29,12 @@ object MemoryRetrieval {
     private const val MILLIS_PER_DAY = 24.0 * 60 * 60 * 1000
 
     fun interface RelevanceScorer {
-        /** Raw, un-normalised relevance of [item] to [queryTerms] (higher = closer). */
-        fun score(item: MemoryEntity, queryTerms: Set<String>): Double
+        /**
+         * Raw, un-normalised relevance of each item to [query], aligned to [items]
+         * (higher = closer). Batch form so a scorer can encode the query once
+         * (e.g. a single embedding forward) instead of per item.
+         */
+        fun scores(items: List<MemoryEntity>, query: String): DoubleArray
     }
 
     /**
@@ -52,11 +56,9 @@ object MemoryRetrieval {
             return items.sortedWith(compareByDescending<MemoryEntity> { it.updatedAt }.thenByDescending { it.id })
         }
 
-        val queryTerms = tokenize(query)
         val recencyRaw = items.map { RECENCY_DECAY_PER_DAY.pow((now - it.updatedAt).coerceAtLeast(0) / MILLIS_PER_DAY) }
         val importanceRaw = items.map { it.importance.toDouble() }
-        val relevanceRaw =
-            if (queryTerms.isEmpty()) items.map { 0.0 } else items.map { relevance.score(it, queryTerms) }
+        val relevanceRaw = relevance.scores(items, query).toList()
 
         val recency = normalize(recencyRaw)
         val importance = normalize(importanceRaw)
@@ -86,8 +88,13 @@ object MemoryRetrieval {
      * sqrt so longer memories don't dominate purely by length.
      */
     object LexicalRelevance : RelevanceScorer {
-        override fun score(item: MemoryEntity, queryTerms: Set<String>): Double {
-            if (queryTerms.isEmpty()) return 0.0
+        override fun scores(items: List<MemoryEntity>, query: String): DoubleArray {
+            val queryTerms = tokenize(query)
+            if (queryTerms.isEmpty()) return DoubleArray(items.size)
+            return DoubleArray(items.size) { scoreOne(items[it], queryTerms) }
+        }
+
+        private fun scoreOne(item: MemoryEntity, queryTerms: Set<String>): Double {
             val contentTerms = tokenize(item.content)
             val keywordTerms = tokenize(item.keywords)
             val contentHits = contentTerms.count { it in queryTerms }
@@ -95,6 +102,31 @@ object MemoryRetrieval {
             val raw = contentHits + 2.0 * keywordHits
             val size = (contentTerms.size + keywordTerms.size).coerceAtLeast(1)
             return raw / kotlin.math.sqrt(size.toDouble())
+        }
+    }
+
+    /**
+     * Semantic relevance via on-device embeddings: encode the query once (bge CLS
+     * vector) and cosine it against each memory's stored vector. Memories without a
+     * vector (not yet embedded) score 0 — they still rank via recency + importance.
+     * [embedQuery] returns null when the engine isn't ready → all-zero → lexical-like fallback.
+     */
+    class EmbeddingRelevance(private val embedQuery: (String) -> FloatArray?) : RelevanceScorer {
+        override fun scores(items: List<MemoryEntity>, query: String): DoubleArray {
+            if (query.isBlank()) return DoubleArray(items.size)
+            val q = embedQuery(query) ?: return DoubleArray(items.size)
+            return DoubleArray(items.size) { i ->
+                val bytes = items[i].embedding ?: return@DoubleArray 0.0
+                val v = EmbeddingCodec.decode(bytes)
+                if (v.size == q.size) cosine(q, v) else 0.0
+            }
+        }
+
+        private fun cosine(a: FloatArray, b: FloatArray): Double {
+            var dot = 0.0; var na = 0.0; var nb = 0.0
+            for (i in a.indices) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i] }
+            val denom = kotlin.math.sqrt(na) * kotlin.math.sqrt(nb)
+            return if (denom <= 0.0) 0.0 else dot / denom
         }
     }
 

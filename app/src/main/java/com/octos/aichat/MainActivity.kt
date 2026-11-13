@@ -718,6 +718,20 @@ private fun AdvancedScreen(repo: SettingsRepository, onBack: () -> Unit) {
                     }) { Text("+5") }
                 }
                 Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("语义召回(实验)")
+                        Text(
+                            "用端上向量模型按语义挑选相关记忆;关闭则用本地关键词匹配",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = settings.memoryEmbeddingEnabled,
+                        onCheckedChange = { c -> repo.update { it.copy(memoryEmbeddingEnabled = c) } }
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
                 Text(
                     "已记录 ${memStats.totalReplies} 条 · 待学习 ${memStats.pending} 条",
                     style = MaterialTheme.typography.bodySmall

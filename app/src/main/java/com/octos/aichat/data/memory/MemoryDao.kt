@@ -36,6 +36,18 @@ interface MemoryDao {
         updatedAt: Long,
     )
 
+    /** Store a freshly computed embedding for one row. */
+    @Query("UPDATE memory SET embedding = :embedding, embeddingVersion = :version WHERE id = :id")
+    suspend fun setEmbedding(id: Long, embedding: ByteArray, version: Int)
+
+    /** Active rows whose embedding is missing or stale — the backfill work list. */
+    @Query("SELECT * FROM memory WHERE deletedAt = 0 AND (embedding IS NULL OR embeddingVersion < :version)")
+    suspend fun needingEmbedding(version: Int): List<MemoryEntity>
+
+    /** Invalidate a row's embedding (e.g. after its text changed) so backfill recomputes it. */
+    @Query("UPDATE memory SET embedding = NULL, embeddingVersion = 0 WHERE id = :id")
+    suspend fun clearEmbedding(id: Long)
+
     /** Soft-delete: move a row to the recycle bin ([by] = "learner" / "user"). */
     @Query("UPDATE memory SET deletedAt = :deletedAt, deletedBy = :by WHERE id = :id AND deletedAt = 0")
     suspend fun softDelete(id: Long, deletedAt: Long, by: String)
