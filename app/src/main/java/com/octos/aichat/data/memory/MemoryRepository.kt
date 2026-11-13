@@ -54,6 +54,10 @@ class MemoryRepository private constructor(context: Context) {
     private val _memories = MutableStateFlow<List<MemoryEntity>>(emptyList())
     val memories: StateFlow<List<MemoryEntity>> = _memories
 
+    /** Soft-deleted memories (recycle bin): restorable, not yet purged. */
+    private val _deleted = MutableStateFlow<List<MemoryEntity>>(emptyList())
+    val deleted: StateFlow<List<MemoryEntity>> = _deleted
+
     private val _stats = MutableStateFlow(MemoryStats())
     val stats: StateFlow<MemoryStats> = _stats
 
@@ -130,11 +134,21 @@ class MemoryRepository private constructor(context: Context) {
             val now = System.currentTimeMillis()
             val knownIds = existing.mapTo(HashSet()) { it.id }
             result.updates.filter { it.id in knownIds }.forEach {
-                dao.update(it.id, it.category, it.content, now)
+                dao.updateFull(it.id, it.category, it.content, it.keywords, it.importance, now)
+            }
+            // Soft-delete so a wrong call stays recoverable from the recycle bin.
+            result.deletions.filter { it in knownIds }.forEach {
+                dao.softDelete(it, now, DELETED_BY_LEARNER)
             }
             if (result.additions.isNotEmpty()) {
                 dao.insertAll(result.additions.map {
-                    MemoryEntity(category = it.category, content = it.content, updatedAt = now)
+                    MemoryEntity(
+                        category = it.category,
+                        content = it.content,
+                        updatedAt = now,
+                        keywords = it.keywords,
+                        importance = it.importance,
+                    )
                 })
             }
             prefs.edit().putInt(KEY_LEARNED, total).apply()
@@ -151,26 +165,47 @@ class MemoryRepository private constructor(context: Context) {
 
     /**
      * Formatted memory for injection into the reply-generation system prompt.
-     * Everything is kept in the DB forever, but we only inject the most-recently
-     * updated N items so the prompt stays bounded as memory grows.
+     * Everything is kept in the DB forever, but we only inject the top-N items so
+     * the prompt stays bounded as memory grows. When [conv] is supplied we rank by
+     * the three-factor score (recency + importance + relevance-to-this-chat);
+     * otherwise we fall back to most-recently-updated.
      */
-    fun memoryBlock(): String {
+    fun memoryBlock(conv: Conversation? = null): String {
         val settings = settingsRepo.current()
         if (!settings.memoryEnabled) return ""
         val items = _memories.value
         if (items.isEmpty()) return ""
-        val recentItems = items
-            .sortedWith(compareByDescending<MemoryEntity> { it.updatedAt }.thenByDescending { it.id })
-            .take(settings.memoryInjectLimit.coerceAtLeast(1))
-        return recentItems
+        val limit = settings.memoryInjectLimit.coerceAtLeast(1)
+        // Query = the recent transcript; the other party's latest lines are what we
+        // are about to reply to, so relevance should favour memories about them.
+        val query = conv?.toTranscript(maxLines = 12).orEmpty()
+        val selected = MemoryRetrieval.retrieve(
+            items = items,
+            query = query,
+            now = System.currentTimeMillis(),
+            k = limit,
+        )
+        return selected
             .groupBy { it.category }
             .entries.joinToString("\n") { (cat, rows) ->
                 "【$cat】" + rows.joinToString("；") { it.content }
             }
     }
 
-    /** Manually delete a single memory item. */
+    /** Manually remove a memory item — soft-delete so it can be restored. */
     suspend fun deleteMemory(id: Long) {
+        dao.softDelete(id, System.currentTimeMillis(), DELETED_BY_USER)
+        refreshMemories()
+    }
+
+    /** Restore a soft-deleted memory from the recycle bin back to active. */
+    suspend fun restoreMemory(id: Long) {
+        dao.restore(id)
+        refreshMemories()
+    }
+
+    /** Permanently drop a memory from the recycle bin (unrecoverable). */
+    suspend fun purgeMemory(id: Long) {
         dao.deleteById(id)
         refreshMemories()
     }
@@ -190,11 +225,13 @@ class MemoryRepository private constructor(context: Context) {
         prefs.edit().putInt(KEY_LEARNED, 0).apply()
         recent.clear()
         _memories.value = emptyList()
+        _deleted.value = emptyList()
         _stats.value = MemoryStats()
     }
 
     private suspend fun refreshMemories() {
         _memories.value = dao.all()
+        _deleted.value = dao.allDeleted()
     }
 
     // ---- helpers --------------------------------------------------------
@@ -209,6 +246,8 @@ class MemoryRepository private constructor(context: Context) {
         private const val PREFS = "ai_chat_memory"
         private const val KEY_LEARNED = "learned_reply_count"
         private const val RECENT_MEMORY = 300
+        private const val DELETED_BY_LEARNER = "learner"
+        private const val DELETED_BY_USER = "user"
 
         @Volatile
         private var INSTANCE: MemoryRepository? = null
