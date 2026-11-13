@@ -40,6 +40,7 @@ class SettingsRepository private constructor(context: Context) {
         memoryEnabled = prefs.getBoolean(KEY_MEMORY_ENABLED, true),
         learnThreshold = prefs.getInt(KEY_LEARN_THRESHOLD, 20),
         memoryInjectLimit = prefs.getInt(KEY_INJECT_LIMIT, 30),
+        memoryEmbeddingEnabled = prefs.getBoolean(KEY_EMBED_ENABLED, true),
         inferenceMode = runCatching {
             InferenceMode.valueOf(prefs.getString(KEY_INFER_MODE, null) ?: "CLOUD")
         }.getOrDefault(InferenceMode.CLOUD),
@@ -91,6 +92,7 @@ class SettingsRepository private constructor(context: Context) {
             .putBoolean(KEY_MEMORY_ENABLED, s.memoryEnabled)
             .putInt(KEY_LEARN_THRESHOLD, s.learnThreshold)
             .putInt(KEY_INJECT_LIMIT, s.memoryInjectLimit)
+            .putBoolean(KEY_EMBED_ENABLED, s.memoryEmbeddingEnabled)
             .putString(KEY_INFER_MODE, s.inferenceMode.name)
             .putString(KEY_LOCAL_MODEL, s.localModelId)
             .apply()
@@ -116,6 +118,7 @@ class SettingsRepository private constructor(context: Context) {
         private const val KEY_MEMORY_ENABLED = "memory_enabled"
         private const val KEY_LEARN_THRESHOLD = "learn_threshold"
         private const val KEY_INJECT_LIMIT = "memory_inject_limit"
+        private const val KEY_EMBED_ENABLED = "memory_embedding_enabled"
         private const val KEY_INFER_MODE = "inference_mode"
         private const val KEY_LOCAL_MODEL = "local_model_id"
 

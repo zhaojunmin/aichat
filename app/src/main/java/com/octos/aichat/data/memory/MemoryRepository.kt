@@ -62,7 +62,7 @@ class MemoryRepository private constructor(context: Context) {
     val stats: StateFlow<MemoryStats> = _stats
 
     init {
-        scope.launch { initLoad() }
+        scope.launch { initLoad(); prepareEmbedding() }
     }
 
     private suspend fun initLoad() = ioLock.withLock {
@@ -135,6 +135,7 @@ class MemoryRepository private constructor(context: Context) {
             val knownIds = existing.mapTo(HashSet()) { it.id }
             result.updates.filter { it.id in knownIds }.forEach {
                 dao.updateFull(it.id, it.category, it.content, it.keywords, it.importance, now)
+                dao.clearEmbedding(it.id) // text changed → stale vector, let backfill recompute
             }
             // Soft-delete so a wrong call stays recoverable from the recycle bin.
             result.deletions.filter { it in knownIds }.forEach {
@@ -154,6 +155,7 @@ class MemoryRepository private constructor(context: Context) {
             prefs.edit().putInt(KEY_LEARNED, total).apply()
             _stats.value = _stats.value.copy(learnedReplies = total)
             refreshMemories()
+            embedBackfill() // embed new/updated rows (no-op until the engine is ready)
         } catch (_: Exception) {
             // Leave the learned offset untouched so it retries on the next trigger.
         } finally {
@@ -179,11 +181,18 @@ class MemoryRepository private constructor(context: Context) {
         // Query = the recent transcript; the other party's latest lines are what we
         // are about to reply to, so relevance should favour memories about them.
         val query = conv?.toTranscript(maxLines = 12).orEmpty()
+        // Semantic embedding召回 when enabled and the on-device model is ready; else local lexical.
+        val relevance = if (settings.memoryEmbeddingEnabled && EmbeddingEngine.isReady) {
+            MemoryRetrieval.EmbeddingRelevance(EmbeddingEngine::embedQuery)
+        } else {
+            MemoryRetrieval.LexicalRelevance
+        }
         val selected = MemoryRetrieval.retrieve(
             items = items,
             query = query,
             now = System.currentTimeMillis(),
             k = limit,
+            relevance = relevance,
         )
         return selected
             .groupBy { it.category }
@@ -216,7 +225,9 @@ class MemoryRepository private constructor(context: Context) {
         if (text.isEmpty()) return
         val item = _memories.value.firstOrNull { it.id == id } ?: return
         dao.update(id, item.category, text, System.currentTimeMillis())
+        dao.clearEmbedding(id) // text changed → recompute vector
         refreshMemories()
+        embedBackfill()
     }
 
     suspend fun clearAll() = ioLock.withLock {
@@ -227,6 +238,27 @@ class MemoryRepository private constructor(context: Context) {
         _memories.value = emptyList()
         _deleted.value = emptyList()
         _stats.value = MemoryStats()
+    }
+
+    // ---- semantic embedding --------------------------------------------
+
+    /** Load the on-device embedding model (if enabled) and backfill missing vectors. */
+    private suspend fun prepareEmbedding() {
+        if (!settingsRepo.current().memoryEmbeddingEnabled) return
+        if (EmbeddingModelManager.ensureReady(appContext)) embedBackfill()
+    }
+
+    /** Compute + store vectors for active rows missing/stale embeddings. No-op until ready. */
+    private suspend fun embedBackfill() {
+        if (!EmbeddingEngine.isReady) return
+        val todo = dao.needingEmbedding(EmbeddingEngine.VERSION)
+        if (todo.isEmpty()) return
+        todo.forEach { m ->
+            val text = listOf(m.content, m.keywords).filter { it.isNotBlank() }.joinToString(" ")
+            val v = EmbeddingEngine.embed(text) ?: return@forEach
+            dao.setEmbedding(m.id, EmbeddingCodec.encode(v), EmbeddingEngine.VERSION)
+        }
+        refreshMemories()
     }
 
     private suspend fun refreshMemories() {

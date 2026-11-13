@@ -3,9 +3,14 @@
 > 目的:为聊天记忆检索(`MemoryRetrieval` 的 relevance 分量)评估「是否值得用
 > embedding 替换现有本地词法(lexical)召回」,并在候选模型里选型。
 >
-> 结论先行:**值得上 embedding(语义 query 上 lexical 几乎失效)。运行时优先 LiteRT →
-> 选 EmbeddingGemma-300m(LiteRT 原生、中文强);若改为体积/延迟优先则 bge-small-zh-v1.5(int8,复用 MNN)。
-> all-MiniLM-L6-v2 虽是 LiteRT 最省事现货,但中文太差(比 lexical 还低),出局。**
+> 结论先行:**值得上 embedding(语义 query 上 lexical 几乎失效)。候选里 bge-small-zh-v1.5 质量最高
+> (hit@1 0.893)、体积最小(int8 ~24MB);EmbeddingGemma-300m 次之但 LiteRT 原生。all-MiniLM-L6-v2
+> 中文太差(比 lexical 还低)出局。**
+>
+> 🏁 **最终落地决策(2026-11-13)**:选 **bge-small-zh-v1.5 + 复用 MNN**(非 LiteRT/EmbeddingGemma)。
+> 理由:bge 质量/体积双优,且 [本地 LLM A/B](../local-llm-litert-ab.md) 证实这台 8s Gen3 上 LiteRT 无性能优势、
+> LLM 应留 MNN → embedding 也用 MNN 可统一运行时、零额外 .so。集成方案见
+> [`embedding-integration-design.md`](../embedding-integration-design.md)。
 >
 > 设备目标:ELP-AN00(骁龙 8s Gen3 + Adreno 735 + 16GB + Android 16),中文短文本、
 > 端侧本地、低延迟、隐私。最后更新:2026-11-13。

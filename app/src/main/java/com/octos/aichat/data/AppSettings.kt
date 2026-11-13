@@ -89,6 +89,8 @@ data class AppSettings(
     val learnThreshold: Int = 20,
     /** Inject only the most-recently-updated N memory items into the prompt. */
     val memoryInjectLimit: Int = 30,
+    /** Use on-device semantic embeddings for memory recall (falls back to lexical when off/unavailable). */
+    val memoryEmbeddingEnabled: Boolean = true,
     /** Cloud API vs on-device model. Local keeps chat content on the phone. */
     val inferenceMode: InferenceMode = InferenceMode.CLOUD,
     /** Which on-device model is selected (id of a [com.octos.aichat.data.local.LocalModel]). */
