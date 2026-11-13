@@ -21,8 +21,8 @@ object EmbeddingModelManager {
         val dir = File(ctx.filesDir, "embed").apply { mkdirs() }
         val model = File(dir, MODEL_FILE)
         val vocab = File(dir, VOCAB_FILE)
-        if (!copyAssetIfMissing(ctx, MODEL_ASSET, model)) return false
-        if (!copyAssetIfMissing(ctx, VOCAB_ASSET, vocab)) return false
+        if (!copyAssetIfMissing(ctx, MODEL_ASSET, model)) { EmbeddingEngine.status = "模型资源缺失/拷贝失败"; return false }
+        if (!copyAssetIfMissing(ctx, VOCAB_ASSET, vocab)) { EmbeddingEngine.status = "词表资源缺失/拷贝失败"; return false }
         return EmbeddingEngine.ensureLoaded(model.absolutePath, vocab.absolutePath)
     }
 
