@@ -19,8 +19,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Chat
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -30,7 +36,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -100,7 +105,7 @@ internal fun HomeScreen(
         ActivityResultContracts.RequestPermission()
     ) { }
 
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.home_title)) }) }) { pad ->
+    Scaffold(topBar = { CenterAlignedTopAppBar(title = { Text(stringResource(R.string.home_title)) }) }) { pad ->
         Column(
             Modifier
                 .padding(pad)
@@ -110,7 +115,7 @@ internal fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // --- Setup checklist ---
-            SectionCard(stringResource(R.string.home_permissions_title)) {
+            SectionCard(stringResource(R.string.home_permissions_title), icon = Icons.Outlined.Lock) {
                 Text(
                     stringResource(R.string.home_permissions_desc),
                     style = MaterialTheme.typography.bodyMedium
@@ -145,7 +150,7 @@ internal fun HomeScreen(
             }
 
             // --- AI service (key + model + quick test) ---
-            SectionCard(stringResource(R.string.home_ai_service_title)) {
+            SectionCard(stringResource(R.string.home_ai_service_title), icon = Icons.Outlined.AutoAwesome) {
                 Text(stringResource(R.string.home_inference_desc), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -249,7 +254,7 @@ internal fun HomeScreen(
             }
 
             // --- Reply style ---
-            SectionCard(stringResource(R.string.home_reply_style_title)) {
+            SectionCard(stringResource(R.string.home_reply_style_title), icon = Icons.Outlined.Chat) {
                 Text(stringResource(R.string.home_reply_style_desc), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -270,7 +275,7 @@ internal fun HomeScreen(
             }
 
             // --- Personal memory ---
-            SectionCard(stringResource(R.string.home_memory_title)) {
+            SectionCard(stringResource(R.string.home_memory_title), icon = Icons.Outlined.Psychology) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.home_memory_switch_label))

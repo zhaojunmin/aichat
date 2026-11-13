@@ -14,8 +14,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.BubbleChart
+import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Psychology
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -23,7 +33,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,10 +66,12 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.adv_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Text("←", style = MaterialTheme.typography.titleLarge) }
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                    }
                 }
             )
         }
@@ -78,7 +89,7 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium
             )
 
-            SectionCard(stringResource(R.string.adv_bubble_title)) {
+            SectionCard(stringResource(R.string.adv_bubble_title), icon = Icons.Outlined.BubbleChart) {
                 val overlayOn = Settings.canDrawOverlays(context)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -100,7 +111,7 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 }
             }
 
-            SectionCard(stringResource(R.string.adv_reply_pref_title)) {
+            SectionCard(stringResource(R.string.adv_reply_pref_title), icon = Icons.Outlined.Tune) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.adv_suggestion_count, settings.suggestionCount), Modifier.weight(1f))
                     OutlinedButton(onClick = {
@@ -124,7 +135,7 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 }
             }
 
-            SectionCard(stringResource(R.string.adv_endpoint_title)) {
+            SectionCard(stringResource(R.string.adv_endpoint_title), icon = Icons.Outlined.Link) {
                 Text(
                     stringResource(R.string.adv_endpoint_desc),
                     style = MaterialTheme.typography.bodySmall
@@ -135,7 +146,7 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 }
             }
 
-            SectionCard(stringResource(R.string.adv_recognition_title)) {
+            SectionCard(stringResource(R.string.adv_recognition_title), icon = Icons.Outlined.Visibility) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.adv_ocr_title))
@@ -162,7 +173,7 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 ) { v -> vm.update { it.copy(targetPackages = v) } }
             }
 
-            SectionCard(stringResource(R.string.adv_memory_learn_title)) {
+            SectionCard(stringResource(R.string.adv_memory_learn_title), icon = Icons.Outlined.Psychology) {
                 Text(
                     stringResource(R.string.adv_memory_learn_desc),
                     style = MaterialTheme.typography.bodySmall
@@ -218,7 +229,7 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                 )
             }
 
-            SectionCard(stringResource(R.string.adv_debug_title)) {
+            SectionCard(stringResource(R.string.adv_debug_title), icon = Icons.Outlined.BugReport) {
                 Text(
                     stringResource(R.string.adv_debug_desc),
                     style = MaterialTheme.typography.bodyMedium

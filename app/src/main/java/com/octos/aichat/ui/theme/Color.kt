@@ -1,0 +1,66 @@
+package com.octos.aichat.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+/**
+ * Brand palette built around the floating bubble's indigo-violet (#6C5CE7), so the
+ * in-app UI and the overlay read as one product. Roles follow Material 3.
+ */
+
+// Light
+val LightPrimary = Color(0xFF5E4DD2)
+val LightOnPrimary = Color(0xFFFFFFFF)
+val LightPrimaryContainer = Color(0xFFE6E0FF)
+val LightOnPrimaryContainer = Color(0xFF190066)
+val LightSecondary = Color(0xFF605B71)
+val LightOnSecondary = Color(0xFFFFFFFF)
+val LightSecondaryContainer = Color(0xFFE6DFF9)
+val LightOnSecondaryContainer = Color(0xFF1C182B)
+val LightTertiary = Color(0xFF7E5260)
+val LightOnTertiary = Color(0xFFFFFFFF)
+val LightTertiaryContainer = Color(0xFFFFD9E3)
+val LightOnTertiaryContainer = Color(0xFF31101D)
+val LightError = Color(0xFFBA1A1A)
+val LightOnError = Color(0xFFFFFFFF)
+val LightErrorContainer = Color(0xFFFFDAD6)
+val LightOnErrorContainer = Color(0xFF410002)
+val LightBackground = Color(0xFFFDFBFF)
+val LightOnBackground = Color(0xFF1B1B21)
+val LightSurface = Color(0xFFFDFBFF)
+val LightOnSurface = Color(0xFF1B1B21)
+val LightSurfaceVariant = Color(0xFFE5E0EC)
+val LightOnSurfaceVariant = Color(0xFF47464F)
+val LightOutline = Color(0xFF787680)
+val LightOutlineVariant = Color(0xFFC9C4D0)
+val LightSurfaceContainerLow = Color(0xFFF6F2FC)
+val LightSurfaceContainer = Color(0xFFF0ECF6)
+val LightSurfaceContainerHigh = Color(0xFFEAE6F1)
+
+// Dark
+val DarkPrimary = Color(0xFFCBC0FF)
+val DarkOnPrimary = Color(0xFF2D1A91)
+val DarkPrimaryContainer = Color(0xFF4535B9)
+val DarkOnPrimaryContainer = Color(0xFFE6E0FF)
+val DarkSecondary = Color(0xFFC9C3DC)
+val DarkOnSecondary = Color(0xFF312E41)
+val DarkSecondaryContainer = Color(0xFF484459)
+val DarkOnSecondaryContainer = Color(0xFFE6DFF9)
+val DarkTertiary = Color(0xFFF0B8C8)
+val DarkOnTertiary = Color(0xFF4A2532)
+val DarkTertiaryContainer = Color(0xFF633B48)
+val DarkOnTertiaryContainer = Color(0xFFFFD9E3)
+val DarkError = Color(0xFFFFB4AB)
+val DarkOnError = Color(0xFF690005)
+val DarkErrorContainer = Color(0xFF93000A)
+val DarkOnErrorContainer = Color(0xFFFFDAD6)
+val DarkBackground = Color(0xFF131318)
+val DarkOnBackground = Color(0xFFE5E1E9)
+val DarkSurface = Color(0xFF131318)
+val DarkOnSurface = Color(0xFFE5E1E9)
+val DarkSurfaceVariant = Color(0xFF47464F)
+val DarkOnSurfaceVariant = Color(0xFFC9C4D0)
+val DarkOutline = Color(0xFF928F9A)
+val DarkOutlineVariant = Color(0xFF47464F)
+val DarkSurfaceContainerLow = Color(0xFF1B1B21)
+val DarkSurfaceContainer = Color(0xFF201F25)
+val DarkSurfaceContainerHigh = Color(0xFF2B2A30)
