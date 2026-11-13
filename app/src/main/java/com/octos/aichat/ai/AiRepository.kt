@@ -17,22 +17,11 @@ import org.json.JSONObject
  * Turns an extracted [Conversation] into a handful of candidate replies via the
  * configured OpenAI-compatible chat API (DeepSeek / Doubao).
  */
-object AiRepository {
-
-    private val cloud: AiClient = OpenAiCompatClient()
-
-    /**
-     * Local mode must never silently fall back to the cloud — that would ship the
-     * user's chat content off-device. If local is selected but the model isn't
-     * loaded, fail loudly so the caller can prompt a download instead.
-     */
-    private fun pickClient(settings: AppSettings): AiClient {
-        if (settings.useLocal) {
-            require(LocalLlmEngine.isReady) { "本地模型未就绪,请先在设置中下载并启用本地模式" }
-            return LocalLlmEngine
-        }
-        return cloud
-    }
+class AiRepository(
+    // Which AiClient to use for a given request — injected so reply generation and
+    // learning can be unit-tested with a fake client. Default = cloud/local selection.
+    private val clientFor: (AppSettings) -> AiClient = { defaultClientFor(it) },
+) {
 
     suspend fun generateReplies(
         settings: AppSettings,
@@ -62,7 +51,7 @@ object AiRepository {
                 append(memoryBlock)
             }
         }
-        val raw = pickClient(settings).complete(settings, system, user)
+        val raw = clientFor(settings).complete(settings, system, user)
 
         parseReplies(raw, n)
     }
@@ -107,7 +96,7 @@ object AiRepository {
             append("\"deletions\":[7]},不要多余文字。")
         }
 
-        val raw = runCatching { pickClient(settings).complete(settings, system, user) }.getOrNull()
+        val raw = runCatching { clientFor(settings).complete(settings, system, user) }.getOrNull()
             ?: return@withContext null
         parseLearnResult(raw)
     }
@@ -209,5 +198,25 @@ object AiRepository {
             .filter { it.isNotEmpty() }
             .take(max)
             .ifEmpty { listOf(cleaned) }
+    }
+
+    companion object {
+        private val cloud: AiClient = OpenAiCompatClient()
+
+        /**
+         * Local mode must never silently fall back to the cloud — that would ship
+         * the user's chat content off-device. If local is selected but the model
+         * isn't loaded, fail loudly so the caller can prompt a download instead.
+         */
+        private fun defaultClientFor(settings: AppSettings): AiClient {
+            if (settings.useLocal) {
+                require(LocalLlmEngine.isReady) { "本地模型未就绪,请先在设置中下载并启用本地模式" }
+                return LocalLlmEngine
+            }
+            return cloud
+        }
+
+        /** Production singleton with the real cloud/local client selection. */
+        val instance: AiRepository by lazy { AiRepository() }
     }
 }
