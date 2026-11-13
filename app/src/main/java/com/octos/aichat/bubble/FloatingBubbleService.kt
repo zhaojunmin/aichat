@@ -327,7 +327,7 @@ class FloatingBubbleService : Service() {
             PendingIntent.FLAG_IMMUTABLE,
         )
         val notification: Notification = Notification.Builder(this, channelId)
-            .setContentTitle("聊天搭子运行中")
+            .setContentTitle("聊天助手运行中")
             .setContentText("点击悬浮球生成 AI 回复建议")
             .setSmallIcon(android.R.drawable.ic_menu_edit)
             .setContentIntent(contentIntent)

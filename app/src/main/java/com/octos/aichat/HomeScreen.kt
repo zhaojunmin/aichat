@@ -99,7 +99,7 @@ internal fun HomeScreen(
         ActivityResultContracts.RequestPermission()
     ) { }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("聊天搭子 · AI 回复助手") }) }) { pad ->
+    Scaffold(topBar = { TopAppBar(title = { Text("聊天回复AI助手") }) }) { pad ->
         Column(
             Modifier
                 .padding(pad)

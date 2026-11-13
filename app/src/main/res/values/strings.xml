@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">聊天搭子</string>
-    <string name="accessibility_label">聊天搭子 · 读屏助手</string>
+    <string name="app_name">聊天助手</string>
+    <string name="accessibility_label">聊天助手 · 读屏助手</string>
     <string name="accessibility_description">读取当前聊天界面的文字,用于生成 AI 回复建议。内容仅在本机处理并发送到你配置的 AI 接口,不做其他用途。</string>
 </resources>
