@@ -10,6 +10,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -74,7 +76,7 @@ private fun rememberResumeTick(): Int {
     }
     return tick
 }
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun HomeScreen(
     onOpenAdvanced: () -> Unit,
@@ -257,7 +259,10 @@ internal fun HomeScreen(
             SectionCard(stringResource(R.string.home_reply_style_title), icon = Icons.Outlined.Chat) {
                 Text(stringResource(R.string.home_reply_style_desc), style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     PersonaPresets.DEFAULTS.forEach { preset ->
                         FilterChip(
                             selected = settings.customPersona.isBlank() && settings.personaId == preset.id,
