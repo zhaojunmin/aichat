@@ -1,4 +1,6 @@
-package com.octos.aichat
+package com.octos.aichat.ui
+import com.octos.aichat.AppBus
+import com.octos.aichat.R
 
 import android.provider.Settings
 import androidx.activity.compose.BackHandler

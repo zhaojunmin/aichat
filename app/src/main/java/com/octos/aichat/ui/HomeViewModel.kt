@@ -1,4 +1,5 @@
-package com.octos.aichat
+package com.octos.aichat.ui
+import com.octos.aichat.R
 
 import android.app.Application
 import android.content.Context

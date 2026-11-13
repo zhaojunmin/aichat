@@ -1,4 +1,5 @@
-package com.octos.aichat
+package com.octos.aichat.ui
+import com.octos.aichat.R
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column

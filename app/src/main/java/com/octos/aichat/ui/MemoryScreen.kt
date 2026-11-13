@@ -1,4 +1,5 @@
-package com.octos.aichat
+package com.octos.aichat.ui
+import com.octos.aichat.R
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement

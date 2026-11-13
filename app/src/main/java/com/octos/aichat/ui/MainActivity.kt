@@ -1,4 +1,4 @@
-package com.octos.aichat
+package com.octos.aichat.ui
 
 import android.os.Bundle
 import android.provider.Settings

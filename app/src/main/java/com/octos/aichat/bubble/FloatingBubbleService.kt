@@ -26,7 +26,7 @@ import android.view.WindowManager
 import android.widget.TextView
 import android.widget.Toast
 import com.octos.aichat.AppBus
-import com.octos.aichat.MainActivity
+import com.octos.aichat.ui.MainActivity
 import com.octos.aichat.accessibility.BubbleLocator
 import com.octos.aichat.ai.AiService
 import com.octos.aichat.data.AppSettings
