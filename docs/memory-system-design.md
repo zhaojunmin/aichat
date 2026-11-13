@@ -191,6 +191,12 @@ LLM 周期性把零散观察合成为更抽象的高层记忆(树状结构)。�
 决策:relevance 分量采用**纯本地词法匹配**(零新依赖、全端侧、零额外延迟/成本),
 `RelevanceScorer` 接口可插拔,向量/embedding 以后可无痛替换(见 `MemoryRetrieval.kt`)。
 
+> 📊 **后续评估(2026-11-13)**:做了端侧 embedding 选型 + 召回质量基准(见
+> [`embedding-benchmark/`](embedding-benchmark/README.md))。结论:纯语义 query 上 lexical 几乎失效
+> (recall@3 0.133),好的 embedding 把整体 hit@1 从 0.43 拉到 0.86–0.89。**运行时优先 LiteRT →
+> 推荐 EmbeddingGemma-300m**(LiteRT 原生、中文强、MediaPipe/ML Kit + NPU);all-MiniLM 中文太差出局;
+> 体积/延迟优先时备选 bge-small-zh-v1.5(int8,复用 MNN)。作为 `RelevanceScorer` 的 embedding 实现,待办见该报告 §6。
+
 1. ✅ `MemoryEntity` 加列:`keywords`(String)、`importance`(Int)。(embedding BLOB 留给向量升级,本阶段不加。)
 2. ✅ Room 迁移 `v1→v2`(`MIGRATION_1_2`,旧行给安全默认值)。
 3. ✅ `learnMemory` prompt 升级:一次 LLM 调用同时产出 content + keywords + importance(1-10),写入时持久化。
