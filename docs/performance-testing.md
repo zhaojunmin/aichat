@@ -4,7 +4,7 @@
 
 | 类型 | 位置 | 测什么 | 被测构建 |
 |---|---|---|---|
-| 微基准 | `app/src/androidTest/.../benchmark/HotPathBenchmarks.kt` | 回复路径上的纯计算:记忆召回、bge 查询向量、分词、向量解码、模型输出解析 | `benchmark` 构建类型(release 配置、不混淆、不可调试) |
+| 微基准 | `app/src/androidTest/.../benchmark/HotPathBenchmarks.kt` | 回复路径上的纯计算:记忆召回、bge 查询向量、分词、向量解码、模型输出解析(查询按 `MemoryInjector` 的做法取最近 12 行聊天) | `benchmark` 构建类型(release 配置、不混淆、不可调试) |
 | 宏基准 | `quality/macrobenchmark/` | 冷/热启动耗时、首页滚动帧时间 | release(R8 混淆后的正式包) |
 | 读屏/悬浮球端到端 | 见下文「端到端」 | 无障碍事件处理、点悬浮球到出结果 | release |
 
@@ -41,12 +41,14 @@ ADB=adb.exe quality/scripts/run-benchmarks.sh          # all;也可 micro / macr
 | `vectorDecode_512` | 1.5 µs | 4 | |
 | `parseReplies` | 1.2 µs | 15 | |
 | `parseLearnResult` | 42 µs | 116 | |
-| `tokenize_query`(30 行聊天) | 0.13 ms | 3,253 | |
-| `recall_lexical_500`(500 条记忆) | 2.1 ms | 35,729 | P5 召回 ≤ 50 ms ✅ |
-| `recall_semanticScoring_500`(打分,不含模型) | 2.3 ms | 13,087 | ✅ |
-| `embedQuery_bgeModel`(bge 前向,30 行查询) | **93 ms** | 3,450 | ❌ 超出 P5 |
+| `tokenize_query`(12 行聊天) | 0.05 ms | 1,318 | |
+| `recall_lexical_500`(500 条记忆) | 2.1 ms | 35,501 | P5 召回 ≤ 50 ms ✅ |
+| `recall_semanticScoring_500`(打分,不含模型) | 2.3 ms | 13,095 | |
+| `embedQuery_bgeModel`(bge 前向,12 行查询) | **52 ms** | 1,515 | 语义召回合计约 55 ms,略超 P5 ⚠️ |
 
-**结论**:召回本身很快;语义召回的耗时几乎全在 bge 模型给查询算向量。查询是最近 30 行聊天,分词后接近 256 token 上限。可选的改进:查询只取最近几行、缩短 `maxLen`,或在用户点悬浮球之前提前计算。
+**结论**:召回打分本身很快(约 2 ms);语义召回的耗时几乎全在 bge 模型给查询算向量,合计约 55 ms,略超预算。可选的改进:进一步缩短查询,或在用户点悬浮球之前提前算好。
+
+> 更正:第一版基准误用了 30 行查询,测出 93 ms;实际代码只取 12 行,以上为修正后的数据。
 
 ### 宏基准
 
