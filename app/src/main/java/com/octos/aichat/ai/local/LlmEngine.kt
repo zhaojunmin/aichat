@@ -2,7 +2,7 @@ package com.octos.aichat.ai.local
 
 import android.content.Context
 import android.os.SystemClock
-import com.octos.aichat.Tracing
+import com.octos.aichat.diagnostics.Tracing
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock

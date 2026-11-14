@@ -1,4 +1,4 @@
-package com.octos.aichat
+package com.octos.aichat.diagnostics
 
 import android.os.Build
 import android.os.Trace

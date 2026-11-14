@@ -102,6 +102,10 @@ data class AppSettings(
     val localModelId: String = com.octos.aichat.ai.local.LocalModel.DEFAULT.id,
     /** Appearance variant id ("system", or a [com.octos.aichat.ui.theme.ThemeVariant] id). */
     val themeVariantId: String = "system",
+    /** Keep local diagnostics (error codes, timings — never chat text). Off deletes what was kept. */
+    val diagnosticsEnabled: Boolean = true,
+    /** When diagnostics were last switched on (epoch ms); 0 = on since install. */
+    val diagnosticsEnabledAt: Long = 0L,
 ) {
     val useLocal: Boolean get() = inferenceMode == InferenceMode.LOCAL
 

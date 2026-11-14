@@ -27,7 +27,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.view.isVisible
 import com.octos.aichat.AppBus
-import com.octos.aichat.Tracing
+import com.octos.aichat.diagnostics.Tracing
 import com.octos.aichat.ui.MainActivity
 import com.octos.aichat.ui.toUserMessage
 import com.octos.aichat.accessibility.BubbleBox

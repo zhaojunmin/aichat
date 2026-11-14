@@ -77,6 +77,9 @@
     <string name="adv_semantic_title">Semantic recall (experimental)</string>
     <string name="adv_semantic_desc">On-device vectors pick relevant memories by meaning · %1$d/%2$d embedded%3$s</string>
     <string name="adv_memory_stats">%1$d recorded · %2$d pending</string>
+    <string name="adv_diag_title">Diagnostics</string>
+    <string name="adv_diag_switch">Keep diagnostics</string>
+    <string name="adv_diag_desc">Records only error codes, timings and device info — never chat content or keys — and never uploads anything. Turning it off deletes what was kept.</string>
     <string name="adv_debug_title">Read debugging</string>
     <string name="adv_debug_desc">Tap the bubble once on a WeChat / Soul chat screen, then come back here to see what that tap read — useful to check whether “Me / Them” is distinguished correctly.</string>
     <string name="adv_debug_view_chat">View the last chat read</string>

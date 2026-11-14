@@ -77,6 +77,9 @@
     <string name="adv_semantic_title">语义召回(实验)</string>
     <string name="adv_semantic_desc">端上向量按语义挑选相关记忆 · 已向量化 %1$d/%2$d 条%3$s</string>
     <string name="adv_memory_stats">已记录 %1$d 条 · 待学习 %2$d 条</string>
+    <string name="adv_diag_title">诊断信息</string>
+    <string name="adv_diag_switch">记录诊断信息</string>
+    <string name="adv_diag_desc">只记录错误码、耗时和设备信息,不含聊天内容和密钥,不会自动上传;关闭后立即删除已有记录。</string>
     <string name="adv_debug_title">读取调试</string>
     <string name="adv_debug_desc">先在微信 / Soul 的聊天界面点一次悬浮球,再回到这里查看那次读到的内容,可据此判断「我 / 对方」是否区分正确。</string>
     <string name="adv_debug_view_chat">查看最近一次读取的聊天记录</string>

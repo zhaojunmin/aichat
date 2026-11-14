@@ -62,7 +62,7 @@ ADB=adb.exe quality/scripts/run-benchmarks.sh          # all;也可 micro / macr
 
 ## 端到端(读屏 / 悬浮球)
 
-关键路径上有 `Trace` 打点(`app/.../Tracing.kt`),在正式版上用 atrace 抓取:
+关键路径上有 `Trace` 打点(`app/.../diagnostics/Tracing.kt`),在正式版上用 atrace 抓取:
 
 ```bash
 ADB=adb.exe quality/scripts/trace-e2e.sh 60      # 录 60 秒,期间在手机上操作

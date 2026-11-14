@@ -67,6 +67,8 @@ class SettingsRepository private constructor(
         localModelId = prefs.getString(KEY_LOCAL_MODEL, null)
             ?: com.octos.aichat.ai.local.LocalModel.DEFAULT.id,
         themeVariantId = prefs.getString(KEY_THEME, null) ?: "system",
+        diagnosticsEnabled = prefs.getBoolean(KEY_DIAGNOSTICS, true),
+        diagnosticsEnabledAt = prefs.getLong(KEY_DIAGNOSTICS_SINCE, 0L),
     )
 
     // Hertz moved from OCR to precise node-tree parsing; strip the now-stale
@@ -146,6 +148,8 @@ class SettingsRepository private constructor(
             .putString(KEY_INFER_MODE, s.inferenceMode.name)
             .putString(KEY_LOCAL_MODEL, s.localModelId)
             .putString(KEY_THEME, s.themeVariantId)
+            .putBoolean(KEY_DIAGNOSTICS, s.diagnosticsEnabled)
+            .putLong(KEY_DIAGNOSTICS_SINCE, s.diagnosticsEnabledAt)
             .apply()
     }
 
@@ -157,6 +161,8 @@ class SettingsRepository private constructor(
         private const val TAG = "Settings"
         private const val PREFS = "ai_chat_settings"
         private const val KEY_BACKEND = "backend"
+        private const val KEY_DIAGNOSTICS = "diagnostics_enabled"
+        private const val KEY_DIAGNOSTICS_SINCE = "diagnostics_enabled_at"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_API_KEY = "api_key"
         private const val KEY_MODEL = "model"
