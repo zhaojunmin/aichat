@@ -1,6 +1,5 @@
 package com.octos.aichat.accessibility
 
-import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
 import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
@@ -57,7 +56,7 @@ object ChatParser {
         ),
     )
 
-    private data class Raw(val rect: Rect, val text: String, val speaker: Speaker?)
+    private data class Raw(val bounds: Bounds, val text: String, val speaker: Speaker?)
 
     // Text we never want to treat as a chat message (generic path only).
     private val NOISE = setOf(
@@ -65,8 +64,16 @@ object ChatParser {
         "拍摄", "相册", "视频通话", "语音通话", "输入", "聊天信息", "转账",
     )
 
+    /** Live-tree entry point: snapshot once, then parse the plain [UiNode] tree. */
     fun parse(
         root: AccessibilityNodeInfo?,
+        screenWidth: Int,
+        screenHeight: Int,
+        pkg: String,
+    ): Conversation = parse(root?.toUiNode(), screenWidth, screenHeight, pkg)
+
+    fun parse(
+        root: UiNode?,
         screenWidth: Int,
         screenHeight: Int,
         pkg: String,
@@ -77,27 +84,27 @@ object ChatParser {
         val raws = ArrayList<Raw>()
 
         if (rule != null) {
-            collectByRule(root, rule, screenWidth, raws)
+            collectByRule(root, ArrayDeque(), rule, screenWidth, raws)
         }
         // Generic path — used when the app has no rule, or when its rule matched
         // nothing (e.g. QQ updated and its obfuscated view-id changed). Degrading
         // to position-based parsing beats returning an empty conversation.
         if (raws.isEmpty()) {
-            val leaves = ArrayList<Pair<Rect, String>>()
+            val leaves = ArrayList<Pair<Bounds, String>>()
             collectLeafText(root, leaves)
             applyVerticalBand(leaves, screenHeight)
             leaves.mapTo(raws) { Raw(it.first, it.second, null) }
         }
 
         // Top-to-bottom, then left-to-right = chronological for a chat list.
-        val ordered = raws.sortedWith(compareBy({ it.rect.top }, { it.rect.left }))
+        val ordered = raws.sortedWith(compareBy({ it.bounds.top }, { it.bounds.left }))
 
         val messages = ArrayList<ChatMessage>()
         var lastText: String? = null
         for (raw in ordered) {
             if (!looksLikeMessage(raw.text)) continue
             if (raw.text == lastText) continue // collapse duplicates from re-layout
-            val speaker = raw.speaker ?: classify(raw.rect, screenWidth)
+            val speaker = raw.speaker ?: classify(raw.bounds, screenWidth)
             messages.add(ChatMessage(speaker, raw.text))
             lastText = raw.text
         }
@@ -106,33 +113,31 @@ object ChatParser {
 
     // ---- Precise path ----------------------------------------------------
 
+    /** [ancestors] = the path from the root down to [node]'s parent (nearest last). */
     private fun collectByRule(
-        node: AccessibilityNodeInfo?,
+        node: UiNode,
+        ancestors: ArrayDeque<UiNode>,
         rule: AppRule,
         screenWidth: Int,
         out: MutableList<Raw>,
     ) {
-        if (node == null) return
-        val id = node.viewIdResourceName?.substringAfterLast('/')
-        val speaker: Speaker? = when (id) {
-            null -> null
-            rule.selfId -> Speaker.ME
-            rule.othersId -> Speaker.OTHER
-            rule.messageId -> rule.avatarId?.let { senderFromAvatar(node, it, screenWidth) }
-            else -> null
-        }
+        val id = node.idName
         val isMessage = id != null &&
             (id == rule.selfId || id == rule.othersId || id == rule.messageId)
         if (isMessage) {
-            val raw = (node.text ?: node.contentDescription)?.toString()?.trim()
-            if (!raw.isNullOrEmpty()) {
-                val rect = Rect().also { node.getBoundsInScreen(it) }
-                if (rect.width() > 0 && rect.height() > 0) {
-                    out.add(Raw(rect, raw, speaker))
+            val text = node.label
+            if (text != null && !node.bounds.isEmpty) {
+                val speaker: Speaker? = when (id) {
+                    rule.selfId -> Speaker.ME
+                    rule.othersId -> Speaker.OTHER
+                    else -> rule.avatarId?.let { senderFromAvatar(node, ancestors, it, screenWidth) }
                 }
+                out.add(Raw(node.bounds, text, speaker))
             }
         }
-        for (i in 0 until node.childCount) collectByRule(node.getChild(i), rule, screenWidth, out)
+        ancestors.addLast(node)
+        for (child in node.children) collectByRule(child, ancestors, rule, screenWidth, out)
+        ancestors.removeLast()
     }
 
     /**
@@ -141,53 +146,40 @@ object ChatParser {
      * (the caller then falls back to position-based classification).
      */
     private fun senderFromAvatar(
-        messageNode: AccessibilityNodeInfo,
+        messageNode: UiNode,
+        ancestors: ArrayDeque<UiNode>,
         avatarId: String,
         screenWidth: Int,
     ): Speaker? {
-        var row: AccessibilityNodeInfo = messageNode
-        var cur: AccessibilityNodeInfo? = messageNode.parent
-        var hops = 0
-        while (cur != null && hops < 8) {
-            val r = Rect().also { cur!!.getBoundsInScreen(it) }
-            if (r.width() > screenWidth * 0.85f) { row = cur; break }
-            cur = cur.parent
-            hops++
-        }
+        // The row is the nearest ancestor (within 8 hops) spanning most of the width.
+        val row = ancestors.asReversed().take(8)
+            .firstOrNull { it.bounds.width > screenWidth * 0.85f } ?: messageNode
         val avatar = findById(row, avatarId) ?: return null
-        val ar = Rect().also { avatar.getBoundsInScreen(it) }
-        return if (ar.centerX() > screenWidth / 2) Speaker.ME else Speaker.OTHER
+        return if (avatar.bounds.centerX > screenWidth / 2) Speaker.ME else Speaker.OTHER
     }
 
-    private fun findById(node: AccessibilityNodeInfo?, idName: String): AccessibilityNodeInfo? {
-        if (node == null) return null
-        if (node.viewIdResourceName?.substringAfterLast('/') == idName) return node
-        for (i in 0 until node.childCount) {
-            findById(node.getChild(i), idName)?.let { return it }
-        }
+    private fun findById(node: UiNode, idName: String): UiNode? {
+        if (node.idName == idName) return node
+        for (child in node.children) findById(child, idName)?.let { return it }
         return null
     }
 
     // ---- Generic path ----------------------------------------------------
 
-    private fun collectLeafText(node: AccessibilityNodeInfo?, out: MutableList<Pair<Rect, String>>) {
-        if (node == null) return
-        if (node.childCount == 0) {
-            val raw = (node.text ?: node.contentDescription)?.toString()?.trim()
-            if (!raw.isNullOrEmpty()) {
-                val rect = Rect().also { node.getBoundsInScreen(it) }
-                if (rect.width() > 0 && rect.height() > 0) out.add(rect to raw)
-            }
+    private fun collectLeafText(node: UiNode, out: MutableList<Pair<Bounds, String>>) {
+        if (node.children.isEmpty()) {
+            val text = node.label
+            if (text != null && !node.bounds.isEmpty) out.add(node.bounds to text)
         }
-        for (i in 0 until node.childCount) collectLeafText(node.getChild(i), out)
+        for (child in node.children) collectLeafText(child, out)
     }
 
     /** Keep only the scrollable message band, dropping title bar and input bar. */
-    private fun applyVerticalBand(items: MutableList<Pair<Rect, String>>, screenHeight: Int) {
+    private fun applyVerticalBand(items: MutableList<Pair<Bounds, String>>, screenHeight: Int) {
         if (screenHeight <= 0) return
         val top = screenHeight * 0.09f
         val bottom = screenHeight * 0.90f
-        items.retainAll { it.first.centerY().toFloat() in top..bottom }
+        items.retainAll { it.first.centerY.toFloat() in top..bottom }
     }
 
     private fun looksLikeMessage(text: String): Boolean {
@@ -206,14 +198,14 @@ object ChatParser {
         return true
     }
 
-    private fun classify(rect: Rect, screenWidth: Int): Speaker {
+    private fun classify(b: Bounds, screenWidth: Int): Speaker {
         val leftZone = screenWidth * 0.18f
         val rightZone = screenWidth * 0.82f
         return when {
-            rect.right >= rightZone && rect.left > leftZone -> Speaker.ME
-            rect.left <= leftZone && rect.right < rightZone -> Speaker.OTHER
+            b.right >= rightZone && b.left > leftZone -> Speaker.ME
+            b.left <= leftZone && b.right < rightZone -> Speaker.OTHER
             // Ambiguous (full-width): fall back to which half the center sits in.
-            rect.centerX() >= screenWidth / 2 -> Speaker.ME
+            b.centerX >= screenWidth / 2 -> Speaker.ME
             else -> Speaker.OTHER
         }
     }
