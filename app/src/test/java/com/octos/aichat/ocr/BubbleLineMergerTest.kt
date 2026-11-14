@@ -18,7 +18,7 @@ class BubbleLineMergerTest {
             always,
         )
         assertEquals(listOf("不同品种,5.5远超4.8,5.5各种场景都非常稳,又快又稳又好"), out.map { it.text })
-        assertEquals(OcrBlock(230, 2300, 1000, 2402, out[0].text, lines = 2), out[0])
+        assertEquals(OcrBlock(230, 2300, 1000, 2402, out[0].text, lines = 2, firstLineHeight = 45), out[0])
     }
 
     /** Real device boxes: lines of one bubble started at x=212 and x=231 (OCR jitter). */
