@@ -11,13 +11,19 @@ data class ReplyCounts(val total: Int, val learned: Int)
 /** The un-learned replies plus the current total line count. */
 data class PendingReplies(val replies: List<String>, val total: Int)
 
+/** Where the learner reads un-learned replies and records how far it got. */
+interface ReplyLedger {
+    suspend fun pending(): PendingReplies
+    fun markLearned(total: Int)
+}
+
 /**
  * The raw record of every reply I authored — one line per reply as
  * "epochMillis\ttext" in `my_replies.txt`, plus a bounded dedup set and the
  * "how many have been learned" offset. Owns all file + offset access; the memory
  * learner reads un-learned lines from here. Single responsibility: the reply log.
  */
-class ReplyLog(context: Context) {
+class ReplyLog(context: Context) : ReplyLedger {
 
     private val file = File(context.filesDir, "my_replies.txt")
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -44,14 +50,14 @@ class ReplyLog(context: Context) {
     }
 
     /** Replies not yet learned (from the stored offset), with the total line count. */
-    suspend fun pending(): PendingReplies = lock.withLock {
+    override suspend fun pending(): PendingReplies = lock.withLock {
         val lines = readLines()
         val from = prefs.getInt(KEY_LEARNED, 0).coerceIn(0, lines.size)
         PendingReplies(lines.subList(from, lines.size).map { textOf(it) }, lines.size)
     }
 
     /** Mark the first [total] lines as learned. */
-    fun markLearned(total: Int) = prefs.edit().putInt(KEY_LEARNED, total).apply()
+    override fun markLearned(total: Int) = prefs.edit().putInt(KEY_LEARNED, total).apply()
 
     suspend fun clear() = lock.withLock {
         runCatching { if (file.exists()) file.delete() }

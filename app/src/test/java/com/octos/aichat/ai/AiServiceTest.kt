@@ -72,6 +72,32 @@ class AiServiceTest {
         assertTrue(out.contains("第二行"))
     }
 
+    // R3: content-free answers yield no candidates (never a blank or literal "[]" one).
+    @Test fun parseReplies_contentFreeAnswersAreEmpty() {
+        for (raw in listOf("", "   \n\t", "[]", "```json\n[]\n```", "```", """["", "  "]""", "-\n•\n1.")) {
+            assertEquals("for input <$raw>", emptyList<String>(), service.parseReplies(raw, 3))
+        }
+    }
+
+    @Test fun parseReplies_arrayInsideObjectOrProse() {
+        assertEquals(listOf("a", "b"), service.parseReplies("""{"replies":["a","b"]}""", 3))
+        assertEquals(listOf("嗯嗯"), service.parseReplies("好的,给你:[\"嗯嗯\"] 希望有用", 3))
+    }
+
+    @Test fun parseReplies_nonStringItemsAreStringified() {
+        assertEquals(listOf("1", "true", "ok"), service.parseReplies("""[1, true, "ok"]""", 5))
+    }
+
+    @Test fun parseReplies_plainSentenceIsOneReply() {
+        assertEquals(listOf("今晚可以"), service.parseReplies("今晚可以", 3))
+    }
+
+    @Test fun parseReplies_hugeAnswerStillCapped() {
+        val raw = (1..500).joinToString("\n") { "$it. 第 $it 条" }
+        val out = service.parseReplies(raw, 3)
+        assertEquals(listOf("第 1 条", "第 2 条", "第 3 条"), out)
+    }
+
     // ---- parseLearnResult -------------------------------------------------
 
     @Test fun parseLearn_fullObject() {
@@ -146,6 +172,34 @@ class AiServiceTest {
         val out = svc.generateReplies(cloudSettings.copy(suggestionCount = 99), conv(Speaker.OTHER to "hi"))
         assertEquals(5, out.size)
         assertTrue(fake.user!!.contains("给 5 条"))
+    }
+
+    /** R3: an empty model answer is a clear BAD_RESPONSE error, not a blank suggestion. */
+    @Test fun generate_emptyAnswerIsBadResponse() = runTest {
+        for (answer in listOf("", "[]", "```json\n[]\n```")) {
+            try {
+                AiService { FakeClient(answer) }.generateReplies(cloudSettings, conv(Speaker.OTHER to "hi"))
+                fail("expected BAD_RESPONSE for <$answer>")
+            } catch (e: AiException) {
+                assertEquals(AiException.Kind.BAD_RESPONSE, e.kind)
+            }
+        }
+    }
+
+    /** R4: a cloud failure reaches the caller with its kind intact (the UI picks the hint from it). */
+    @Test fun generate_clientErrorKindIsPreserved() = runTest {
+        val svc = AiService {
+            object : AiClient {
+                override suspend fun complete(settings: AppSettings, system: String, user: String): String =
+                    throw AiException(AiException.Kind.INSUFFICIENT_BALANCE, 402)
+            }
+        }
+        try {
+            svc.generateReplies(cloudSettings, conv(Speaker.OTHER to "hi"))
+            fail("expected AiException")
+        } catch (e: AiException) {
+            assertEquals(AiException.Kind.INSUFFICIENT_BALANCE, e.kind)
+        }
     }
 
     @Test fun generate_requiresApiKeyInCloudMode() = runTest {

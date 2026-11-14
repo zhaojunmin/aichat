@@ -102,7 +102,7 @@
 
 ## 3. 现状差距(按严重度)
 
-> 进度(2026-11-14):1 已修(#15);2、4、5、6 已修(#16);3 已修(#18,改用 Keystore,未用已弃用的 EncryptedSharedPreferences);10 已建(#14);云端错误分类与超时(R4)见 §2.2。
+> 进度(2026-11-14):1 已修(#15);2、4、5、6 已修(#16);3 已修(#18,改用 Keystore,未用已弃用的 EncryptedSharedPreferences);10 已建(#14);云端错误分类与超时(R4)见 §2.2;R3 畸形输出、R5 学习失败重试、本地超时映射已补单测(`MemoryLearningPassTest`、`LocalClientTest`、`AiServiceTest`)。
 
 | # | 问题 | 位置 | 影响 | 建议 |
 |---|---|---|---|---|
