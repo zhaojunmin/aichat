@@ -14,7 +14,9 @@ data class PendingReplies(val replies: List<String>, val total: Int)
 /** Where the learner reads un-learned replies and records how far it got. */
 interface ReplyLedger {
     suspend fun pending(): PendingReplies
-    fun markLearned(total: Int)
+
+    /** Record that the first [total] lines are learned. Called inside the learning transaction. */
+    suspend fun markLearned(total: Int)
 }
 
 /**
@@ -22,11 +24,15 @@ interface ReplyLedger {
  * "epochMillis\ttext" in `my_replies.txt`, plus a bounded dedup set and the
  * "how many have been learned" offset. Owns all file + offset access; the memory
  * learner reads un-learned lines from here. Single responsibility: the reply log.
+ *
+ * The offset is stored in the memory database ([LearningStateDao]) so the learner
+ * can advance it in the same transaction as its memory writes. Older installs kept
+ * it in SharedPreferences; it is moved over on first read.
  */
-class ReplyLog(context: Context) : ReplyLedger {
+class ReplyLog(context: Context, private val state: LearningStateDao) : ReplyLedger {
 
     private val file = File(context.filesDir, "my_replies.txt")
-    private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private val legacyPrefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
     private val lock = Mutex()
 
     // Bounded set of recently logged replies so the accessibility reader re-scanning
@@ -37,7 +43,7 @@ class ReplyLog(context: Context) : ReplyLedger {
     suspend fun primeRecent(): ReplyCounts = lock.withLock {
         val lines = readLines()
         lines.takeLast(RECENT_MEMORY).forEach { recent.add(textOf(it)) }
-        ReplyCounts(total = lines.size, learned = prefs.getInt(KEY_LEARNED, 0).coerceIn(0, lines.size))
+        ReplyCounts(total = lines.size, learned = learnedOffset().coerceIn(0, lines.size))
     }
 
     /** Append one reply (normalised + deduped). @return true if it was newly added. */
@@ -52,18 +58,25 @@ class ReplyLog(context: Context) : ReplyLedger {
     /** Replies not yet learned (from the stored offset), with the total line count. */
     override suspend fun pending(): PendingReplies = lock.withLock {
         val lines = readLines()
-        val from = prefs.getInt(KEY_LEARNED, 0).coerceIn(0, lines.size)
+        val from = learnedOffset().coerceIn(0, lines.size)
         PendingReplies(lines.subList(from, lines.size).map { textOf(it) }, lines.size)
     }
 
     /** Mark the first [total] lines as learned. */
-    override fun markLearned(total: Int) = prefs.edit().putInt(KEY_LEARNED, total).apply()
+    override suspend fun markLearned(total: Int) = state.set(LearningState(learnedReplies = total))
 
     suspend fun clear() = lock.withLock {
         runCatching { if (file.exists()) file.delete() }
-        prefs.edit().putInt(KEY_LEARNED, 0).apply()
+        state.set(LearningState(learnedReplies = 0))
         recent.clear()
     }
+
+    /** The stored offset; on the first read after upgrading, moved over from prefs. */
+    private suspend fun learnedOffset(): Int =
+        state.learnedReplies() ?: legacyPrefs.getInt(KEY_LEARNED, 0).also { legacy ->
+            state.set(LearningState(learnedReplies = legacy))
+            legacyPrefs.edit().remove(KEY_LEARNED).apply()
+        }
 
     private fun readLines(): List<String> =
         if (file.exists()) file.readLines().filter { it.isNotBlank() } else emptyList()
