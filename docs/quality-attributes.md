@@ -94,6 +94,8 @@
 
 ### 2.7 可观测性(隐私优先)
 
+> 详细设计见 [`observability-design.md`](observability-design.md)。
+
 - 写一个统一的 `Logger` 门面:debug 版输出到 logcat;release 版只把**错误码和耗时**写进本地环形文件(不含聊天文本和 Key)。
 - 设置页加「导出诊断信息」按钮,由用户主动分享,**不接第三方崩溃 SDK**(与隐私定位冲突)。
 - 把现在的 `catch (_: Exception) {}` 改成「记录错误码再降级」。
