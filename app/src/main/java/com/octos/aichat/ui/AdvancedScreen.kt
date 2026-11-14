@@ -1,7 +1,4 @@
 package com.octos.aichat.ui
-import com.octos.aichat.AppBus
-import com.octos.aichat.R
-
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
@@ -52,15 +49,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.octos.aichat.data.Conversation
-import com.octos.aichat.data.Speaker
+import com.octos.aichat.AppBus
+import com.octos.aichat.R
 import com.octos.aichat.ai.embedding.Encoder
 import com.octos.aichat.bubble.FloatingBubbleService
+import com.octos.aichat.data.Conversation
+import com.octos.aichat.data.Speaker
+import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.ui.theme.ThemeVariant
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-internal fun AdvancedScreen(onBack: () -> Unit) {
+internal fun AdvancedScreen(onBack: () -> Unit, onOpenDiagnostics: () -> Unit) {
     val context = LocalContext.current
     val vm: AdvancedViewModel = viewModel(factory = AdvancedViewModel.factory(context))
     val settings by vm.settingsState.collectAsStateWithLifecycle()
@@ -69,6 +69,23 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
 
     var preview by remember { mutableStateOf<Conversation?>(null) }
     var rawDump by remember { mutableStateOf<String?>(null) }
+    var confirmClearDiagnostics by remember { mutableStateOf(false) }
+    if (confirmClearDiagnostics) {
+        AlertDialog(
+            onDismissRequest = { confirmClearDiagnostics = false },
+            title = { Text(stringResource(R.string.adv_diag_clear)) },
+            text = { Text(stringResource(R.string.adv_diag_clear_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    DiagLog.clear()
+                    confirmClearDiagnostics = false
+                }) { Text(stringResource(R.string.adv_diag_clear)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClearDiagnostics = false }) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
+    }
     // Mirrors the process-wide (non-persisted) debug flag in AppBus.
     var captureRawTree by remember { mutableStateOf(AppBus.captureRawTree) }
 
@@ -288,6 +305,19 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                             }
                         }
                     )
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onOpenDiagnostics,
+                        enabled = settings.diagnosticsEnabled,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.adv_diag_export)) }
+                    OutlinedButton(
+                        onClick = { confirmClearDiagnostics = true },
+                        enabled = settings.diagnosticsEnabled,
+                        modifier = Modifier.weight(1f),
+                    ) { Text(stringResource(R.string.adv_diag_clear)) }
                 }
             }
 

@@ -16,6 +16,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  * when on. Files are written on one background thread, every [FLUSH_SECONDS] or
  * when enough events pile up.
  */
+/** Diagnostics kept at one moment: whether recording is on, the counters, and the stored events (oldest first). */
+data class DiagSnapshot(val enabled: Boolean, val counts: Map<ErrorCode, Int>, val events: List<DiagEvent>)
+
 object DiagLog {
 
     @Volatile private var recorder: DiagnosticsRecorder? = null
@@ -77,9 +80,18 @@ object DiagLog {
         io.execute { runCatching { r.recordExits(read(), sinceMs) } }
     }
 
+    /** What is kept right now, for the export. File IO: call off the main thread. Null before [install]. */
+    fun snapshot(): DiagSnapshot? {
+        val r = recorder ?: return null
+        return DiagSnapshot(r.enabled, r.countsSnapshot(), if (r.enabled) r.recent(MAX_EVENTS) else emptyList())
+    }
+
     private fun flushQuietly() {
         runCatching { recorder?.flush() }
     }
 
     const val FLUSH_SECONDS = 5L
+
+    /** Upper bound read back for the export (two 256 KB files hold about this many). */
+    private const val MAX_EVENTS = 5_000
 }

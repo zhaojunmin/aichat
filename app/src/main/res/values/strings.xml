@@ -81,6 +81,15 @@
     <string name="adv_diag_title">诊断信息</string>
     <string name="adv_diag_switch">记录诊断信息</string>
     <string name="adv_diag_desc">只记录错误码、耗时和设备信息,不含聊天内容和密钥,不会自动上传;关闭后立即删除已有记录。</string>
+    <string name="adv_diag_export">导出诊断信息</string>
+    <string name="adv_diag_clear">清空诊断信息</string>
+    <string name="adv_diag_clear_confirm">删除已记录的全部诊断信息?之后照常继续记录。</string>
+    <string name="action_cancel">取消</string>
+    <string name="diag_title">诊断信息</string>
+    <string name="diag_preview_hint">下面就是要分享的全部内容,不含聊天内容和密钥。只有你点「分享」或「复制」,它才会离开这台手机。</string>
+    <string name="diag_copy">复制</string>
+    <string name="diag_share">分享</string>
+    <string name="diag_copied">已复制</string>
     <string name="adv_debug_title">读取调试</string>
     <string name="adv_debug_desc">先在微信 / Soul 的聊天界面点一次悬浮球,再回到这里查看那次读到的内容,可据此判断「我 / 对方」是否区分正确。</string>
     <string name="adv_debug_view_chat">查看最近一次读取的聊天记录</string>

@@ -35,8 +35,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** State-based nav (no nav library): home, advanced, and memory management. */
-private enum class Screen { Home, Advanced, Memory }
+/** State-based nav (no nav library): home, advanced (→ diagnostics), and memory management. */
+private enum class Screen { Home, Advanced, Memory, Diagnostics }
 
 @Composable
 private fun AppRoot() {
@@ -50,7 +50,11 @@ private fun AppRoot() {
                     onOpenAdvanced = { screen = Screen.Advanced },
                     onOpenMemory = { screen = Screen.Memory },
                 )
-                Screen.Advanced -> AdvancedScreen(onBack = { screen = Screen.Home })
+                Screen.Advanced -> AdvancedScreen(
+                    onBack = { screen = Screen.Home },
+                    onOpenDiagnostics = { screen = Screen.Diagnostics },
+                )
+                Screen.Diagnostics -> DiagnosticsScreen(onBack = { screen = Screen.Advanced })
                 Screen.Memory -> MemoryScreen(onBack = { screen = Screen.Home })
             }
         }
