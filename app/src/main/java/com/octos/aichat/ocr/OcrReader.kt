@@ -2,6 +2,7 @@ package com.octos.aichat.ocr
 
 import android.graphics.Bitmap
 import android.graphics.Rect
+import androidx.core.graphics.get
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
@@ -11,6 +12,7 @@ import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.Speaker
 import kotlin.coroutines.resume
+import kotlin.math.abs
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
@@ -54,7 +56,7 @@ object OcrReader {
                 .sortedBy { it.first.top }
                 .joinToString(" ") { it.second }
                 .trim()
-            if (content.isEmpty() || !looksLikeMessage(content) || content == last) continue
+            if (content.isEmpty() || !OcrMessageFilter.looksLikeMessage(content) || content == last) continue
             messages.add(ChatMessage(bubble.speaker, content))
             last = content
         }
@@ -76,14 +78,19 @@ object OcrReader {
         val h = if (bitmap.height > 0) bitmap.height else screenHeight
 
         val all = text.textBlocks
-            .mapNotNull { b -> b.boundingBox?.let { it to b.text.replace("\n", " ").trim() } }
-            .filter { it.second.isNotEmpty() }
-            .sortedBy { it.first.top }
+            .mapNotNull { b ->
+                val r = b.boundingBox ?: return@mapNotNull null
+                val lines = b.lines.map { it.text }.ifEmpty { listOf(b.text) }
+                val joined = lines.reduce(BubbleLineMerger::joinLines).trim()
+                OcrBlock(r.left, r.top, r.right, r.bottom, joined, lines.size)
+            }
+            .filter { it.text.isNotEmpty() }
+            .sortedBy { it.top }
 
         // Upper bound: the first full date-time stamp marks where the chat starts,
         // so the profile card above it is excluded. Fall back to a fixed band.
-        val firstStamp = all.indexOfFirst { DATE_RE.containsMatchIn(it.second) }
-        val minY = if (firstStamp >= 0) all[firstStamp].first.top.toFloat()
+        val firstStamp = all.indexOfFirst { OcrMessageFilter.DATE_RE.containsMatchIn(it.text) }
+        val minY = if (firstStamp >= 0) all[firstStamp].top.toFloat()
         else h * 0.08f
         // Lower bound: only exclude the gesture nav bar at the very bottom. The
         // input box text ("请输入消息" / "发送") is dropped by looksLikeMessage,
@@ -91,17 +98,62 @@ object OcrReader {
         // sit just above the input bar.
         val maxY = h * 0.94f
 
-        val blocks = all.filter { h <= 0 || it.first.centerY().toFloat() in minY..maxY }
+        // Drop timestamps / system lines first, so they can never be glued onto a
+        // neighbouring block (e.g. OCR noise from the wallpaper right above a time).
+        val candidates = all.filter {
+            (h <= 0 || ((it.top + it.bottom) / 2).toFloat() in minY..maxY) && OcrMessageFilter.looksLikeMessage(it.text)
+        }
+        // One bubble's wrapped lines can come back as separate blocks; stitch them.
+        val blocks = BubbleLineMerger.merge(candidates) { upper, lower -> gapIsBubble(bitmap, upper, lower) }
 
         val messages = ArrayList<ChatMessage>()
         var last: String? = null
-        for ((box, content) in blocks) {
-            if (!looksLikeMessage(content)) continue
+        for (b in blocks) {
+            val content = b.text
+            if (!OcrMessageFilter.looksLikeMessage(content)) continue // e.g. merged text now over the length cap
             if (content == last) continue
-            messages.add(ChatMessage(classify(bitmap, box, screenWidth), content))
+            messages.add(ChatMessage(classify(bitmap, Rect(b.left, b.top, b.right, b.bottom), screenWidth), content))
             last = content
         }
         return Conversation(pkg, messages)
+    }
+
+    /**
+     * True when the strip between two OCR lines is one bubble's own background,
+     * i.e. both lines sit inside the same bubble. Reference colours = the bubble
+     * padding just left of each line; they must match each other, and every sample
+     * across the gap must match them. Two separate bubbles show chat background /
+     * wallpaper in the gap; a group-chat sender name sits on the wallpaper while
+     * the line below it sits in a bubble, so their references differ.
+     */
+    private fun gapIsBubble(bitmap: Bitmap, upper: OcrBlock, lower: OcrBlock): Boolean {
+        val inset = (minOf(upper.lineHeight, lower.lineHeight) / 5).coerceAtLeast(2)
+        val upperRef = pixelOrNull(bitmap, upper.left - inset, (upper.top + upper.bottom) / 2) ?: return false
+        val lowerRef = pixelOrNull(bitmap, lower.left - inset, (lower.top + lower.bottom) / 2) ?: return false
+        if (!similar(upperRef, lowerRef)) return false
+
+        val gap = lower.top - upper.bottom
+        if (gap <= 2) return true // lines touch: nothing in between to test
+        val y = upper.bottom + gap / 2
+        val from = minOf(upper.left, lower.left) - inset
+        val to = minOf(upper.right, lower.right)
+        if (to <= from) return false
+        val steps = 8
+        for (i in 0..steps) {
+            val px = pixelOrNull(bitmap, from + (to - from) * i / steps, y) ?: return false
+            if (!similar(px, upperRef)) return false
+        }
+        return true
+    }
+
+    private fun pixelOrNull(bitmap: Bitmap, x: Int, y: Int): Int? =
+        if (x in 0 until bitmap.width && y in 0 until bitmap.height) bitmap[x, y] else null
+
+    private fun similar(a: Int, b: Int): Boolean {
+        val d = abs(((a shr 16) and 0xFF) - ((b shr 16) and 0xFF)) +
+            abs(((a shr 8) and 0xFF) - ((b shr 8) and 0xFF)) +
+            abs((a and 0xFF) - (b and 0xFF))
+        return d <= 48
     }
 
     private suspend fun recognize(bitmap: Bitmap): Text? =
@@ -130,7 +182,7 @@ object OcrReader {
             var x = box.left
             while (x < box.right) {
                 if (x in 0 until w && y in 0 until h) {
-                    val p = bitmap.getPixel(x, y)
+                    val p = bitmap[x, y]
                     val r = (p shr 16) and 0xFF
                     val g = (p shr 8) and 0xFF
                     val b = p and 0xFF
@@ -148,26 +200,5 @@ object OcrReader {
         val leftMargin = box.left
         val rightMargin = screenWidth - box.right
         return if (rightMargin < leftMargin) Speaker.ME else Speaker.OTHER
-    }
-
-    private val DATE_RE = Regex("""\d{4}-\d{1,2}-\d{1,2}""")
-
-    // WeChat input-bar chrome that OCR may pick up but isn't chat content.
-    private val UI_EXACT = setOf("发送", "请输入消息")
-
-    private fun looksLikeMessage(text: String): Boolean {
-        if (text.length > 500) return false
-        if (text.contains("正在输入")) return false
-        if (text.contains("撤回了一条消息")) return false
-        if (text.endsWith("加入了群聊") || text.endsWith("加入群聊")) return false
-        // Date-time separators (e.g. "2026-11-10 09:15:31").
-        if (DATE_RE.containsMatchIn(text)) return false
-        // Short time stamps like "12:34" / "下午 3:51".
-        if (text.matches(Regex("""^(上午|下午|昨天|今天)?\s*\d{1,2}:\d{2}$"""))) return false
-        // Bare digit badges (unread counts like "4", "100").
-        if (text.matches(Regex("""^\d{1,3}$"""))) return false
-        // Input-bar chrome.
-        if (text in UI_EXACT) return false
-        return true
     }
 }
