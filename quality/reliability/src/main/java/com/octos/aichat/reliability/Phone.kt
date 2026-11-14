@@ -1,0 +1,168 @@
+package com.octos.aichat.reliability
+
+import android.app.UiAutomation
+import android.os.Bundle
+import android.os.SystemClock
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
+import androidx.test.uiautomator.Configurator
+import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiObject2
+import androidx.test.uiautomator.Until
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.regex.Pattern
+
+const val PKG = "com.octos.aichat"
+const val A11Y_SERVICE = "$PKG/$PKG.accessibility.ChatAccessibilityService"
+private const val BUBBLE_SERVICE = "$PKG/.bubble.FloatingBubbleService"
+
+/**
+ * The phone as seen from outside the app: shell commands (run with shell
+ * privileges through UiAutomation, no root needed) and the app's UI via UiAutomator.
+ * Note: commands are split on spaces, not run by a shell — no pipes or quoting.
+ */
+object Phone {
+
+    private val instrumentation = InstrumentationRegistry.getInstrumentation()
+
+    // By default UiAutomation suppresses every other accessibility service while it
+    // is connected — which would switch off the very service under test. Must be
+    // set before the first UiAutomation use.
+    val device: UiDevice = run {
+        Configurator.getInstance().uiAutomationFlags = UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES
+        UiDevice.getInstance(instrumentation)
+    }
+
+    fun sh(cmd: String): String = device.executeShellCommand(cmd)
+
+    // ---- process & services ------------------------------------------------
+
+    fun pid(): Int? = sh("pidof $PKG").trim().split(" ").firstOrNull()?.toIntOrNull()
+
+    private fun services(): String = sh("dumpsys activity services $PKG")
+
+    /**
+     * The accessibility manager currently has our service bound. Read from
+     * `dumpsys accessibility` ("Bound services" lists labels, not components):
+     * the activity manager's service record lingers after an unbind, so it can't tell.
+     */
+    fun accessibilityBound(): Boolean =
+        sh("dumpsys accessibility").lineSequence()
+            .filter { it.trimStart().startsWith("Bound services") }
+            .any { line -> Text.A11Y_LABEL.any { "label=$it" in line } }
+
+    fun bubbleRunning(): Boolean = BUBBLE_SERVICE in services()
+
+    fun accessibilitySetting(): String =
+        sh("settings get secure enabled_accessibility_services").trim().takeUnless { it == "null" }.orEmpty()
+
+    fun accessibilityEnabled(): Boolean = A11Y_SERVICE in accessibilitySetting().split(':')
+
+    fun overlayAllowed(): Boolean = sh("appops get $PKG SYSTEM_ALERT_WINDOW").contains("allow")
+
+    /**
+     * Crash + ANR reports the system recorded for the app at or after [sinceMs]
+     * (wall clock). Catches a crash even when the app restarted itself. (logcat
+     * isn't usable: some ROMs drop release apps' logs.)
+     */
+    fun failureReportsSince(sinceMs: Long): Int {
+        val stampFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US) // device time zone, like dropbox
+        val since = sinceMs - 1_000 // stamps have 1 s resolution
+        return listOf("data_app_crash", "data_app_anr").sumOf { tag ->
+            // Each entry: "<yyyy-MM-dd HH:mm:ss> <tag> (text, N bytes)" then the report.
+            dropbox(tag).split(Regex("""(?m)^(?=\d{4}-\d\d-\d\d \d\d:\d\d:\d\d $tag )""")).count { entry ->
+                val at = runCatching { stampFormat.parse(entry.take(19))?.time }.getOrNull() ?: return@count false
+                at >= since && Regex("""Process: ${Regex.escape(PKG)}\b""").containsMatchIn(entry)
+            }
+        }
+    }
+
+    /** Full dropbox dump for [tag]; retried because a shell read occasionally comes back empty. */
+    private fun dropbox(tag: String): String {
+        repeat(3) {
+            val out = sh("dumpsys dropbox --print $tag")
+            if ("Drop box contents" in out) return out
+            SystemClock.sleep(300)
+        }
+        throw AssertionError("could not read dropbox ($tag)")
+    }
+
+    // ---- app UI ------------------------------------------------------------
+
+    fun wake() {
+        sh("input keyevent KEYCODE_WAKEUP")
+        sh("wm dismiss-keyguard")
+    }
+
+    /** Open the app on its home screen without killing the process (unlike `am start -S`). */
+    fun openHome() {
+        // FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TASK: fresh home screen, same process.
+        sh("am start -W -f 0x10008000 -n $PKG/.ui.MainActivity")
+        if (find(Text.PERMISSIONS_TITLE, timeoutMs = 5_000) == null) throw AssertionError("app home screen did not appear")
+    }
+
+    fun pressHome() = device.pressHome()
+
+    fun find(texts: List<String>, timeoutMs: Long = 2_000): UiObject2? =
+        device.wait(Until.findObject(By.text(anyOf(texts))), timeoutMs)
+
+    /** Scroll the current screen down until one of [texts] shows up. */
+    fun scrollTo(texts: List<String>): UiObject2? {
+        repeat(8) {
+            find(texts, timeoutMs = 500)?.let { return it }
+            val w = device.displayWidth
+            val h = device.displayHeight
+            device.swipe(w / 2, h * 3 / 4, w / 2, h / 4, 20)
+        }
+        return null
+    }
+
+    /** Whether the permission row labelled [label] currently offers an "enable" button. */
+    fun permissionRowOff(label: List<String>): Boolean {
+        val row = scrollTo(label) ?: throw AssertionError("permission row $label not found")
+        val y = row.visibleBounds.centerY()
+        val slack = row.visibleBounds.height()
+        return device.findObjects(By.text(anyOf(Text.ENABLE))).any { kotlin.math.abs(it.visibleCenter.y - y) <= slack }
+    }
+
+    /** Any on-screen text containing one of [parts] (e.g. an error inside a longer message). */
+    fun findContaining(parts: List<String>): UiObject2? =
+        parts.firstNotNullOfOrNull { device.findObject(By.textContains(it)) }
+
+    private fun anyOf(texts: List<String>): Pattern = Pattern.compile(texts.joinToString("|") { Pattern.quote(it) })
+
+    // ---- timing & reporting --------------------------------------------------
+
+    /** Poll [condition] until true; returns the elapsed ms, or fails with [what]. */
+    fun waitUntil(what: String, timeoutMs: Long, condition: () -> Boolean): Long {
+        val start = SystemClock.elapsedRealtime()
+        while (true) {
+            if (condition()) return SystemClock.elapsedRealtime() - start
+            if (SystemClock.elapsedRealtime() - start > timeoutMs) throw AssertionError("timed out after ${timeoutMs}ms: $what")
+            SystemClock.sleep(250)
+        }
+    }
+
+    /** One result line in the `am instrument -r` output, picked up by run-reliability.sh. */
+    fun report(line: String) {
+        instrumentation.sendStatus(REPORT_CODE, Bundle().apply { putString("reliability", line) })
+    }
+
+    private const val REPORT_CODE = 2
+}
+
+/** UI strings, Chinese and English (the app follows the system language). */
+object Text {
+    val PERMISSIONS_TITLE = listOf("开启权限", "Enable permissions")
+    val PERM_ACCESSIBILITY = listOf("读取聊天内容(无障碍)", "Read chat content (Accessibility)")
+    val PERM_OVERLAY = listOf("显示悬浮球(悬浮窗)", "Show floating bubble (Overlay)")
+    val ENABLE = listOf("去开启", "Enable")
+    val TEST_CONNECTION = listOf("测试连接", "Test connection")
+    val TESTING_CLOUD = listOf("测试中…", "Testing…")
+    val TESTING_LOCAL = listOf("本地生成中…", "Generating locally…")
+    val TEST_RESULT = listOf("测试结果", "Test result")
+    val NETWORK_ERROR = listOf("网络连接失败,请检查网络", "Network connection failed — check your network")
+    val CLOSE = listOf("关闭", "Close")
+    val A11Y_LABEL = listOf("聊天助手 · 读屏助手", "Chat Assistant · Screen Reader")
+}
