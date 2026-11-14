@@ -1,9 +1,11 @@
 package com.octos.aichat.data.memory
 
 import android.content.Context
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.ErrorCode
+import java.io.File
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.io.File
 
 /** Counts snapshot from the reply log. */
 data class ReplyCounts(val total: Int, val learned: Int)
@@ -52,6 +54,7 @@ class ReplyLog(context: Context, private val state: LearningStateDao) : ReplyLed
         if (text.isEmpty() || !recent.add(text)) return@withLock false
         if (recent.size > RECENT_MEMORY) recent.iterator().let { it.next(); it.remove() }
         runCatching { file.appendText("${System.currentTimeMillis()}\t$text\n") }
+            .onFailure { DiagLog.record(ErrorCode.MEM_603, cause = it) }
         true
     }
 

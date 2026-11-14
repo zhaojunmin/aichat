@@ -1,5 +1,8 @@
 package com.octos.aichat.ai.embedding
 
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.ErrorCode
+
 /**
  * On-device sentence embedding (bge-small-zh-v1.5, MNN fp16) via the shared MNN
  * native libs. Tokenization (WordPiece) is done in Kotlin; the JNI只收数字张量,
@@ -27,9 +30,16 @@ object Encoder {
     @Volatile private var handle = 0L
     @Volatile private var tokenizer: WordPieceTokenizer? = null
 
-    /** Diagnostic breadcrumb for the last load/embed attempt (shown in dev UI). */
-    @Volatile var status: String = "未初始化"
-        internal set
+    /** Why the last load/embed attempt failed (shown in the advanced settings); null if it didn't. */
+    @Volatile var lastError: ErrorCode? = null
+        private set
+
+    /** Record [code] as the latest failure; returns false so callers can `return failed(...)`. */
+    internal fun failed(code: ErrorCode, cause: Throwable? = null): Boolean {
+        lastError = code
+        DiagLog.record(code, cause = cause)
+        return false
+    }
 
     /** True only after a model is loaded and the native encoder is callable. */
     val isReady: Boolean get() = handle != 0L && tokenizer != null
@@ -41,7 +51,7 @@ object Encoder {
             System.loadLibrary("MNN_Express")
             System.loadLibrary("embedjni") // encoder JNI (bge via MNN Interpreter)
             true
-        }.getOrElse { status = "lib载入失败: ${it.message}"; false }
+        }.getOrElse { failed(ErrorCode.EMB_701, it) }
         libsLoaded
     }
 
@@ -53,13 +63,13 @@ object Encoder {
         if (isReady) return true
         if (!loadLibs()) return false
         val tk = tokenizer ?: runCatching { WordPieceTokenizer.fromFile(vocabPath) }
-            .getOrElse { status = "词表载入失败: ${it.message}"; return false }
+            .getOrElse { return failed(ErrorCode.EMB_703, it) }
         val h = runCatching { nativeEmbedLoad(modelPath) }
-            .getOrElse { status = "native异常: ${it.message}"; 0L }
-        if (h == 0L) { if (!status.startsWith("native")) status = "模型加载返回0(createFromFile/session 失败)"; return false }
+            .getOrElse { return failed(ErrorCode.EMB_703, it) }
+        if (h == 0L) return failed(ErrorCode.EMB_703)
         tokenizer = tk
         handle = h
-        status = "就绪"
+        lastError = null
         true
     }
 
@@ -72,7 +82,7 @@ object Encoder {
         val tk = tokenizer ?: return null
         val (ids, mask) = tk.encode(text, MAX_TOKENS)
         runCatching { nativeEmbed(handle, ids, mask) }
-            .getOrElse { status = "embed异常: ${it.message}"; null }
+            .getOrElse { failed(ErrorCode.EMB_704, it); null }
     }
 
     fun release() = synchronized(lock) {

@@ -3,6 +3,7 @@ package com.octos.aichat.diagnostics
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * The app's single entry point for diagnostics (docs/observability-design.md).
@@ -26,11 +27,16 @@ object DiagLog {
     /** Debug builds: mirror each event to logcat. Null in release. */
     @Volatile var echo: ((String) -> Unit)? = null
 
+    private val periodicFlush = AtomicBoolean(false)
+
+    /** Set the recorder (once per process; tests may swap it). */
     fun install(r: DiagnosticsRecorder) {
         recorder = r
         r.onPendingFull = { io.execute(::flushQuietly) }
         io.execute { runCatching { r.load() } }
-        io.scheduleWithFixedDelay(::flushQuietly, FLUSH_SECONDS, FLUSH_SECONDS, TimeUnit.SECONDS)
+        if (periodicFlush.compareAndSet(false, true)) {
+            io.scheduleWithFixedDelay(::flushQuietly, FLUSH_SECONDS, FLUSH_SECONDS, TimeUnit.SECONDS)
+        }
     }
 
     fun record(

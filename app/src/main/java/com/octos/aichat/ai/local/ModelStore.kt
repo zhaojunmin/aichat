@@ -2,13 +2,16 @@ package com.octos.aichat.ai.local
 
 import android.content.Context
 import com.octos.aichat.R
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.ErrorCode
+import java.io.File
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
-import java.io.File
-import java.util.concurrent.TimeUnit
 
 /**
  * Owns the on-device model files (MNN-format Qwen2.5). Models are not shipped in
@@ -99,7 +102,7 @@ object ModelStore {
                 }
                 check(part.renameTo(dest)) { ctx.getString(R.string.ms_write_failed, name) }
             }
-        }
+        }.onFailure { if (it !is CancellationException) DiagLog.record(ErrorCode.LLM_204, cause = it) }
     }
 
     /** Discover downloadable files + sizes from the ModelScope files API. */

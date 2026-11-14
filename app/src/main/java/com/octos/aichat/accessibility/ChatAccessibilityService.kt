@@ -8,16 +8,17 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.HandlerThread
 import android.os.SystemClock
-import android.util.Log
 import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import androidx.annotation.RequiresApi
 import com.octos.aichat.AppBus
-import com.octos.aichat.diagnostics.Tracing
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.ErrorCode
+import com.octos.aichat.diagnostics.Tracing
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asExecutor
@@ -66,7 +67,7 @@ class ChatAccessibilityService : AccessibilityService() {
         try {
             block()
         } catch (e: Exception) {
-            Log.w(TAG, "accessibility read failed", e)
+            DiagLog.record(ErrorCode.A11Y_301, cause = e)
         }
     }
 
@@ -106,11 +107,14 @@ class ChatAccessibilityService : AccessibilityService() {
     suspend fun readConversation(pkg: String): Conversation = withContext(Dispatchers.IO) {
         try {
             Tracing.section(Tracing.A11Y_PARSE) {
-                val root = windowRoot(pkg) ?: return@withContext Conversation(pkg, emptyList())
+                val root = windowRoot(pkg) ?: run {
+                    DiagLog.record(ErrorCode.A11Y_303, pkg = pkg)
+                    return@withContext Conversation(pkg, emptyList())
+                }
                 ChatParser.parse(root, screenWidth, screenHeight, pkg)
             }
         } catch (e: Exception) {
-            Log.w(TAG, "accessibility read failed", e)
+            DiagLog.record(ErrorCode.A11Y_302, cause = e, pkg = pkg)
             Conversation(pkg, emptyList())
         }
     }
@@ -173,7 +177,7 @@ class ChatAccessibilityService : AccessibilityService() {
      * or null on failure (e.g. a FLAG_SECURE window, or rate limiting).
      */
     @RequiresApi(Build.VERSION_CODES.R)
-    suspend fun captureScreenshot(): Bitmap? = suspendCancellableCoroutine { cont ->
+    suspend fun captureScreenshot(pkg: String): Bitmap? = suspendCancellableCoroutine { cont ->
         // takeScreenshot() can throw synchronously (e.g. SecurityException if the
         // capability is missing). Guard it so a failure never crashes the whole
         // accessibility service process.
@@ -190,7 +194,8 @@ class ChatAccessibilityService : AccessibilityService() {
                             val copy = hw?.copy(Bitmap.Config.ARGB_8888, false)
                             hw?.recycle()
                             copy
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            DiagLog.record(ErrorCode.A11Y_304, cause = e, pkg = pkg)
                             null
                         } finally {
                             result.hardwareBuffer.close()
@@ -199,11 +204,13 @@ class ChatAccessibilityService : AccessibilityService() {
                     }
 
                     override fun onFailure(errorCode: Int) {
+                        DiagLog.record(ErrorCode.A11Y_304, platform = errorCode, pkg = pkg)
                         if (cont.isActive) cont.resume(null)
                     }
                 }
             )
         } catch (e: Exception) {
+            DiagLog.record(ErrorCode.A11Y_304, cause = e, pkg = pkg)
             if (cont.isActive) cont.resume(null)
         }
     }
@@ -229,10 +236,6 @@ class ChatAccessibilityService : AccessibilityService() {
         captureHandler.removeCallbacksAndMessages(null)
         captureThread.quitSafely()
         if (AppBus.accessibilityService === this) AppBus.accessibilityService = null
-    }
-
-    private companion object {
-        const val TAG = "ChatA11y"
     }
 
     /**

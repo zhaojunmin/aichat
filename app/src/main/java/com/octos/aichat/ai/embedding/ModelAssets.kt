@@ -1,6 +1,8 @@
 package com.octos.aichat.ai.embedding
 
 import android.content.Context
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.ErrorCode
 import java.io.File
 
 /**
@@ -21,8 +23,8 @@ object ModelAssets {
         val dir = File(ctx.filesDir, "embed").apply { mkdirs() }
         val model = File(dir, MODEL_FILE)
         val vocab = File(dir, VOCAB_FILE)
-        if (!copyAssetIfMissing(ctx, MODEL_ASSET, model)) { Encoder.status = "模型资源缺失/拷贝失败"; return false }
-        if (!copyAssetIfMissing(ctx, VOCAB_ASSET, vocab)) { Encoder.status = "词表资源缺失/拷贝失败"; return false }
+        if (!copyAssetIfMissing(ctx, MODEL_ASSET, model)) return Encoder.failed(ErrorCode.EMB_702)
+        if (!copyAssetIfMissing(ctx, VOCAB_ASSET, vocab)) return Encoder.failed(ErrorCode.EMB_702)
         return Encoder.ensureLoaded(model.absolutePath, vocab.absolutePath)
     }
 
@@ -31,6 +33,9 @@ object ModelAssets {
         return runCatching {
             ctx.assets.open(asset).use { input -> dest.outputStream().use { input.copyTo(it) } }
             true
-        }.getOrDefault(false)
+        }.getOrElse {
+            DiagLog.record(ErrorCode.EMB_702, cause = it)
+            false
+        }
     }
 }

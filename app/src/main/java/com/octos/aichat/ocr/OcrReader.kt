@@ -11,6 +11,8 @@ import com.octos.aichat.accessibility.BubbleBox
 import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.Speaker
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.ErrorCode
 import kotlin.coroutines.resume
 import kotlin.math.abs
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -40,7 +42,7 @@ object OcrReader {
         pkg: String,
     ): Conversation {
         if (boxes.isEmpty()) return Conversation(pkg, emptyList())
-        val text = recognize(bitmap) ?: return Conversation(pkg, emptyList())
+        val text = recognize(bitmap, pkg) ?: return Conversation(pkg, emptyList())
 
         val blocks = text.textBlocks
             .mapNotNull { b -> b.boundingBox?.let { it to b.text.replace("\n", " ").trim() } }
@@ -69,7 +71,7 @@ object OcrReader {
         screenHeight: Int,
         pkg: String,
     ): Conversation {
-        val text = recognize(bitmap) ?: return Conversation(pkg, emptyList())
+        val text = recognize(bitmap, pkg) ?: return Conversation(pkg, emptyList())
 
         // The screenshot is the full physical display, so its own height is the
         // authoritative reference. The caller's screenHeight (displayMetrics)
@@ -181,11 +183,14 @@ object OcrReader {
         return d <= tolerance
     }
 
-    private suspend fun recognize(bitmap: Bitmap): Text? =
+    private suspend fun recognize(bitmap: Bitmap, pkg: String): Text? =
         suspendCancellableCoroutine { cont ->
             recognizer.process(InputImage.fromBitmap(bitmap, 0))
                 .addOnSuccessListener { if (cont.isActive) cont.resume(it) }
-                .addOnFailureListener { if (cont.isActive) cont.resume(null) }
+                .addOnFailureListener {
+                    DiagLog.record(ErrorCode.OCR_401, cause = it, pkg = pkg)
+                    if (cont.isActive) cont.resume(null)
+                }
         }
 
     /**

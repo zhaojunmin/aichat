@@ -2,12 +2,14 @@ package com.octos.aichat.ai.local
 
 import android.content.Context
 import android.os.SystemClock
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.ErrorCode
 import com.octos.aichat.diagnostics.Tracing
+import java.util.concurrent.Executors
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.util.concurrent.Executors
 
 /**
  * On-device LLM engine (MNN + Qwen2.5 Q4): owns the native model lifecycle —
@@ -38,7 +40,10 @@ object LlmEngine {
             System.loadLibrary("llm")
             System.loadLibrary("llmjni")
             true
-        }.getOrDefault(false)
+        }.getOrElse {
+            DiagLog.record(ErrorCode.LLM_203, cause = it) // expected off arm64
+            false
+        }
     }
 
     /** True only where the native libs are present (arm64-v8a). */
@@ -59,7 +64,10 @@ object LlmEngine {
         val h = withContext(infra) { nativeLoad(configPath, tmpDir, GENERATION_TIMEOUT_MS.toInt()) }
         if (h != 0L) {
             handle = h; loadedConfig = configPath; true
-        } else false
+        } else {
+            DiagLog.record(ErrorCode.LLM_202)
+            false
+        }
     }
 
     /**

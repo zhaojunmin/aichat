@@ -11,6 +11,8 @@ import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import com.octos.aichat.R
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.ErrorCode
 
 /**
  * The floating result panel: builds and swaps the loading / error / results views
@@ -60,7 +62,7 @@ internal class BubblePanel(
     }
 
     fun remove() {
-        view?.let { runCatching { wm.removeView(it) } }
+        view?.let { v -> runCatching { wm.removeView(v) }.onFailure { DiagLog.record(ErrorCode.BUB_502, cause = it) } }
         view = null
     }
 

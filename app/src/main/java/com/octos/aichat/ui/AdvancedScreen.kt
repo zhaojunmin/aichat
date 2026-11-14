@@ -246,7 +246,10 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.adv_semantic_title))
                         val embedded = memories.count { it.embedding != null }
-                        val diag = if (embedded == 0) " · ${Encoder.status}" else ""
+                        // No vectors yet: say why (the failure code, or "not loaded").
+                        val reason = Encoder.lastError?.label(context)
+                            ?: stringResource(R.string.adv_semantic_not_loaded).takeUnless { Encoder.isReady }
+                        val diag = if (embedded == 0 && reason != null) " · $reason" else ""
                         Text(
                             stringResource(R.string.adv_semantic_desc, embedded, memories.size, diag),
                             style = MaterialTheme.typography.bodySmall
