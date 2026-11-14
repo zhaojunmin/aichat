@@ -103,6 +103,7 @@ internal fun HomeScreen(
     val localReady = remember(localReadyTick, settings.localModelId) {
         vm.isModelReady(settings.localModel)
     }
+    val inferenceConfigured = settings.isInferenceConfigured(localModelReady = localReady)
 
     val notifLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -243,7 +244,7 @@ internal fun HomeScreen(
                 }
                 Spacer(Modifier.height(8.dp))
                 Button(
-                    enabled = !testing && (if (settings.useLocal) localReady else settings.apiKey.isNotBlank()),
+                    enabled = !testing && inferenceConfigured,
                     onClick = { vm.runConnectionTest() },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -304,7 +305,7 @@ internal fun HomeScreen(
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(
-                            enabled = !memStats.learning && memStats.pending > 0 && settings.apiKey.isNotBlank(),
+                            enabled = !memStats.learning && memStats.pending > 0 && inferenceConfigured,
                             onClick = { vm.learnNow() }
                         ) {
                             if (memStats.learning) {
