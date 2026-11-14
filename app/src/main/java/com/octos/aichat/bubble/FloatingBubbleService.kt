@@ -26,6 +26,7 @@ import android.view.WindowManager
 import android.widget.TextView
 import android.widget.Toast
 import com.octos.aichat.AppBus
+import com.octos.aichat.Tracing
 import com.octos.aichat.ui.MainActivity
 import com.octos.aichat.ui.toUserMessage
 import com.octos.aichat.accessibility.BubbleLocator
@@ -220,29 +221,37 @@ class FloatingBubbleService : Service() {
         }
         generating?.cancel()
         generating = scope.launch {
-            // Resolve the conversation first (may involve a screenshot); only then
-            // show the loading panel so it isn't captured into the screenshot.
-            val conv = resolveConversation(settings)
-            panel.showLoading()
-            if (conv == null || conv.isEmpty) {
-                panel.showError(
-                    if (settings.useScreenshotOcr) getString(R.string.svc_ocr_no_content)
-                    else getString(R.string.svc_no_content)
-                )
-                return@launch
-            }
-            // Local mode: make sure the on-device model is loaded before generating.
-            if (settings.useLocal && !ensureLocalReady(settings.localModel)) return@launch
-            // Log my on-screen replies into global memory, and let what's already
-            // been learned personalise the suggestions.
-            val memory = MemoryRepository.get(this@FloatingBubbleService)
-            memory.recordMyMessages(conv)
-            val result = runCatching { AiService.instance.generateReplies(settings, conv, memory.memoryBlock(conv)) }
-            // Superseded by a newer tap: don't paint an error over the new request.
-            result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
-            result.onSuccess { panel.showResults(it, conv.lastFromOther()) }
-                .onFailure { panel.showError(it.toUserMessage(this@FloatingBubbleService)) }
+            Tracing.asyncSection(Tracing.BUBBLE_TAP_TO_RESULT) { generateForTap(settings) }
         }
+    }
+
+    /** Tap → suggestions (or an error) on the panel. Split out so it can be traced as one span. */
+    private suspend fun generateForTap(settings: AppSettings) {
+        // Resolve the conversation first (may involve a screenshot); only then
+        // show the loading panel so it isn't captured into the screenshot.
+        val conv = Tracing.asyncSection(Tracing.BUBBLE_RESOLVE_CONVERSATION) { resolveConversation(settings) }
+        panel.showLoading()
+        if (conv == null || conv.isEmpty) {
+            panel.showError(
+                if (settings.useScreenshotOcr) getString(R.string.svc_ocr_no_content)
+                else getString(R.string.svc_no_content)
+            )
+            return
+        }
+        // Local mode: make sure the on-device model is loaded before generating.
+        if (settings.useLocal && !ensureLocalReady(settings.localModel)) return
+        // Log my on-screen replies into global memory, and let what's already
+        // been learned personalise the suggestions.
+        val memory = MemoryRepository.get(this@FloatingBubbleService)
+        memory.recordMyMessages(conv)
+        val memoryBlock = Tracing.section(Tracing.BUBBLE_MEMORY_BLOCK) { memory.memoryBlock(conv) }
+        val result = runCatching {
+            Tracing.asyncSection(Tracing.BUBBLE_GENERATE) { AiService.instance.generateReplies(settings, conv, memoryBlock) }
+        }
+        // Superseded by a newer tap: don't paint an error over the new request.
+        result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
+        result.onSuccess { panel.showResults(it, conv.lastFromOther()) }
+            .onFailure { panel.showError(it.toUserMessage(this@FloatingBubbleService)) }
     }
 
     /**
@@ -282,17 +291,19 @@ class FloatingBubbleService : Service() {
         // the screenshot to just above the IME window before the whole-screen read.
         val imeTop = svc.imeBounds()?.top ?: -1
         val conv = withContext(Dispatchers.Default) {
-            // Geometry-guided OCR when we have bubble rects (Momo); otherwise the
-            // whole-screen colour/region heuristic (WeChat).
-            when {
-                boxes.isNotEmpty() -> OcrReader.readConversation(bmp, boxes, pkg)
-                imeTop in 1 until bmp.height -> {
-                    val cropped = Bitmap.createBitmap(bmp, 0, 0, bmp.width, imeTop)
-                    val c = OcrReader.readConversation(cropped, w, imeTop, pkg)
-                    cropped.recycle()
-                    c
+            Tracing.asyncSection(Tracing.BUBBLE_OCR) {
+                // Geometry-guided OCR when we have bubble rects (Momo); otherwise the
+                // whole-screen colour/region heuristic (WeChat).
+                when {
+                    boxes.isNotEmpty() -> OcrReader.readConversation(bmp, boxes, pkg)
+                    imeTop in 1 until bmp.height -> {
+                        val cropped = Bitmap.createBitmap(bmp, 0, 0, bmp.width, imeTop)
+                        val c = OcrReader.readConversation(cropped, w, imeTop, pkg)
+                        cropped.recycle()
+                        c
+                    }
+                    else -> OcrReader.readConversation(bmp, w, h, pkg)
                 }
-                else -> OcrReader.readConversation(bmp, w, h, pkg)
             }
         }
         bmp.recycle()

@@ -15,6 +15,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import androidx.annotation.RequiresApi
 import com.octos.aichat.AppBus
+import com.octos.aichat.Tracing
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
 import kotlin.coroutines.resume
@@ -48,7 +49,7 @@ class ChatAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
-        guarded(::onWindowChanged)
+        Tracing.section(Tracing.A11Y_EVENT) { guarded(::onWindowChanged) }
     }
 
     /**
@@ -99,8 +100,10 @@ class ChatAccessibilityService : AccessibilityService() {
      */
     suspend fun readConversation(pkg: String): Conversation = withContext(Dispatchers.IO) {
         try {
-            val root = windowRoot(pkg) ?: return@withContext Conversation(pkg, emptyList())
-            ChatParser.parse(root, screenWidth, screenHeight, pkg)
+            Tracing.section(Tracing.A11Y_PARSE) {
+                val root = windowRoot(pkg) ?: return@withContext Conversation(pkg, emptyList())
+                ChatParser.parse(root, screenWidth, screenHeight, pkg)
+            }
         } catch (e: Exception) {
             Log.w(TAG, "accessibility read failed", e)
             Conversation(pkg, emptyList())
