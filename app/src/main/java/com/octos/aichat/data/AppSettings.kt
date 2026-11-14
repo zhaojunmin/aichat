@@ -104,6 +104,14 @@ data class AppSettings(
     val themeVariantId: String = "system",
 ) {
     val useLocal: Boolean get() = inferenceMode == InferenceMode.LOCAL
+
+    /**
+     * Whether the selected inference mode can be called: cloud needs an API key;
+     * local needs the on-device model, whose readiness ([localModelReady]) is a
+     * device fact the caller supplies. Local never depends on the cloud key.
+     */
+    fun isInferenceConfigured(localModelReady: Boolean): Boolean =
+        if (useLocal) localModelReady else apiKey.isNotBlank()
     val localModel: com.octos.aichat.ai.local.LocalModel
         get() = com.octos.aichat.ai.local.LocalModel.of(localModelId)
     // Built-in supported apps are always included (union with user list), so a

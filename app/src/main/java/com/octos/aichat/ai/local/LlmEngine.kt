@@ -1,5 +1,6 @@
 package com.octos.aichat.ai.local
 
+import android.content.Context
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -57,6 +58,16 @@ object LlmEngine {
         if (h != 0L) {
             handle = h; loadedConfig = configPath; true
         } else false
+    }
+
+    /**
+     * Load [model] from its downloaded files. False when the native libs are
+     * unsupported on this device, the model isn't downloaded, or loading fails —
+     * callers that need to tell those apart check [isSupported] / [ModelStore.isReady] first.
+     */
+    suspend fun ensureLoaded(ctx: Context, model: LocalModel): Boolean {
+        if (!available || !ModelStore.isReady(ctx, model)) return false
+        return ensureLoaded(ModelStore.configPath(ctx, model), ModelStore.tmpDir(ctx))
     }
 
     /** Run one inference turn on the loaded model. Serialised; blocking native call. */

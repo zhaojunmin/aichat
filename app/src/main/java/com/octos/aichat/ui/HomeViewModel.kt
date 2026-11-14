@@ -111,12 +111,9 @@ class HomeViewModel(
             )
             _testOutput.value = runCatching {
                 if (s.useLocal) {
-                    check(
-                        LlmEngine.ensureLoaded(
-                            ModelStore.configPath(appContext, s.localModel),
-                            ModelStore.tmpDir(appContext)
-                        )
-                    ) { appContext.getString(R.string.error_local_load_failed) }
+                    check(LlmEngine.ensureLoaded(appContext, s.localModel)) {
+                        appContext.getString(R.string.error_local_load_failed)
+                    }
                 }
                 AiService.instance.generateReplies(s, sample)
             }.getOrElse { listOf(appContext.getString(R.string.vm_error_prefix, it.message ?: "")) }

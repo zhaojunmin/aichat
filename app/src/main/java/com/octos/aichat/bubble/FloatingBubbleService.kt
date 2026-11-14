@@ -301,10 +301,7 @@ class FloatingBubbleService : Service() {
         }
         if (!LlmEngine.isReady) panel.showLoading(getString(R.string.svc_loading_local))
         // Idempotent when the same model is already loaded; reloads on a size switch.
-        val ok = LlmEngine.ensureLoaded(
-            ModelStore.configPath(this, model), ModelStore.tmpDir(this)
-        )
-        if (!ok) { panel.showError(getString(R.string.error_local_load_failed)); return false }
+        if (!LlmEngine.ensureLoaded(this, model)) { panel.showError(getString(R.string.error_local_load_failed)); return false }
         return true
     }
 

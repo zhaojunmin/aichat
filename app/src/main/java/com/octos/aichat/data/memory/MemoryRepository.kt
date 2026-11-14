@@ -2,6 +2,7 @@ package com.octos.aichat.data.memory
 
 import android.content.Context
 import com.octos.aichat.ai.AiService
+import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
@@ -108,9 +109,14 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
     }
 
     private suspend fun runLearning(settings: AppSettings) = learnLock.withLock {
-        if (settings.apiKey.isBlank()) return
+        // Cloud needs an API key. Local learns on-device and must never depend on
+        // (or fall back to) the cloud key — its readiness is the model, checked below.
+        if (!settings.useLocal && settings.apiKey.isBlank()) return
         _stats.value = _stats.value.copy(learning = true)
         try {
+            // Loading can take seconds, so it happens after the UI shows "learning".
+            // Idempotent when the bubble already loaded the same model.
+            if (settings.useLocal && !LlmEngine.ensureLoaded(appContext, settings.localModel)) return
             val pending = replyLog.pending()
             if (pending.replies.isEmpty()) return
             val existing = dao.all()
