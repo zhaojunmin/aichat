@@ -106,6 +106,16 @@
     <string name="status_enabled">已开启</string>
     <string name="error_local_load_failed">本地模型加载失败</string>
     <string name="generation_failed">生成失败</string>
+    <string name="ai_err_unauthorized">API Key 无效或没有权限,请在设置中检查</string>
+    <string name="ai_err_balance">账户余额不足或已欠费,请充值后重试</string>
+    <string name="ai_err_rate_limited">请求太频繁或额度已用完,请稍后再试</string>
+    <string name="ai_err_not_found">接口地址或模型名不正确,请在设置中检查</string>
+    <string name="ai_err_bad_request">请求被拒绝(%1$d),请检查模型名等设置</string>
+    <string name="ai_err_server">AI 服务暂时不可用(%1$d),请稍后再试</string>
+    <string name="ai_err_timeout">请求超时,请检查网络后重试</string>
+    <string name="ai_err_network">网络连接失败,请检查网络</string>
+    <string name="ai_err_bad_response">AI 没有返回可用内容,请重试</string>
+    <string name="ai_err_other_http">请求失败(%1$d)</string>
 
     <!-- Local model hints -->
     <string name="model_hint_fast">最快·质量一般</string>
