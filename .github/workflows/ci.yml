@@ -31,6 +31,11 @@ jobs:
       - name: Unit tests + lint + debug build
         run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --stacktrace
 
+      # Benchmarks need a physical device (see docs/performance-testing.md);
+      # CI only makes sure they still compile.
+      - name: Compile benchmarks
+        run: ./gradlew :app:compileBenchmarkAndroidTestKotlin :quality:macrobenchmark:compileReleaseKotlin --stacktrace
+
       - name: Upload test & lint reports
         if: always()
         uses: actions/upload-artifact@v7

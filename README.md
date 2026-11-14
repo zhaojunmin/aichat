@@ -63,6 +63,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 > - CI(`.github/workflows/ci.yml`)在每个 PR 和 main 上跑单测 + Lint + debug 构建;不拉 LFS。
 > - Lint 用 `app/lint-baseline.xml` 冻结存量问题,只拦新增;修掉存量后用 `./gradlew :app:updateLintBaseline` 重新生成。
 > - 质量属性与工程方法见 `docs/quality-attributes.md`。
+> - 性能测试(微基准 / 宏基准,真机)见 `docs/performance-testing.md`,一键运行:`ADB=adb.exe quality/scripts/run-benchmarks.sh`。
 
 > - 用 AGP 9 内置 Kotlin(不单独 apply `kotlin.android`),`gradle.properties` 设 `android.disallowKotlinSourceSets=false`。
 > - 本地 LLM / embedding 的原生库仅构建 **arm64-v8a**;非 arm64 设备自动回退云端 / 词法。

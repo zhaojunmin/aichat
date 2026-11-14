@@ -34,7 +34,14 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+
+        // androidTest holds only microbenchmarks (see testBuildType below).
+        testInstrumentationRunner = "androidx.benchmark.junit4.AndroidBenchmarkRunner"
     }
+
+    // Microbenchmarks must not run against a debuggable build (JIT/ART debug paths
+    // distort timings), so androidTest targets the non-debuggable "benchmark" type.
+    testBuildType = "benchmark"
 
     buildTypes {
         release {
@@ -54,6 +61,20 @@ android {
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }
+        }
+    }
+    buildTypes {
+        // Release behaviour minus R8 (so androidTest microbenchmarks can call app
+        // classes directly). Not shipped. Signed like release when that key is
+        // available, so it installs over the user's release build without wiping
+        // its data (API key, memories, downloaded models); else debug-signed.
+        create("benchmark") {
+            initWith(getByName("release"))
+            isMinifyEnabled = false
+            isShrinkResources = false
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName(if (hasReleaseSigning) "release" else "debug")
+            matchingFallbacks += listOf("release")
         }
     }
     compileOptions {
@@ -100,6 +121,11 @@ dependencies {
 
     implementation(libs.okhttp)
 
+    // Installs the bundled baseline profiles (Compose ships them) on sideloaded
+    // installs. Compose only pulls in 1.3.1, which can't install on API 34+, so
+    // newer phones started without them. Pin a version that supports them.
+    implementation(libs.androidx.profileinstaller)
+
     // Global memory: learned user profile/facts live in a Room DB.
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
@@ -112,4 +138,12 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.org.json)
     testImplementation(libs.okhttp.mockwebserver)
+
+    androidTestImplementation(libs.androidx.benchmark.junit4)
+    // The benchmark runner first launches IsolationActivity in the *app* process;
+    // in an application module it must therefore ship in the app's benchmark
+    // variant (its manifest merges in). Benchmark build type only — not release.
+    "benchmarkImplementation"(libs.androidx.benchmark.common)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
 }
