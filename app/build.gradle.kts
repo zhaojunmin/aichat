@@ -63,6 +63,18 @@ android {
     buildFeatures {
         compose = true
     }
+    lint {
+        // Fail the build on new lint errors; pre-existing issues are frozen in the
+        // baseline so only regressions are flagged. Regenerate with :app:updateLintBaseline.
+        abortOnError = true
+        checkDependencies = false
+        baseline = file("lint-baseline.xml")
+        // "A newer version is available" checks depend on the network and the date,
+        // not on our code — they'd make CI results drift. Track upgrades separately.
+        disable += setOf("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion")
+        xmlReport = true
+        htmlReport = true
+    }
 }
 
 kotlin {
@@ -95,4 +107,8 @@ dependencies {
 
     // On-device Chinese OCR, bundled model (no Google Play services needed — works on Huawei).
     implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
+
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.org.json)
 }

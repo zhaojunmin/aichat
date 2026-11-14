@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # *.so / *.mnn live in Git LFS (~156 MB). Unit tests, lint and the debug build
+      # don't need the real binaries (pointer files package fine), so skip LFS to
+      # stay well inside the free LFS bandwidth quota.
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests + lint + debug build
+        run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --stacktrace
+
+      - name: Upload test & lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: |
+            app/build/reports/tests/
+            app/build/test-results/
+            app/build/reports/lint-results-debug.*
+          retention-days: 14
