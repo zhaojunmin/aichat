@@ -20,6 +20,7 @@ import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
@@ -179,7 +180,9 @@ class ChatAccessibilityService : AccessibilityService() {
         try {
             takeScreenshot(
                 Display.DEFAULT_DISPLAY,
-                mainExecutor,
+                // Off the main thread: the callback copies the full-screen hardware
+                // bitmap into a software one (~13 MB at 1224×2700).
+                Dispatchers.Default.asExecutor(),
                 object : TakeScreenshotCallback {
                     override fun onSuccess(result: ScreenshotResult) {
                         val software = try {

@@ -25,10 +25,12 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.view.isVisible
 import com.octos.aichat.AppBus
 import com.octos.aichat.Tracing
 import com.octos.aichat.ui.MainActivity
 import com.octos.aichat.ui.toUserMessage
+import com.octos.aichat.accessibility.BubbleBox
 import com.octos.aichat.accessibility.BubbleLocator
 import com.octos.aichat.ai.AiService
 import com.octos.aichat.data.AppSettings
@@ -69,7 +71,12 @@ class FloatingBubbleService : Service() {
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private val hideRunnable = Runnable {
-        if (::bubble.isInitialized) bubble.visibility = View.GONE
+        if (::bubble.isInitialized && bubble.isVisible) {
+            bubble.visibility = View.GONE
+            // The user left the chat app: a good moment to learn, since a local
+            // learning pass can't hold up a reply they're waiting for.
+            MemoryRepository.get(this).learnIfDue()
+        }
         if (::panel.isInitialized) panel.remove()
     }
 
@@ -244,7 +251,10 @@ class FloatingBubbleService : Service() {
         // been learned personalise the suggestions.
         val memory = MemoryRepository.get(this@FloatingBubbleService)
         memory.recordMyMessages(conv)
-        val memoryBlock = Tracing.section(Tracing.BUBBLE_MEMORY_BLOCK) { memory.memoryBlock(conv) }
+        // Off the main thread: with semantic memory on, this runs a bge query embedding.
+        val memoryBlock = withContext(Dispatchers.Default) {
+            Tracing.section(Tracing.BUBBLE_MEMORY_BLOCK) { memory.memoryBlock(conv) }
+        }
         val result = runCatching {
             Tracing.asyncSection(Tracing.BUBBLE_GENERATE) { AiService.instance.generateReplies(settings, conv, memoryBlock) }
         }
@@ -273,16 +283,24 @@ class FloatingBubbleService : Service() {
         }
 
         val svc = AppBus.accessibilityService ?: return null
-        // Hide our own bubble so it isn't part of the captured image.
+        val boxes: List<BubbleBox>
+        val bmp: Bitmap?
+        // Hide our own bubble so it isn't part of the captured image; always bring
+        // it back, even if this tap is cancelled mid-capture.
         if (::bubble.isInitialized) bubble.visibility = View.GONE
-        delay(80)
-        // Grab bubble geometry from the node tree at the same moment we capture,
-        // so rects and pixels line up. Empty for apps with no geometry (WeChat).
-        val boxes = if (BubbleLocator.hasRule(pkg))
-            BubbleLocator.locate(svc.rootInActiveWindow, resources.displayMetrics.widthPixels, pkg)
-        else emptyList()
-        val bmp = svc.captureScreenshot()
-        if (::bubble.isInitialized) bubble.visibility = View.VISIBLE
+        try {
+            delay(80)
+            // Grab bubble geometry from the node tree at the same moment we capture,
+            // so rects and pixels line up. Empty for apps with no geometry (WeChat).
+            // A full tree walk (one IPC per node), so not on the main thread.
+            val width = resources.displayMetrics.widthPixels
+            boxes = if (BubbleLocator.hasRule(pkg)) {
+                withContext(Dispatchers.IO) { BubbleLocator.locate(svc.rootInActiveWindow, width, pkg) }
+            } else emptyList()
+            bmp = svc.captureScreenshot()
+        } finally {
+            if (::bubble.isInitialized) bubble.visibility = View.VISIBLE
+        }
         bmp ?: return null
 
         val w = resources.displayMetrics.widthPixels
