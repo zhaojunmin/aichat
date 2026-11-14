@@ -81,6 +81,15 @@
     <string name="adv_diag_title">Diagnostics</string>
     <string name="adv_diag_switch">Keep diagnostics</string>
     <string name="adv_diag_desc">Records only error codes, timings and device info — never chat content or keys — and never uploads anything. Turning it off deletes what was kept.</string>
+    <string name="adv_diag_export">Export diagnostics</string>
+    <string name="adv_diag_clear">Clear diagnostics</string>
+    <string name="adv_diag_clear_confirm">Delete all recorded diagnostics? Recording continues as before.</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="diag_title">Diagnostics</string>
+    <string name="diag_preview_hint">This is everything that would be shared — no chat content, no keys. It only leaves this phone if you tap Share or Copy.</string>
+    <string name="diag_copy">Copy</string>
+    <string name="diag_share">Share</string>
+    <string name="diag_copied">Copied</string>
     <string name="adv_debug_title">Read debugging</string>
     <string name="adv_debug_desc">Tap the bubble once on a WeChat / Soul chat screen, then come back here to see what that tap read — useful to check whether “Me / Them” is distinguished correctly.</string>
     <string name="adv_debug_view_chat">View the last chat read</string>

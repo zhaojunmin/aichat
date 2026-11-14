@@ -2,7 +2,6 @@ package com.octos.aichat.ui
 import com.octos.aichat.R
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -55,7 +54,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.DisposableEffect
-import com.octos.aichat.accessibility.ChatAccessibilityService
 import com.octos.aichat.data.AiBackend
 import com.octos.aichat.data.PersonaPresets
 import com.octos.aichat.data.InferenceMode
@@ -346,12 +344,4 @@ internal fun HomeScreen(
         )
     }
 
-}
-private fun isAccessibilityEnabled(context: Context): Boolean {
-    val expected = "${context.packageName}/${ChatAccessibilityService::class.java.name}"
-    val enabled = Settings.Secure.getString(
-        context.contentResolver,
-        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-    ) ?: return false
-    return enabled.split(':').any { it.equals(expected, ignoreCase = true) }
 }
