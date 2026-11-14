@@ -1,6 +1,7 @@
 package com.octos.aichat.ai.local
 
 import android.content.Context
+import android.os.SystemClock
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -54,7 +55,7 @@ object LlmEngine {
         if (!available) return false
         if (handle != 0L && loadedConfig == configPath) return true
         if (handle != 0L) { nativeRelease(handle); handle = 0L; loadedConfig = null }
-        val h = withContext(infra) { nativeLoad(configPath, tmpDir) }
+        val h = withContext(infra) { nativeLoad(configPath, tmpDir, GENERATION_TIMEOUT_MS.toInt()) }
         if (h != 0L) {
             handle = h; loadedConfig = configPath; true
         } else false
@@ -70,12 +71,23 @@ object LlmEngine {
         return ensureLoaded(ModelStore.configPath(ctx, model), ModelStore.tmpDir(ctx))
     }
 
-    /** Run one inference turn on the loaded model. Serialised; blocking native call. */
-    suspend fun chat(system: String, user: String, maxTokens: Int): String {
+    /** One inference turn's output; [timedOut] means the engine hit its time limit and the text is truncated. */
+    class Output(val text: String, val timedOut: Boolean)
+
+    /**
+     * Run one inference turn on the loaded model. Serialised; blocking native call.
+     * The engine itself stops at [GENERATION_TIMEOUT_MS] (set at load), which bounds
+     * how long this holds the engine — a blocking native call can't be interrupted
+     * from Kotlin, so the limit has to live inside the engine.
+     */
+    suspend fun chat(system: String, user: String, maxTokens: Int): Output {
         require(available) { "本地推理库不可用(仅 arm64 设备支持)" }
         return mutex.withLock {
             require(handle != 0L) { "本地模型尚未加载" }
-            withContext(infra) { nativeChat(handle, system, user, maxTokens) }.trim()
+            val started = SystemClock.elapsedRealtime()
+            val text = withContext(infra) { nativeChat(handle, system, user, maxTokens) }.trim()
+            // The engine doesn't report why it stopped; reaching the limit means it was cut.
+            Output(text, timedOut = SystemClock.elapsedRealtime() - started >= GENERATION_TIMEOUT_MS)
         }
     }
 
@@ -84,7 +96,10 @@ object LlmEngine {
         if (handle != 0L) { nativeRelease(handle); handle = 0L; loadedConfig = null }
     }
 
-    private external fun nativeLoad(configPath: String, tmpDir: String): Long
+    /** Engine-side cap on one turn (prefill + decode). Same budget as a cloud reply. */
+    const val GENERATION_TIMEOUT_MS = 30_000L
+
+    private external fun nativeLoad(configPath: String, tmpDir: String, timeoutMs: Int): Long
     private external fun nativeChat(handle: Long, system: String, user: String, maxTokens: Int): String
     private external fun nativeRelease(handle: Long)
 }

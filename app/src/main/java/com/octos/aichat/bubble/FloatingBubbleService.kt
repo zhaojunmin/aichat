@@ -27,6 +27,7 @@ import android.widget.TextView
 import android.widget.Toast
 import com.octos.aichat.AppBus
 import com.octos.aichat.ui.MainActivity
+import com.octos.aichat.ui.toUserMessage
 import com.octos.aichat.accessibility.BubbleLocator
 import com.octos.aichat.ai.AiService
 import com.octos.aichat.data.AppSettings
@@ -38,6 +39,7 @@ import com.octos.aichat.ai.local.ModelStore
 import com.octos.aichat.data.memory.MemoryRepository
 import com.octos.aichat.ocr.OcrReader
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -236,8 +238,10 @@ class FloatingBubbleService : Service() {
             val memory = MemoryRepository.get(this@FloatingBubbleService)
             memory.recordMyMessages(conv)
             val result = runCatching { AiService.instance.generateReplies(settings, conv, memory.memoryBlock(conv)) }
+            // Superseded by a newer tap: don't paint an error over the new request.
+            result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
             result.onSuccess { panel.showResults(it, conv.lastFromOther()) }
-                .onFailure { panel.showError(it.message ?: getString(R.string.generation_failed)) }
+                .onFailure { panel.showError(it.toUserMessage(this@FloatingBubbleService)) }
         }
     }
 

@@ -116,7 +116,7 @@ class HomeViewModel(
                     }
                 }
                 AiService.instance.generateReplies(s, sample)
-            }.getOrElse { listOf(appContext.getString(R.string.vm_error_prefix, it.message ?: "")) }
+            }.getOrElse { listOf(appContext.getString(R.string.vm_error_prefix, it.toUserMessage(appContext))) }
             _testing.value = false
         }
     }

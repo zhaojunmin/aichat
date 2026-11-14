@@ -106,6 +106,17 @@
     <string name="status_enabled">Enabled</string>
     <string name="error_local_load_failed">Failed to load local model</string>
     <string name="generation_failed">Generation failed</string>
+    <string name="ai_err_unauthorized">Invalid API key or no permission — check it in Settings</string>
+    <string name="ai_err_balance">Insufficient balance or account overdue — top up and try again</string>
+    <string name="ai_err_rate_limited">Too many requests or quota used up — try again later</string>
+    <string name="ai_err_not_found">Wrong Base URL or model name — check it in Settings</string>
+    <string name="ai_err_bad_request">Request rejected (%1$d) — check the model name and other settings</string>
+    <string name="ai_err_server">AI service temporarily unavailable (%1$d) — try again later</string>
+    <string name="ai_err_timeout">Request timed out — check your network and try again</string>
+    <string name="ai_err_local_timeout">The on-device model took too long — try a smaller model</string>
+    <string name="ai_err_network">Network connection failed — check your network</string>
+    <string name="ai_err_bad_response">The AI returned nothing usable — try again</string>
+    <string name="ai_err_other_http">Request failed (%1$d)</string>
 
     <!-- Local model hints -->
     <string name="model_hint_fast">Fastest · basic quality</string>

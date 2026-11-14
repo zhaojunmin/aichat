@@ -102,6 +102,8 @@
 
 ## 3. 现状差距(按严重度)
 
+> 进度(2026-11-14):1 已修(#15);2、4、5、6 已修(#16);3 已修(#18,改用 Keystore,未用已弃用的 EncryptedSharedPreferences);10 已建(#14);云端错误分类与超时(R4)见 §2.2。
+
 | # | 问题 | 位置 | 影响 | 建议 |
 |---|---|---|---|---|
 | 1 | 本地模式下记忆学习永远不运行:`runLearning` 检查的是**云端** `apiKey`,首页「立即学习」按钮也一样 | `data/memory/MemoryRepository.kt` `runLearning`;`ui/HomeScreen.kt:307` | 纯本地用户的记忆功能实际失效 | 判断条件改成「`useLocal` 时看 `LlmEngine.isReady`,否则看 `apiKey`」,并把这个判断收敛成 `AppSettings` 上的一个方法 |
@@ -141,16 +143,20 @@
 | `MemoryRetrieval` | 三因子打分的排序、词法回退、空记忆 |
 | `WordPieceTokenizer` / `VectorCodec` | 与 HF tokenizer 的对齐样例;编码和解码互逆 |
 | `Conversation` | `withoutTrailingMine`、`lastFromOther`、`toTranscript` |
-| `ChatParser` | golden 测试(见 4.2) |
+| `ChatParser` | golden 测试(见 4.2,方案待定) |
 
 依赖:`junit`、`kotlinx-coroutines-test`、`truth`(或 kotest 断言);`org.json` 在 JVM 上需要额外加 `testImplementation("org.json:json")`。
 
 ### 4.2 解析器 golden 测试(专门解决「读得准」)
 
-`ChatParser` 现在直接吃 `AccessibilityNodeInfo`,在 JVM 上没法测。做法:
+`ChatParser` 现在直接吃 `AccessibilityNodeInfo`,在 JVM 上没法测。
 
-1. 抽出一个纯数据的节点结构 `UiNode(id, cls, text, bounds, children)`,无障碍服务里加一个 `AccessibilityNodeInfo → UiNode` 的适配层。
-2. 解析算法只依赖 `UiNode`。
+> **已否决:整树快照(PR #17)**。先把 `AccessibilityNodeInfo` 整棵树复制成纯数据 `UiNode` 再解析,会让每次解析都对所有节点取全部字段、分配对象;而原实现只在命中规则的节点上取值。无障碍解析是常驻热路径,**为可测性做的改造不能增加运行时开销**。
+
+可选做法(未实施):
+
+1. 定义一个很薄的节点**接口**(id、文本、边界、子节点按需获取),真机上直接包装 `AccessibilityNodeInfo`、用到才取,测试里用 XML 实现同一接口。运行时只多一层接口调用,不复制数据。
+2. 解析算法只依赖这个接口。
 3. 把 `uiautomator dump` 出来的 XML **脱敏**(用占位文本替换真实聊天内容)后放到 `app/src/test/resources/dumps/<pkg>/<case>.xml`,同时放一份期望输出 `<case>.expected.json`。
 4. 每适配一次 App 新版本就加一个样本。
 
@@ -211,5 +217,5 @@ checkout(lfs: false) → setup JDK 17 → gradle cache
 | 阶段 | 内容 | 产出 |
 |---|---|---|
 | **P0 安全网 + 隐私修复** | 测试基础设施、第一批 JVM 单测;CI;Lint baseline(detekt 暂缓,见 §4.4);修复 §3 的 1、2、4、5、6 | `app/src/test/**`、`.github/workflows/ci.yml`、几个 bugfix PR |
-| **P1 正确性与性能** | `UiNode` 抽象 + golden 测试;Key 加密存储;CloudClient 错误分类与超时;LlmEngine 超时;关键路径打点 + 性能预算核对;prompt 评测集 | `eval/`、性能实测记录 |
+| **P1 正确性与性能** | 解析器 golden 测试(零开销方案,待定);Key 加密存储;CloudClient 错误分类与超时;LlmEngine 超时;关键路径打点 + 性能预算核对;prompt 评测集 | `eval/`、性能实测记录 |
 | **P2 可观测性与发布** | Logger 门面 + 诊断导出;版本号自动化;mapping 归档;发布清单 | `docs/release-checklist.md` |

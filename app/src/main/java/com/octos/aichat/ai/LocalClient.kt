@@ -14,6 +14,12 @@ object LocalClient : AiClient {
     // model dragging out latency on slower on-device inference.
     private const val MAX_TOKENS = 180
 
-    override suspend fun complete(settings: AppSettings, system: String, user: String): String =
-        LlmEngine.chat(system, user, MAX_TOKENS)
+    override suspend fun complete(settings: AppSettings, system: String, user: String): String {
+        val out = LlmEngine.chat(system, user, MAX_TOKENS)
+        // Truncated output would parse into fragments; report the timeout instead.
+        if (out.timedOut) {
+            throw AiException(AiException.Kind.LOCAL_TIMEOUT, detail = "local engine hit ${LlmEngine.GENERATION_TIMEOUT_MS}ms")
+        }
+        return out.text
+    }
 }

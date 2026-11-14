@@ -8,6 +8,8 @@ import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.InferenceMode
 import com.octos.aichat.data.Speaker
 import com.octos.aichat.data.memory.MemoryEntity
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -189,7 +191,7 @@ class AiServiceTest {
         val svc = AiService {
             object : AiClient {
                 override suspend fun complete(settings: AppSettings, system: String, user: String): String =
-                    throw AiException("boom")
+                    throw AiException(AiException.Kind.SERVER, 500, "boom")
             }
         }
         assertNull(svc.learnMemory(cloudSettings, emptyList(), listOf("x")))
@@ -199,5 +201,31 @@ class AiServiceTest {
         val fake = FakeClient("{}")
         assertNull(AiService { fake }.learnMemory(cloudSettings, emptyList(), emptyList()))
         assertEquals(0, fake.calls)
+    }
+
+    // ---- reply time budget -------------------------------------------------
+
+    private class SlowClient(private val ms: Long, private val answer: String = """["慢"]""") : AiClient {
+        override suspend fun complete(settings: AppSettings, system: String, user: String): String {
+            delay(ms); return answer
+        }
+    }
+
+    @Test fun cloudReplyOverBudgetIsTimeout() = runBlocking {
+        val svc = AiService(clientFor = { SlowClient(5_000) }, replyTimeoutMs = 50)
+        val started = System.nanoTime()
+        try {
+            svc.generateReplies(cloudSettings, conv(Speaker.OTHER to "hi"))
+            fail("expected timeout")
+        } catch (e: AiException) {
+            assertEquals(AiException.Kind.TIMEOUT, e.kind)
+        }
+        assertTrue((System.nanoTime() - started) / 1_000_000 < 1_000)
+    }
+
+    @Test fun localReplyIsNotCutByCloudBudget() = runBlocking {
+        val local = cloudSettings.copy(inferenceMode = InferenceMode.LOCAL)
+        val svc = AiService(clientFor = { SlowClient(150) }, replyTimeoutMs = 50)
+        assertEquals(listOf("慢"), svc.generateReplies(local, conv(Speaker.OTHER to "hi")))
     }
 }

@@ -9,6 +9,7 @@ import com.octos.aichat.data.memory.MemoryEntity
 import com.octos.aichat.data.memory.MemoryLearnResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -18,8 +19,12 @@ import org.json.JSONObject
  * configured OpenAI-compatible chat API (DeepSeek / Doubao).
  */
 class AiService(
+    // The user is waiting mid-chat: past this they'd rather type themselves.
+    // Cloud only — a blocking on-device inference can't be interrupted midway.
+    private val replyTimeoutMs: Long = REPLY_TIMEOUT_MS,
     // Which AiClient to use for a given request — injected so reply generation and
     // learning can be unit-tested with a fake client. Default = cloud/local selection.
+    // Last, so callers can pass it as a trailing lambda.
     private val clientFor: (AppSettings) -> AiClient = { defaultClientFor(it) },
 ) {
 
@@ -54,7 +59,14 @@ class AiService(
                 append(memoryBlock)
             }
         }
-        val raw = clientFor(settings).complete(settings, system, user)
+        val client = clientFor(settings)
+        val raw = if (settings.useLocal) {
+            client.complete(settings, system, user)
+        } else {
+            // Timing out cancels the coroutine, which cancels the HTTP call.
+            withTimeoutOrNull(replyTimeoutMs) { client.complete(settings, system, user) }
+                ?: throw AiException(AiException.Kind.TIMEOUT, detail = "reply budget ${replyTimeoutMs}ms")
+        }
 
         parseReplies(raw, n)
     }
@@ -204,6 +216,8 @@ class AiService(
     }
 
     companion object {
+        const val REPLY_TIMEOUT_MS = 30_000L
+
         private val cloud: AiClient = CloudClient()
 
         /**

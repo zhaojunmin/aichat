@@ -28,6 +28,23 @@ cp native/mnn-llm/build/libllmjni.so app/src/main/jniLibs/arm64-v8a/
 ```
 CMakeLists 已把引擎库指向 `app/src/main/jniLibs/arm64-v8a/`,保证 ABI 与运行时一致。
 
+**头文件版本要和引擎库一致。** 现有引擎库构建于 MNN `ff0250e`(2026-11-12)。用 MNN 主干的头文件
+编译时,虚函数调用(如 `load()`)按头文件里的虚表槽位分派,版本不一致就可能调错函数。只取头文件:
+
+```bash
+git init MNN-headers && cd MNN-headers && git remote add origin https://github.com/alibaba/MNN
+git sparse-checkout set include transformers/llm/engine/include
+git fetch --depth 1 origin ff0250ef9b5dc21fbf7b188e63f4ac1711afa0a1 && git checkout FETCH_HEAD
+```
+
+新增对引擎虚函数的调用时,优先用限定名(`llm->Llm::generate_init(...)`)直接绑定导出符号,不经过虚表。
+
+## 生成超时
+`nativeLoad` 把 `LlmEngine.GENERATION_TIMEOUT_MS` 通过 `set_config({"timeout_ms":…})` 设给引擎;引擎在
+解码循环里逐 token 检查「预填充 + 解码」耗时,到时即停。超时后引擎处于 `TIMEOUT` 状态,
+`response(ChatMessages)` 会直接返回空;`reset()` 不清这个状态,所以 `nativeChat` 每次先调
+`generate_init()` 复位。
+
 ## 升级 MNN 引擎版本时(需重出引擎库)
 ```bash
 git clone --depth 1 https://github.com/alibaba/MNN
