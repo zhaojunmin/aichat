@@ -39,6 +39,7 @@ import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.memory.MemoryRepository
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
+import com.octos.aichat.diagnostics.TimedOp
 import com.octos.aichat.diagnostics.Tracing
 import com.octos.aichat.ocr.OcrReader
 import com.octos.aichat.ui.MainActivity
@@ -237,6 +238,7 @@ class FloatingBubbleService : Service() {
 
     /** Tap → suggestions (or an error) on the panel. Split out so it can be traced as one span. */
     private suspend fun generateForTap(settings: AppSettings) {
+        val tappedAt = SystemClock.elapsedRealtime()
         // Resolve the conversation first (may involve a screenshot); only then
         // show the loading panel so it isn't captured into the screenshot.
         val conv = Tracing.asyncSection(Tracing.BUBBLE_RESOLVE_CONVERSATION) { resolveConversation(settings) }
@@ -259,11 +261,18 @@ class FloatingBubbleService : Service() {
             Tracing.section(Tracing.BUBBLE_MEMORY_BLOCK) { memory.memoryBlock(conv) }
         }
         val result = runCatching {
-            Tracing.asyncSection(Tracing.BUBBLE_GENERATE) { AiService.instance.generateReplies(settings, conv, memoryBlock) }
+            Tracing.asyncSection(Tracing.BUBBLE_GENERATE) {
+                DiagLog.timed(if (settings.useLocal) TimedOp.GENERATE_LOCAL else TimedOp.GENERATE_CLOUD) {
+                    AiService.instance.generateReplies(settings, conv, memoryBlock)
+                }
+            }
         }
         // Superseded by a newer tap: don't paint an error over the new request.
         result.exceptionOrNull()?.let { if (it is CancellationException) throw it else DiagLog.recordAiFailure(it) }
-        result.onSuccess { panel.showResults(it, conv.lastFromOther()) }
+        result.onSuccess {
+            panel.showResults(it, conv.lastFromOther())
+            DiagLog.recordDuration(TimedOp.TAP_TO_RESULT, SystemClock.elapsedRealtime() - tappedAt)
+        }
             .onFailure { panel.showError(it.toUserMessage(this@FloatingBubbleService)) }
     }
 
@@ -280,7 +289,7 @@ class FloatingBubbleService : Service() {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
         if (!useOcr) {
             // Parse now, on tap: what's on screen this moment, no stale or post-restart-empty state.
-            val conv = AppBus.accessibilityService?.readConversation(pkg) ?: return null
+            val conv = DiagLog.timed(TimedOp.PARSE) { AppBus.accessibilityService?.readConversation(pkg) } ?: return null
             AppBus.updateConversation(conv) // let the in-app debug viewer show it too
             return conv
         }
@@ -312,7 +321,7 @@ class FloatingBubbleService : Service() {
         // the screenshot to just above the IME window before the whole-screen read.
         val imeTop = svc.imeBounds()?.top ?: -1
         val conv = withContext(Dispatchers.Default) {
-            Tracing.asyncSection(Tracing.BUBBLE_OCR) {
+            Tracing.asyncSection(Tracing.BUBBLE_OCR) { DiagLog.timed(TimedOp.OCR) {
                 // Geometry-guided OCR when we have bubble rects (Momo); otherwise the
                 // whole-screen colour/region heuristic (WeChat).
                 when {
@@ -325,7 +334,7 @@ class FloatingBubbleService : Service() {
                     }
                     else -> OcrReader.readConversation(bmp, w, h, pkg)
                 }
-            }
+            } }
         }
         bmp.recycle()
         if (conv.isEmpty) DiagLog.record(ErrorCode.OCR_402, pkg = pkg)

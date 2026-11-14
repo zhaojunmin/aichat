@@ -33,7 +33,7 @@ quality/scripts/run-reliability.sh
 
 | 用例 | 扰动 | 期望 |
 |---|---|---|
-| `processCrash_servicesComeBack` | `am crash`,让 App 进程崩溃 | 无障碍服务和悬浮窗服务都由系统自动拉起;无障碍开关不会被关掉 |
+| `processCrash_servicesComeBack` | `am crash`,让 App 进程崩溃 | 无障碍服务和悬浮窗服务都由系统自动拉起;无障碍开关不会被关掉;**诊断导出里多了一条 `APP-901`(崩溃时同步写下),并有新的 `APP-902 exit=CRASH`(重启时从系统读到)**。诊断开关关闭时跳过这一项 |
 | `memoryPressure_noCrash` | 前台三级、后台三级 `send-trim-memory` | 不崩溃、不重启进程、服务不掉 |
 | `overlayRevoked_noCrash_andRecovers` | 运行中收回悬浮窗权限(`appops deny`),再恢复 | 不崩溃;首页显示「去开启」;恢复后悬浮球重新起来 |
 | `accessibilityDisabled_noCrash_andReconnects` | 运行中关闭无障碍服务,再打开 | 不崩溃、悬浮球保持;首页显示「去开启」;重新打开后系统重新绑定 |
@@ -55,6 +55,7 @@ quality/scripts/run-reliability.sh
 
 - **UiAutomation 默认会压制其他无障碍服务**:UiAutomator 连上 UiAutomation 后,设备上的其他无障碍服务(包括被测 App 的)会被暂停,直到测试结束。必须在第一次使用 UiAutomation 前设置 `FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES`(见 `Phone.kt`)。
 - **判断无障碍服务是否绑定,要看 `dumpsys accessibility` 的 Bound services**。`dumpsys activity services` 里的服务记录在解绑之后还会留着,不能用来判断。
+- **滑动之后要等页面静止再点**:滑动后列表还在惯性滚动,这时点按钮只会让滚动停下,不会触发点击。`Phone.scrollTo` 找到目标后先等页面空闲,再重新定位一次。
 - **不能依赖 logcat**:这台荣耀手机会屏蔽 release 包的日志,所以崩溃和 ANR 改从 `dumpsys dropbox` 读。读取偶尔会拿到空结果,所以要求输出里带有固定表头,否则重试。
 
 ## 基线(2026-11-15,荣耀 ELP-AN00 / Android 16,云端模式)

@@ -10,6 +10,7 @@ import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.Speaker
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
+import com.octos.aichat.diagnostics.TimedOp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -138,9 +139,11 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
             // Loading can take seconds, so it happens after the UI shows "learning".
             // Idempotent when the bubble already loaded the same model.
             if (settings.useLocal && !LlmEngine.ensureLoaded(appContext, settings.localModel)) return
+            val started = System.nanoTime()
             val learned = learningPass.run { existing, replies ->
                 AiService.instance.learnMemory(settings, existing, replies)
             } ?: return
+            DiagLog.recordDuration(TimedOp.LEARN, (System.nanoTime() - started) / 1_000_000)
             _stats.value = _stats.value.copy(learnedReplies = learned)
             refreshMemories()
             if (embedder.backfill()) refreshMemories()

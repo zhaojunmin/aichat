@@ -43,6 +43,7 @@ class DiagnosticsViewModel(
                         permissions = diagnosticsPermissions(ctx),
                         counts = snap?.counts.orEmpty(),
                         events = snap?.events.orEmpty(),
+                        durations = snap?.durations.orEmpty(),
                     ),
                     chinese = ctx.resources.configuration.locales[0].language == "zh",
                 )

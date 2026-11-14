@@ -27,6 +27,7 @@ class DiagnosticsRecorder(
     private val pending = ConcurrentLinkedQueue<DiagEvent>()
     private val pendingCount = AtomicInteger()
     private val counts = AtomicIntegerArray(ErrorCode.entries.size)
+    private val durations = AtomicIntegerArray(TimedOp.entries.size * DurationBuckets.SIZE)
     @Volatile private var exitSeenAt = 0L
     private val fileLock = Any()
 
@@ -34,6 +35,9 @@ class DiagnosticsRecorder(
     fun load() = synchronized(fileLock) {
         val s = store.readSummary()
         s.counts.forEach { (code, n) -> counts.addAndGet(code.ordinal, n) }
+        s.durations.forEach { (op, buckets) ->
+            buckets.forEachIndexed { i, n -> durations.addAndGet(op.ordinal * DurationBuckets.SIZE + i, n) }
+        }
         exitSeenAt = maxOf(exitSeenAt, s.exitSeenAt)
     }
 
@@ -59,6 +63,12 @@ class DiagnosticsRecorder(
                 pkg = if (code.domain == ErrorCode.Domain.A11Y || code.domain == ErrorCode.Domain.OCR) DiagEvent.safeName(pkg) else null,
             )
         )
+    }
+
+    /** Count one completed [op] that took [ms]. Memory only, like [record]. */
+    fun recordDuration(op: TimedOp, ms: Long) {
+        if (!enabled || ms < 0) return
+        durations.incrementAndGet(op.ordinal * DurationBuckets.SIZE + DurationBuckets.indexOf(ms))
     }
 
     /** The process is about to die: record and write synchronously, on the crashing thread. */
@@ -95,7 +105,7 @@ class DiagnosticsRecorder(
             lines.add(e.toLine())
         }
         store.append(lines)
-        store.writeSummary(DiagSummary(countsSnapshot(), exitSeenAt))
+        store.writeSummary(DiagSummary(countsSnapshot(), exitSeenAt, durationsSnapshot()))
     }
 
     /** Start or stop recording. Takes effect at once; no IO. Turning off should be followed by [wipe]. */
@@ -108,12 +118,19 @@ class DiagnosticsRecorder(
         pending.clear()
         pendingCount.set(0)
         for (i in 0 until counts.length()) counts.set(i, 0)
+        for (i in 0 until durations.length()) durations.set(i, 0)
         exitSeenAt = 0L
         store.clear()
     }
 
     fun countsSnapshot(): Map<ErrorCode, Int> =
         ErrorCode.entries.associateWith { counts.get(it.ordinal) }.filterValues { it > 0 }
+
+    /** Bucket counts per operation (only operations with at least one sample). */
+    fun durationsSnapshot(): Map<TimedOp, List<Int>> =
+        TimedOp.entries.associateWith { op ->
+            List(DurationBuckets.SIZE) { i -> durations.get(op.ordinal * DurationBuckets.SIZE + i) }
+        }.filterValues { it.any { c -> c > 0 } }
 
     /** The newest [n] events, including ones not yet flushed. */
     fun recent(n: Int): List<DiagEvent> {

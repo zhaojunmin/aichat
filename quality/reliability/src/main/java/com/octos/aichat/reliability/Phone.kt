@@ -107,24 +107,77 @@ object Phone {
     fun find(texts: List<String>, timeoutMs: Long = 2_000): UiObject2? =
         device.wait(Until.findObject(By.text(anyOf(texts))), timeoutMs)
 
-    /** Scroll the current screen down until one of [texts] shows up. */
-    fun scrollTo(texts: List<String>): UiObject2? {
+    /**
+     * Scroll the current screen down until one of [texts] shows up. Returns it once the
+     * screen has settled: a tap during the fling after a swipe only stops the fling.
+     */
+    fun scrollTo(texts: List<String>): UiObject2? = scrollUntil { find(texts, timeoutMs = 500) }
+
+    private fun scrollUntil(lookup: () -> UiObject2?): UiObject2? {
         repeat(8) {
-            find(texts, timeoutMs = 500)?.let { return it }
-            val w = device.displayWidth
-            val h = device.displayHeight
-            device.swipe(w / 2, h * 3 / 4, w / 2, h / 4, 20)
+            if (lookup() != null) {
+                device.waitForIdle()
+                SystemClock.sleep(300)
+                return lookup()
+            }
+            swipeUp()
         }
         return null
     }
 
+    private fun swipeUp() {
+        val w = device.displayWidth
+        val h = device.displayHeight
+        device.swipe(w / 2, h * 3 / 4, w / 2, h / 4, 40)
+    }
+
     /** Whether the permission row labelled [label] currently offers an "enable" button. */
     fun permissionRowOff(label: List<String>): Boolean {
-        val row = scrollTo(label) ?: throw AssertionError("permission row $label not found")
+        // Changing accessibility settings can briefly disturb UiAutomator: look again once.
+        val row = scrollTo(label) ?: run { openHome(); scrollTo(label) }
+            ?: throw AssertionError("permission row $label not found")
         val y = row.visibleBounds.centerY()
         val slack = row.visibleBounds.height()
         return device.findObjects(By.text(anyOf(Text.ENABLE))).any { kotlin.math.abs(it.visibleCenter.y - y) <= slack }
     }
+
+    /**
+     * The app's diagnostics export (advanced settings → export), or null when the
+     * user has diagnostics switched off. Leaves the app on its home screen.
+     */
+    fun diagnosticsExport(): String? {
+        // Right after a crash the system may still show its "app stopped" dialog.
+        device.findObject(By.res("android:id/aerr_close"))?.click()
+        openHome()
+        // Just after a restart a tap can land before the screen is ready: confirm the
+        // advanced screen opened (its "Appearance" card), and tap again if not.
+        var opened = false
+        for (attempt in 1..3) {
+            val entry = scrollToContaining(Text.ADVANCED_ENTRY) ?: throw AssertionError("advanced settings entry not found")
+            entry.click()
+            if (find(Text.ADVANCED_MARKER, timeoutMs = 3_000) != null) { opened = true; break }
+            openHome()
+        }
+        if (!opened) throw AssertionError("advanced settings did not open")
+        val export = scrollTo(Text.DIAG_EXPORT) ?: throw AssertionError("export button not found")
+        // Compose puts `enabled` on the clickable button, not on its text.
+        var button: UiObject2? = export
+        while (button != null && !button.isClickable) button = button.parent
+        if (button?.isEnabled != true) {
+            openHome()
+            return null
+        }
+        button.click()
+        val report = device.wait(Until.findObject(By.textStartsWith("== ")), 10_000)
+            ?: throw AssertionError("diagnostics preview did not appear")
+        val text = report.text
+        openHome()
+        return text
+    }
+
+    /** Scroll down until a text containing one of [parts] shows up (settled, like [scrollTo]). */
+    private fun scrollToContaining(parts: List<String>): UiObject2? =
+        scrollUntil { parts.firstNotNullOfOrNull { device.wait(Until.findObject(By.textContains(it)), 300) } }
 
     /** Any on-screen text containing one of [parts] (e.g. an error inside a longer message). */
     fun findContaining(parts: List<String>): UiObject2? =
@@ -165,4 +218,7 @@ object Text {
     val NETWORK_ERROR = listOf("网络连接失败,请检查网络", "Network connection failed — check your network")
     val CLOSE = listOf("关闭", "Close")
     val A11Y_LABEL = listOf("聊天助手 · 读屏助手", "Chat Assistant · Screen Reader")
+    val ADVANCED_ENTRY = listOf("高级设置", "Advanced / Developer")
+    val ADVANCED_MARKER = listOf("外观", "Appearance")
+    val DIAG_EXPORT = listOf("导出诊断信息", "Export diagnostics")
 }
