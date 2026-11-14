@@ -2,6 +2,7 @@ package com.octos.aichat.ai.local
 
 import android.content.Context
 import android.os.SystemClock
+import com.octos.aichat.Tracing
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -85,7 +86,7 @@ object LlmEngine {
         return mutex.withLock {
             require(handle != 0L) { "本地模型尚未加载" }
             val started = SystemClock.elapsedRealtime()
-            val text = withContext(infra) { nativeChat(handle, system, user, maxTokens) }.trim()
+            val text = withContext(infra) { Tracing.section(Tracing.LLM_CHAT) { nativeChat(handle, system, user, maxTokens) } }.trim()
             // The engine doesn't report why it stopped; reaching the limit means it was cut.
             Output(text, timedOut = SystemClock.elapsedRealtime() - started >= GENERATION_TIMEOUT_MS)
         }

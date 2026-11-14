@@ -62,4 +62,33 @@ ADB=adb.exe quality/scripts/run-benchmarks.sh          # all;也可 micro / macr
 
 ## 端到端(读屏 / 悬浮球)
 
-需要在 `ChatAccessibilityService`、`FloatingBubbleService` 等路径上加 `Trace` 打点,单独一个 PR。
+关键路径上有 `Trace` 打点(`app/.../Tracing.kt`),在正式版上用 atrace 抓取:
+
+```bash
+ADB=adb.exe quality/scripts/trace-e2e.sh 60      # 录 60 秒,期间在手机上操作
+python3 -I quality/scripts/trace_summary.py build/benchmark-results/e2e-trace.txt   # 重新汇总
+```
+
+| 区段 | 线程 | 含义 |
+|---|---|---|
+| `a11y.onEvent` | 主线程 | 每个无障碍事件的处理(预算 P4 ≤ 8 ms) |
+| `a11y.parse` | IO | 点悬浮球时按需解析控件树 |
+| `bubble.tapToResult` | 异步 | 点悬浮球 → 出结果(预算 P1),下分 `resolveConversation` / `ocr` / `memoryBlock` / `generate` |
+| `llm.chat` | 推理线程 | 一次端侧推理 |
+
+打点在没抓 trace 时只是一次已缓存的标签检查,没有日志、没有分配。**在云端模式下点悬浮球,会把当前聊天发给 AI 服务**(和正常使用一样),请在可以测试的聊天里操作。
+
+### 无障碍事件(2026-11-14,Soul 聊天页,上下各滑 4 次)
+
+| | 事件数 | P50 | P95 | 最大 |
+|---|---|---|---|---|
+| 优化前 | 30–42 | 7.1–8.1 ms | 17–20 ms | 25 ms |
+| 优化后 | **0** | — | — | — |
+
+- 细分打点显示,优化前约 95% 的时间花在 `rootInActiveWindow` 上:一次跨进程调用,要由聊天 App 的主线程来处理,对方在滑动时就要排队。关掉节点预取(API 33 的 `getRootInActiveWindow(0)`)没有改善,开销主要在往返和排队上。
+- 优化:同一个前台 App 发来的滚动或内容变化事件不可能改变前台,直接跳过(`isRoutineUpdateOfForegroundApp`)。窗口切换、来自其他包的事件(输入法、系统界面)、调试采集开启时,仍然走完整检查。
+- 回归验证:回到桌面时悬浮球隐藏、回到 Soul 时重新显示;弹出和收起输入法时一直可见;切换 App 时事件照常处理(P50 2.3 ms)。
+
+### 点悬浮球 → 出结果
+
+待测:需要人在一个可以测试的聊天里手动点几次悬浮球(上面的脚本会记录下来)。自动点击容易点到回复面板上,误触发「选中回复」。

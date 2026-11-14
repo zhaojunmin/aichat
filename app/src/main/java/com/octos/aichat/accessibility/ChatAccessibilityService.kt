@@ -15,6 +15,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import androidx.annotation.RequiresApi
 import com.octos.aichat.AppBus
+import com.octos.aichat.Tracing
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
 import kotlin.coroutines.resume
@@ -48,7 +49,11 @@ class ChatAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
-        guarded(::onWindowChanged)
+        if (isRoutineUpdateOfForegroundApp(
+                event.eventType, event.packageName, AppBus.foregroundPackage, AppBus.captureRawTree,
+            )
+        ) return
+        Tracing.section(Tracing.A11Y_EVENT) { guarded(::onWindowChanged) }
     }
 
     /**
@@ -99,8 +104,10 @@ class ChatAccessibilityService : AccessibilityService() {
      */
     suspend fun readConversation(pkg: String): Conversation = withContext(Dispatchers.IO) {
         try {
-            val root = windowRoot(pkg) ?: return@withContext Conversation(pkg, emptyList())
-            ChatParser.parse(root, screenWidth, screenHeight, pkg)
+            Tracing.section(Tracing.A11Y_PARSE) {
+                val root = windowRoot(pkg) ?: return@withContext Conversation(pkg, emptyList())
+                ChatParser.parse(root, screenWidth, screenHeight, pkg)
+            }
         } catch (e: Exception) {
             Log.w(TAG, "accessibility read failed", e)
             Conversation(pkg, emptyList())
@@ -249,4 +256,28 @@ class ChatAccessibilityService : AccessibilityService() {
         }
         return null
     }
+}
+
+/**
+ * True when [eventType] is a scroll / content change coming from the app already
+ * known to be in front ([foregroundPackage]): such an event can't change which app
+ * is in the foreground, so the main thread can skip [AccessibilityService.getRootInActiveWindow]
+ * — a cross-process round trip served by the chat app's busy UI thread (7 ms P50,
+ * 18 ms P95 while scrolling), which was ~95% of the per-event cost.
+ *
+ * Window-state changes and events from any other package (IME, system UI, a newly
+ * opened app) still take the full check, as does everything while the debug
+ * raw-tree capture is on (it refreshes from these events).
+ */
+internal fun isRoutineUpdateOfForegroundApp(
+    eventType: Int,
+    eventPackage: CharSequence?,
+    foregroundPackage: String?,
+    captureRawTree: Boolean,
+): Boolean {
+    if (captureRawTree || foregroundPackage == null || eventPackage == null) return false
+    if (eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
+        eventType != AccessibilityEvent.TYPE_VIEW_SCROLLED
+    ) return false
+    return eventPackage.contentEquals(foregroundPackage)
 }
