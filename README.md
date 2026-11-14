@@ -55,7 +55,14 @@ export ANDROID_HOME=$HOME/Android/Sdk
 ./gradlew :app:assembleDebug      # 或 assembleRelease
 # 产物:app/build/outputs/apk/debug/app-debug.apk
 adb install -r app/build/outputs/apk/debug/app-debug.apk
+
+# 质量检查(与 CI 一致)
+./gradlew :app:testDebugUnitTest :app:lintDebug
 ```
+
+> - CI(`.github/workflows/ci.yml`)在每个 PR 和 main 上跑单测 + Lint + debug 构建;不拉 LFS。
+> - Lint 用 `app/lint-baseline.xml` 冻结存量问题,只拦新增;修掉存量后用 `./gradlew :app:updateLintBaseline` 重新生成。
+> - 质量属性与工程方法见 `docs/quality-attributes.md`。
 
 > - 用 AGP 9 内置 Kotlin(不单独 apply `kotlin.android`),`gradle.properties` 设 `android.disallowKotlinSourceSets=false`。
 > - 本地 LLM / embedding 的原生库仅构建 **arm64-v8a**;非 arm64 设备自动回退云端 / 词法。
