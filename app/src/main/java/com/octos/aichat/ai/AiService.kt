@@ -68,7 +68,10 @@ class AiService(
                 ?: throw AiException(AiException.Kind.TIMEOUT, detail = "reply budget ${replyTimeoutMs}ms")
         }
 
-        parseReplies(raw, n)
+        // An empty or content-free answer must surface as an error, never as a blank candidate.
+        parseReplies(raw, n).ifEmpty {
+            throw AiException(AiException.Kind.BAD_RESPONSE, detail = "no replies in: ${raw.take(80)}")
+        }
     }
 
     /**
@@ -184,7 +187,10 @@ class AiService(
 
     private fun normImportance(raw: Int): Int = raw.coerceIn(1, 10)
 
-    /** Be tolerant: accept a JSON array, a fenced block, or newline-separated lines. */
+    /**
+     * Be tolerant: accept a JSON array, a fenced block, or newline-separated lines.
+     * Empty when the answer holds no usable reply (blank, `[]`, only blank items).
+     */
     internal fun parseReplies(raw: String, max: Int): List<String> {
         val cleaned = raw.trim()
             .removePrefix("```json").removePrefix("```")
@@ -201,7 +207,9 @@ class AiService(
                     val s = arr.optString(i).trim()
                     if (s.isNotEmpty()) out.add(s)
                 }
-                if (out.isNotEmpty()) return out.take(max)
+                // A well-formed array is the answer, even if empty: falling back to
+                // line parsing would surface the literal "[]" as a reply.
+                return out.take(max)
             } catch (_: JSONException) {
                 // fall through to line parsing
             }
@@ -212,13 +220,13 @@ class AiService(
             .map { it.replaceFirst(Regex("^\\d+[.、)]\\s*"), "") }
             .filter { it.isNotEmpty() }
             .take(max)
-            .ifEmpty { listOf(cleaned) }
     }
 
     companion object {
         const val REPLY_TIMEOUT_MS = 30_000L
 
         private val cloud: AiClient = CloudClient()
+        private val local: AiClient by lazy { LocalClient() }
 
         /**
          * Local mode must never silently fall back to the cloud — that would ship
@@ -228,7 +236,7 @@ class AiService(
         private fun defaultClientFor(settings: AppSettings): AiClient {
             if (settings.useLocal) {
                 require(LlmEngine.isReady) { "本地模型未就绪,请先在设置中下载并启用本地模式" }
-                return LocalClient
+                return local
             }
             return cloud
         }

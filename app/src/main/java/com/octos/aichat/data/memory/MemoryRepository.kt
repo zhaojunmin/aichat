@@ -41,6 +41,7 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
     private val settingsRepo = SettingsRepository.get(appContext)
     private val replyLog = ReplyLog(appContext)
     private val embedder = MemoryEmbedder(appContext, dao)
+    private val learningPass = MemoryLearningPass(replyLog, dao)
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val learnLock = Mutex() // only one learning pass at a time
@@ -117,39 +118,14 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
             // Loading can take seconds, so it happens after the UI shows "learning".
             // Idempotent when the bubble already loaded the same model.
             if (settings.useLocal && !LlmEngine.ensureLoaded(appContext, settings.localModel)) return
-            val pending = replyLog.pending()
-            if (pending.replies.isEmpty()) return
-            val existing = dao.all()
-            val result = AiService.instance.learnMemory(settings, existing, pending.replies) ?: return
-
-            // Memory is permanent: add new rows, overwrite conflicting rows (newest
-            // wins), and soft-delete clearly-obsolete rows (recoverable).
-            val now = System.currentTimeMillis()
-            val knownIds = existing.mapTo(HashSet()) { it.id }
-            result.updates.filter { it.id in knownIds }.forEach {
-                dao.updateFull(it.id, it.category, it.content, it.keywords, it.importance, now)
-                dao.clearEmbedding(it.id) // text changed → stale vector, let backfill recompute
-            }
-            result.deletions.filter { it in knownIds }.forEach {
-                dao.softDelete(it, now, DELETED_BY_LEARNER)
-            }
-            if (result.additions.isNotEmpty()) {
-                dao.insertAll(result.additions.map {
-                    MemoryEntity(
-                        category = it.category,
-                        content = it.content,
-                        updatedAt = now,
-                        keywords = it.keywords,
-                        importance = it.importance,
-                    )
-                })
-            }
-            replyLog.markLearned(pending.total)
-            _stats.value = _stats.value.copy(learnedReplies = pending.total)
+            val learned = learningPass.run { existing, replies ->
+                AiService.instance.learnMemory(settings, existing, replies)
+            } ?: return
+            _stats.value = _stats.value.copy(learnedReplies = learned)
             refreshMemories()
             if (embedder.backfill()) refreshMemories()
         } catch (_: Exception) {
-            // Leave the learned offset untouched so it retries on the next trigger.
+            // MemoryLearningPass leaves the learned offset untouched, so it retries on the next trigger.
         } finally {
             _stats.value = _stats.value.copy(learning = false)
         }
@@ -215,7 +191,6 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
     }
 
     companion object {
-        private const val DELETED_BY_LEARNER = "learner"
         private const val DELETED_BY_USER = "user"
 
         @Volatile
