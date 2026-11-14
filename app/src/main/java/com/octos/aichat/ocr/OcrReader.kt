@@ -104,7 +104,16 @@ object OcrReader {
             (h <= 0 || ((it.top + it.bottom) / 2).toFloat() in minY..maxY) && OcrMessageFilter.looksLikeMessage(it.text)
         }
         // One bubble's wrapped lines can come back as separate blocks; stitch them.
-        val blocks = BubbleLineMerger.merge(candidates) { upper, lower -> gapIsBubble(bitmap, upper, lower) }
+        val merged = BubbleLineMerger.merge(candidates) { upper, lower -> gapIsBubble(bitmap, upper, lower) }
+        // Group chats: drop the sender name printed above each bubble.
+        val blocks = SenderNameFilter.drop(merged) { name, below ->
+            val a = paddingColor(bitmap, name, name.lineHeight)
+            val b = paddingColor(bitmap, below, name.lineHeight)
+            // Unreadable pixels → treat as same background, i.e. keep the block.
+            // Both samples are flat fills (no glyph edges), so the tolerance is tight:
+            // a pale wallpaper (#E7F0F9 measured) is only 45 off a white bubble.
+            a == null || b == null || similar(a, b, FLAT_TOLERANCE)
+        }
 
         val messages = ArrayList<ChatMessage>()
         var last: String? = null
@@ -127,9 +136,10 @@ object OcrReader {
      * the line below it sits in a bubble, so their references differ.
      */
     private fun gapIsBubble(bitmap: Bitmap, upper: OcrBlock, lower: OcrBlock): Boolean {
-        val inset = (minOf(upper.lineHeight, lower.lineHeight) / 5).coerceAtLeast(2)
-        val upperRef = pixelOrNull(bitmap, upper.left - inset, (upper.top + upper.bottom) / 2) ?: return false
-        val lowerRef = pixelOrNull(bitmap, lower.left - inset, (lower.top + lower.bottom) / 2) ?: return false
+        val line = minOf(upper.lineHeight, lower.lineHeight)
+        val inset = insetFor(line)
+        val upperRef = paddingColor(bitmap, upper, line) ?: return false
+        val lowerRef = paddingColor(bitmap, lower, line) ?: return false
         if (!similar(upperRef, lowerRef)) return false
 
         val gap = lower.top - upper.bottom
@@ -146,14 +156,29 @@ object OcrReader {
         return true
     }
 
+    /**
+     * Colour just left of a block's text, at its vertical middle: the bubble's own
+     * padding when the text is in a bubble, else the chat background / wallpaper.
+     */
+    private fun paddingColor(bitmap: Bitmap, block: OcrBlock, line: Int): Int? =
+        pixelOrNull(bitmap, block.left - insetFor(line), (block.top + block.bottom) / 2)
+
+    private fun insetFor(line: Int) = (line / 5).coerceAtLeast(2)
+
     private fun pixelOrNull(bitmap: Bitmap, x: Int, y: Int): Int? =
         if (x in 0 until bitmap.width && y in 0 until bitmap.height) bitmap[x, y] else null
 
-    private fun similar(a: Int, b: Int): Boolean {
+    /** Colour distance allowed when sampling near text (anti-aliased glyph edges). */
+    private const val EDGE_TOLERANCE = 48
+
+    /** Colour distance allowed between two flat fills, e.g. bubble padding vs. background. */
+    private const val FLAT_TOLERANCE = 12
+
+    private fun similar(a: Int, b: Int, tolerance: Int = EDGE_TOLERANCE): Boolean {
         val d = abs(((a shr 16) and 0xFF) - ((b shr 16) and 0xFF)) +
             abs(((a shr 8) and 0xFF) - ((b shr 8) and 0xFF)) +
             abs((a and 0xFF) - (b and 0xFF))
-        return d <= 48
+        return d <= tolerance
     }
 
     private suspend fun recognize(bitmap: Bitmap): Text? =

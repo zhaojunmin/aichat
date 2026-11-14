@@ -11,6 +11,11 @@ internal data class OcrBlock(
     val text: String,
     /** How many text lines OCR found in this block (≥ 1); used to estimate line height. */
     val lines: Int = 1,
+    /**
+     * Height of the block's first line — the type size of its text. Unlike
+     * [lineHeight] it doesn't grow with the line spacing of a merged block.
+     */
+    val firstLineHeight: Int = (bottom - top) / lines.coerceAtLeast(1),
 ) {
     val lineHeight: Int get() = (bottom - top) / lines.coerceAtLeast(1)
 }
@@ -43,6 +48,7 @@ internal object BubbleLineMerger {
                     bottom = maxOf(prev.bottom, b.bottom),
                     text = joinLines(prev.text, b.text),
                     lines = prev.lines + b.lines,
+                    firstLineHeight = prev.firstLineHeight,
                 )
             } else {
                 out.add(b)

@@ -11,7 +11,12 @@ internal object OcrMessageFilter {
     // WeChat input-bar chrome that OCR may pick up but isn't chat content.
     private val UI_EXACT = setOf("发送", "请输入消息")
 
-    private val SHORT_TIME = Regex("""^(上午|下午|昨天|今天)?\s*\d{1,2}:\d{2}$""")
+    // WeChat's centred timestamps: "12:34", "下午 3:51", "昨天 21:16", "星期三 21:16",
+    // "11月5日 12:53", "2025年11月5日 下午3:51".
+    private val SHORT_TIME = Regex(
+        """^(今天|昨天|前天|星期[一二三四五六日天]|周[一二三四五六日天]|(\d{4}年)?\d{1,2}月\d{1,2}日)?\s*""" +
+            """(凌晨|早上|上午|中午|下午|晚上)?\s*\d{1,2}:\d{2}$"""
+    )
 
     // A time with a few stray glyphs in front ("BF 20:16"): OCR noise from the
     // wallpaper beside a centred timestamp. Only non-CJK leftovers count, so a
