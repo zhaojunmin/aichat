@@ -75,7 +75,7 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
         scope.launch {
             val added = mine.count { replyLog.append(it) }
             if (added > 0) bumpTotal(added)
-            maybeLearn()
+            learnAfterRecordIfCloud()
         }
     }
 
@@ -84,7 +84,7 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
         if (!settingsRepo.current().memoryEnabled) return
         scope.launch {
             if (replyLog.append(text)) bumpTotal(1)
-            maybeLearn()
+            learnAfterRecordIfCloud()
         }
     }
 
@@ -93,6 +93,21 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
     }
 
     // ---- learning -------------------------------------------------------
+
+    override fun learnIfDue() {
+        scope.launch { maybeLearn() }
+    }
+
+    /**
+     * Recording happens on a bubble tap, right before that tap's reply generation.
+     * In local mode both need the single on-device engine, so learning here could
+     * make the user wait behind a whole learning inference (up to its 30 s limit).
+     * Local learning therefore waits for [learnIfDue] (user left the chat app);
+     * cloud requests run in parallel, so cloud learns right away.
+     */
+    private suspend fun learnAfterRecordIfCloud() {
+        if (!settingsRepo.current().useLocal) maybeLearn()
+    }
 
     /** Kick off learning if enabled and enough new replies have accumulated. */
     private suspend fun maybeLearn() {

@@ -14,6 +14,12 @@ interface MemoryStore {
 
     fun recordMyMessages(conv: Conversation)
     fun recordReply(text: String)
+
+    /**
+     * Run a learning pass if enough replies are pending. Called when the user leaves
+     * the chat app: in local mode, recording doesn't learn by itself (see [MemoryRepository]).
+     */
+    fun learnIfDue()
     fun memoryBlock(conv: Conversation? = null): String
 
     suspend fun learnNow()
