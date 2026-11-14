@@ -7,6 +7,8 @@ import com.octos.aichat.data.memory.MemoryDraft
 import com.octos.aichat.data.memory.MemoryEdit
 import com.octos.aichat.data.memory.MemoryEntity
 import com.octos.aichat.data.memory.MemoryLearnResult
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.ErrorCode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -114,9 +116,14 @@ class AiService(
             append("\"deletions\":[7]},不要多余文字。")
         }
 
-        val raw = runCatching { clientFor(settings).complete(settings, system, user) }.getOrNull()
+        val raw = runCatching { clientFor(settings).complete(settings, system, user) }
+            .onFailure { DiagLog.recordAiFailure(it) }
+            .getOrNull()
             ?: return@withContext null
-        parseLearnResult(raw)
+        parseLearnResult(raw) ?: run {
+            DiagLog.record(ErrorCode.MEM_602)
+            null
+        }
     }
 
     private val MEMORY_CATEGORIES = setOf("画像", "事实", "偏好", "风格")

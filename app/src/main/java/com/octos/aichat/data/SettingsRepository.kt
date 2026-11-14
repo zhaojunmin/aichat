@@ -2,7 +2,8 @@ package com.octos.aichat.data
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.ErrorCode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -115,7 +116,7 @@ class SettingsRepository private constructor(
         return try {
             secrets.encode(plain).also { encodedKeys[b] = plain to it }
         } catch (e: Exception) {
-            Log.w(TAG, "API key encryption failed; not persisting it", e)
+            DiagLog.record(ErrorCode.SET_801, cause = e)
             null
         }
     }
@@ -158,7 +159,6 @@ class SettingsRepository private constructor(
     private fun apiKeyPref(b: AiBackend) = "${KEY_API_KEY}_${b.name}"
 
     companion object {
-        private const val TAG = "Settings"
         private const val PREFS = "ai_chat_settings"
         private const val KEY_BACKEND = "backend"
         private const val KEY_DIAGNOSTICS = "diagnostics_enabled"

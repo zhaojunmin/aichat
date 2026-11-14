@@ -2,6 +2,8 @@ package com.octos.aichat.data
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.ErrorCode
 import java.security.KeyStore
 import java.util.Base64
 import javax.crypto.Cipher
@@ -40,7 +42,10 @@ class SecretCodec(private val cipher: SecretCipher) {
         if (!stored.startsWith(PREFIX)) return Decoded(stored, isLegacyPlaintext = true)
         val plain = runCatching {
             String(cipher.decrypt(Base64.getDecoder().decode(stored.removePrefix(PREFIX))), Charsets.UTF_8)
-        }.getOrDefault("")
+        }.getOrElse {
+            DiagLog.record(ErrorCode.SET_802, cause = it)
+            ""
+        }
         return Decoded(plain)
     }
 

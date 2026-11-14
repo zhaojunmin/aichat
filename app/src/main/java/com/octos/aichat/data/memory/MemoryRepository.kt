@@ -8,6 +8,8 @@ import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.Speaker
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.ErrorCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -144,8 +146,9 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
             if (embedder.backfill()) refreshMemories()
         } catch (e: CancellationException) {
             throw e // a cancelled pass must stay cancelled, not be swallowed as a failure
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // MemoryLearningPass leaves the learned offset untouched, so it retries on the next trigger.
+            DiagLog.record(ErrorCode.MEM_601, cause = e)
         } finally {
             _stats.value = _stats.value.copy(learning = false)
         }

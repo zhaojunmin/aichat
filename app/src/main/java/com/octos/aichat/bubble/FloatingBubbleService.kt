@@ -1,7 +1,5 @@
 package com.octos.aichat.bubble
 
-import com.octos.aichat.R
-
 import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -27,22 +25,27 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.view.isVisible
 import com.octos.aichat.AppBus
-import com.octos.aichat.diagnostics.Tracing
-import com.octos.aichat.ui.MainActivity
-import com.octos.aichat.ui.toUserMessage
+import com.octos.aichat.R
 import com.octos.aichat.accessibility.BubbleBox
 import com.octos.aichat.accessibility.BubbleLocator
 import com.octos.aichat.ai.AiService
-import com.octos.aichat.data.AppSettings
-import com.octos.aichat.data.Conversation
-import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.LocalModel
 import com.octos.aichat.ai.local.ModelStore
+import com.octos.aichat.ai.recordAiFailure
+import com.octos.aichat.data.AppSettings
+import com.octos.aichat.data.Conversation
+import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.memory.MemoryRepository
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.ErrorCode
+import com.octos.aichat.diagnostics.Tracing
 import com.octos.aichat.ocr.OcrReader
-import kotlinx.coroutines.CoroutineScope
+import com.octos.aichat.ui.MainActivity
+import com.octos.aichat.ui.toUserMessage
+import kotlin.math.abs
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -50,7 +53,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.abs
 
 /**
  * Foreground service that paints a draggable bubble over other apps. Tapping it
@@ -126,6 +128,7 @@ class FloatingBubbleService : Service() {
         scope.cancel()
         if (::panel.isInitialized) panel.remove()
         runCatching { if (::bubble.isInitialized) wm.removeView(bubble) }
+            .onFailure { DiagLog.record(ErrorCode.BUB_502, cause = it) }
         if (AppBus.bubbleService === this) AppBus.bubbleService = null
     }
 
@@ -259,7 +262,7 @@ class FloatingBubbleService : Service() {
             Tracing.asyncSection(Tracing.BUBBLE_GENERATE) { AiService.instance.generateReplies(settings, conv, memoryBlock) }
         }
         // Superseded by a newer tap: don't paint an error over the new request.
-        result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
+        result.exceptionOrNull()?.let { if (it is CancellationException) throw it else DiagLog.recordAiFailure(it) }
         result.onSuccess { panel.showResults(it, conv.lastFromOther()) }
             .onFailure { panel.showError(it.toUserMessage(this@FloatingBubbleService)) }
     }
@@ -297,7 +300,7 @@ class FloatingBubbleService : Service() {
             boxes = if (BubbleLocator.hasRule(pkg)) {
                 withContext(Dispatchers.IO) { BubbleLocator.locate(svc.rootInActiveWindow, width, pkg) }
             } else emptyList()
-            bmp = svc.captureScreenshot()
+            bmp = svc.captureScreenshot(pkg)
         } finally {
             if (::bubble.isInitialized) bubble.visibility = View.VISIBLE
         }
@@ -325,6 +328,7 @@ class FloatingBubbleService : Service() {
             }
         }
         bmp.recycle()
+        if (conv.isEmpty) DiagLog.record(ErrorCode.OCR_402, pkg = pkg)
         AppBus.updateConversation(conv) // let the in-app debug viewer show it too
         return conv
     }
@@ -350,6 +354,7 @@ class FloatingBubbleService : Service() {
 
         val autoPaste = SettingsRepository.get(this).current().autoPaste
         val pasted = autoPaste && AppBus.accessibilityService?.pasteText(reply) == true
+        if (autoPaste && !pasted) DiagLog.record(ErrorCode.A11Y_305, pkg = AppBus.foregroundPackage)
         toast(if (pasted) getString(R.string.svc_filled) else getString(R.string.svc_copied))
         panel.remove()
     }
@@ -388,6 +393,10 @@ class FloatingBubbleService : Service() {
             } else {
                 startForeground(NOTIF_ID, notification)
             }
+        }.onFailure {
+            // Android 12+ refuses to start a foreground service from the background
+            // (ForegroundServiceStartNotAllowedException): the bubble then goes away.
+            DiagLog.record(ErrorCode.BUB_501, cause = it)
         }
     }
 
