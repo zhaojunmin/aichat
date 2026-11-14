@@ -104,6 +104,12 @@ kotlin {
     }
 }
 
+// Room writes one schema JSON per database version here (checked in), so future
+// migrations can be verified against the exact previous schema.
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -138,6 +144,8 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.org.json)
     testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
 
     androidTestImplementation(libs.androidx.benchmark.junit4)
     // The benchmark runner first launches IsolationActivity in the *app* process;

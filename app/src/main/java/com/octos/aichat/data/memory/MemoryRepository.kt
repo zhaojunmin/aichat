@@ -1,12 +1,14 @@
 package com.octos.aichat.data.memory
 
 import android.content.Context
+import androidx.room.withTransaction
 import com.octos.aichat.ai.AiService
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.Speaker
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,11 +39,12 @@ data class MemoryStats(
 class MemoryRepository private constructor(context: Context) : MemoryStore {
 
     private val appContext = context.applicationContext
-    private val dao = MemoryDatabase.get(appContext).memoryDao()
+    private val db = MemoryDatabase.get(appContext)
+    private val dao = db.memoryDao()
     private val settingsRepo = SettingsRepository.get(appContext)
-    private val replyLog = ReplyLog(appContext)
+    private val replyLog = ReplyLog(appContext, db.learningStateDao())
     private val embedder = MemoryEmbedder(appContext, dao)
-    private val learningPass = MemoryLearningPass(replyLog, dao)
+    private val learningPass = MemoryLearningPass(replyLog, dao, inTransaction = { block -> db.withTransaction { block() } })
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val learnLock = Mutex() // only one learning pass at a time
@@ -139,6 +142,8 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
             _stats.value = _stats.value.copy(learnedReplies = learned)
             refreshMemories()
             if (embedder.backfill()) refreshMemories()
+        } catch (e: CancellationException) {
+            throw e // a cancelled pass must stay cancelled, not be swallowed as a failure
         } catch (_: Exception) {
             // MemoryLearningPass leaves the learned offset untouched, so it retries on the next trigger.
         } finally {

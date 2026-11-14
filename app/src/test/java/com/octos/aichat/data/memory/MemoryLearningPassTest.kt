@@ -19,7 +19,9 @@ class MemoryLearningPassTest {
         val lines = lines.toMutableList()
         var learned = 0
         override suspend fun pending() = PendingReplies(lines.drop(learned), lines.size)
-        override fun markLearned(total: Int) { learned = total }
+        var markedInTx: Boolean? = null
+        var inTx = false
+        override suspend fun markLearned(total: Int) { learned = total; markedInTx = inTx }
     }
 
     /** In-memory table; [failOn] makes the named write throw (simulates a crash mid-apply). */
@@ -141,6 +143,23 @@ class MemoryLearningPassTest {
         pass.run { _, r -> replies = r; calls++; MemoryLearnResult(emptyList(), emptyList()) }
         assertEquals("only the new reply is learned", listOf("c"), replies)
         assertEquals(3, ledger.learned)
+    }
+
+    /** The writes and the offset must commit together (see LearningTransactionTest for real rollback). */
+    @Test fun writesAndOffsetRunInsideOneTransaction() = runTest {
+        val ledger = FakeLedger("我搬到上海了")
+        val dao = FakeDao(mem(1, "住在北京"), mem(2, "养了只猫"))
+        var transactions = 0
+        val pass = MemoryLearningPass(ledger, dao, inTransaction = { block ->
+            transactions++
+            ledger.inTx = true
+            try { block() } finally { ledger.inTx = false }
+        })
+
+        pass.run { _, _ -> result }
+
+        assertEquals(1, transactions)
+        assertEquals(true, ledger.markedInTx)
     }
 
     @Test fun nothingPending_learnerNotCalled() = runTest {
