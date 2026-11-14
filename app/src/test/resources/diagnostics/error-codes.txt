@@ -1,0 +1,36 @@
+# Released error codes: id<TAB>level<TAB>meaning. Append only — never edit or delete a line
+# (docs/observability-design.md §4.1). ErrorCodeTest compares the enum against this file.
+AI-101	ERROR	Key 无效或无权限
+AI-102	ERROR	余额不足或欠费
+AI-103	ERROR	被限流
+AI-104	ERROR	地址或模型不存在
+AI-105	ERROR	请求被拒
+AI-106	ERROR	服务端错误
+AI-107	ERROR	云端超时
+AI-108	ERROR	网络不可用
+AI-109	ERROR	返回内容不可用
+AI-110	ERROR	其他失败
+LLM-201	ERROR	本地推理超时
+LLM-202	ERROR	本地模型加载失败
+LLM-203	WARN	原生推理库不可用
+LLM-204	ERROR	模型下载失败
+A11Y-301	WARN	处理无障碍事件时出异常(已兜底)
+A11Y-302	ERROR	点击时解析聊天失败
+A11Y-303	WARN	点击时找不到聊天窗口
+A11Y-304	ERROR	截图失败
+A11Y-305	WARN	自动填入失败,已改为复制
+OCR-401	ERROR	文字识别失败
+OCR-402	WARN	识别成功但没读出消息
+BUB-501	ERROR	启动前台服务失败
+BUB-502	WARN	移除悬浮窗失败
+MEM-601	ERROR	学习失败(已回滚,下次重试)
+MEM-602	WARN	学习器返回不可用结果
+MEM-603	ERROR	回复日志写入失败
+EMB-701	WARN	向量原生库载入失败
+EMB-702	WARN	向量模型或词表资源拷贝失败
+EMB-703	WARN	向量模型加载失败
+EMB-704	WARN	单次向量计算失败
+SET-801	ERROR	API Key 加密失败,未保存
+SET-802	WARN	API Key 无法解密,已清空
+APP-901	ERROR	未捕获异常(进程崩溃)
+APP-902	INFO	上次进程的退出原因

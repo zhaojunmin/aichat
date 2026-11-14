@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.BubbleChart
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.MonitorHeart
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Tune
@@ -261,6 +262,30 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                     stringResource(R.string.adv_memory_stats, memStats.totalReplies, memStats.pending),
                     style = MaterialTheme.typography.bodySmall
                 )
+            }
+
+            SectionCard(stringResource(R.string.adv_diag_title), icon = Icons.Outlined.MonitorHeart) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.adv_diag_switch))
+                        Text(
+                            stringResource(R.string.adv_diag_desc),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = settings.diagnosticsEnabled,
+                        onCheckedChange = { c ->
+                            // Re-enabling starts a fresh record: only what happens from now on.
+                            vm.update {
+                                it.copy(
+                                    diagnosticsEnabled = c,
+                                    diagnosticsEnabledAt = if (c) System.currentTimeMillis() else it.diagnosticsEnabledAt,
+                                )
+                            }
+                        }
+                    )
+                }
             }
 
             SectionCard(stringResource(R.string.adv_debug_title), icon = Icons.Outlined.BugReport) {

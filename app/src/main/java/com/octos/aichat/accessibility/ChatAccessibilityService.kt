@@ -15,7 +15,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import androidx.annotation.RequiresApi
 import com.octos.aichat.AppBus
-import com.octos.aichat.Tracing
+import com.octos.aichat.diagnostics.Tracing
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
 import kotlin.coroutines.resume

@@ -1,0 +1,79 @@
+package com.octos.aichat.diagnostics
+
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
+
+/**
+ * The app's single entry point for diagnostics (docs/observability-design.md).
+ *
+ * Call sites pass an [ErrorCode] plus structured fields — there is deliberately no
+ * parameter for free text, so chat content, keys or exception messages can't be
+ * recorded. Until [install] runs (and while switched off) every call is a no-op.
+ *
+ * Cost: [record] is a volatile read when off, a queue append + counter increment
+ * when on. Files are written on one background thread, every [FLUSH_SECONDS] or
+ * when enough events pile up.
+ */
+object DiagLog {
+
+    @Volatile private var recorder: DiagnosticsRecorder? = null
+
+    private val io: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor { r ->
+        Thread(r, "diagnostics").apply { isDaemon = true }
+    }
+
+    /** Debug builds: mirror each event to logcat. Null in release. */
+    @Volatile var echo: ((String) -> Unit)? = null
+
+    fun install(r: DiagnosticsRecorder) {
+        recorder = r
+        r.onPendingFull = { io.execute(::flushQuietly) }
+        io.execute { runCatching { r.load() } }
+        io.scheduleWithFixedDelay(::flushQuietly, FLUSH_SECONDS, FLUSH_SECONDS, TimeUnit.SECONDS)
+    }
+
+    fun record(
+        code: ErrorCode,
+        cause: Throwable? = null,
+        ms: Long? = null,
+        http: Int? = null,
+        platform: Int? = null,
+        pkg: String? = null,
+    ) {
+        val r = recorder ?: return
+        if (!r.enabled) return
+        r.record(code, cause, ms, http, platform, pkg)
+        echo?.invoke("${code.id} ${cause?.javaClass?.simpleName.orEmpty()} ms=$ms http=$http platform=$platform pkg=$pkg")
+    }
+
+    /** From the uncaught-exception handler: written synchronously before the process dies. */
+    fun recordCrash(cause: Throwable, thread: Thread) {
+        recorder?.recordCrash(cause, thread)
+    }
+
+    /** Switch on/off. Off stops recording at once; the stored data is deleted in the background. */
+    fun setEnabled(on: Boolean) {
+        val r = recorder ?: return
+        r.setEnabled(on)
+        if (!on) io.execute { runCatching { r.wipe() } }
+    }
+
+    /** User asked to clear the diagnostics (recording stays as it is). */
+    fun clear() {
+        val r = recorder ?: return
+        io.execute { runCatching { r.wipe() } }
+    }
+
+    /** Record system-reported exits of earlier processes, read lazily on the background thread. */
+    fun recordExits(sinceMs: Long, read: () -> List<ExitRecord>) {
+        val r = recorder ?: return
+        io.execute { runCatching { r.recordExits(read(), sinceMs) } }
+    }
+
+    private fun flushQuietly() {
+        runCatching { recorder?.flush() }
+    }
+
+    const val FLUSH_SECONDS = 5L
+}

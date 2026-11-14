@@ -3,7 +3,7 @@
 #
 #   quality/scripts/trace-e2e.sh [seconds]      (default: 30)
 #
-# Starts an atrace capture of the app's trace sections (Tracing.kt), waits while
+# Starts an atrace capture of the app's trace sections (diagnostics/Tracing.kt), waits while
 # you use the app — open a chat, scroll, tap the bubble — then stops and prints
 # count / P50 / P95 / max per section. Works on the release build (the app is
 # profileable). ADB defaults to `adb`; on WSL with a Windows-side device set
