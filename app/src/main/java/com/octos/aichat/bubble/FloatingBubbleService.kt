@@ -236,7 +236,7 @@ class FloatingBubbleService : Service() {
             val memory = MemoryRepository.get(this@FloatingBubbleService)
             memory.recordMyMessages(conv)
             val result = runCatching { AiService.instance.generateReplies(settings, conv, memory.memoryBlock(conv)) }
-            result.onSuccess { panel.showResults(it, AppBus.conversation.lastFromOther()) }
+            result.onSuccess { panel.showResults(it, conv.lastFromOther()) }
                 .onFailure { panel.showError(it.message ?: getString(R.string.generation_failed)) }
         }
     }

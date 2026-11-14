@@ -80,6 +80,10 @@
     <string name="adv_debug_title">读取调试</string>
     <string name="adv_debug_desc">先在微信 / Soul 的聊天界面停留一下,再回到这里查看无障碍服务读到的内容,可据此判断「我 / 对方」是否区分正确。</string>
     <string name="adv_debug_view_chat">查看当前读取到的聊天记录</string>
+    <string name="adv_debug_capture_title">采集原始节点树</string>
+    <string name="adv_debug_capture_desc">适配新 App 时打开。会读取并暂存聊天界面的完整节点(含聊天原文),关闭或重启 App 后自动清除。</string>
+    <string name="adv_debug_tree_off">尚未开启「采集原始节点树」。打开后在聊天界面停留片刻,再回来查看。</string>
+    <string name="adv_debug_tree_empty">尚未读取。请先在聊天界面停留片刻。</string>
     <string name="adv_debug_view_tree">查看原始节点树(适配新 App 用)</string>
     <string name="adv_raw_tree_title">原始节点树</string>
     <string name="adv_read_result_title">读取结果 · %1$d 条</string>
