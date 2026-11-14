@@ -2,6 +2,7 @@ package com.octos.aichat.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -9,14 +10,32 @@ import kotlinx.coroutines.flow.StateFlow
  * Single source of truth for [AppSettings], backed by SharedPreferences so that
  * both the Compose UI and the background services can read it synchronously.
  * Exposes a [StateFlow] so the UI recomposes on change.
+ *
+ * API keys are stored encrypted via [secrets] (Android Keystore); everything else
+ * is plain preferences.
  */
-class SettingsRepository private constructor(context: Context) : SettingsStore {
+class SettingsRepository private constructor(
+    context: Context,
+    private val secrets: SecretCodec = SecretCodec(KeystoreSecretCipher),
+) : SettingsStore {
 
     private val prefs: SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    // Last (plain key -> stored value) per backend, so persist() — called on every
+    // settings change, e.g. each keystroke — only hits the Keystore when a key changes.
+    private val encodedKeys = HashMap<AiBackend, Pair<String, String>>()
+
+    // Set by load() when a key was still stored in plaintext by an older version.
+    private var foundPlaintextKey = false
+
     private val _state = MutableStateFlow(load())
     override val state: StateFlow<AppSettings> = _state
+
+    init {
+        // Upgrade path: re-save so plaintext keys are replaced by ciphertext right away.
+        if (foundPlaintextKey) persist(_state.value)
+    }
 
     /** Latest snapshot, safe to call from any thread. */
     override fun current(): AppSettings = _state.value
@@ -62,9 +81,12 @@ class SettingsRepository private constructor(context: Context) : SettingsStore {
         AiBackend.entries.mapNotNull { b ->
             val baseUrl = prefs.getString(baseUrlPref(b), null)
             val model = prefs.getString(modelPref(b), null)
-            // Legacy single key migrates onto DeepSeek the first time around.
+            // Legacy single (plaintext) key migrates onto DeepSeek the first time around.
             val legacyKey = if (b == AiBackend.DEEPSEEK) prefs.getString(KEY_API_KEY, "")!! else ""
-            val apiKey = prefs.getString(apiKeyPref(b), "")!!.ifEmpty { legacyKey }
+            val apiKey = loadApiKey(b).ifEmpty {
+                if (legacyKey.isNotEmpty()) foundPlaintextKey = true
+                legacyKey
+            }
             if (baseUrl == null && model == null && apiKey.isEmpty()) null
             else b to BackendConfig(
                 baseUrl = baseUrl ?: b.defaultBaseUrl,
@@ -73,15 +95,40 @@ class SettingsRepository private constructor(context: Context) : SettingsStore {
             )
         }.toMap()
 
+    private fun loadApiKey(b: AiBackend): String {
+        val stored = prefs.getString(apiKeyPref(b), null)
+        val decoded = secrets.decode(stored)
+        if (decoded.isLegacyPlaintext) foundPlaintextKey = true
+        else if (stored != null && decoded.value.isNotEmpty()) encodedKeys[b] = decoded.value to stored
+        return decoded.value
+    }
+
+    /**
+     * Stored form of [plain] for backend [b]; null if encryption failed. On failure
+     * the key is kept in memory only — never written in plaintext — so at worst the
+     * user re-enters it after a restart.
+     */
+    private fun encodeApiKey(b: AiBackend, plain: String): String? {
+        encodedKeys[b]?.let { (cachedPlain, stored) -> if (cachedPlain == plain) return stored }
+        return try {
+            secrets.encode(plain).also { encodedKeys[b] = plain to it }
+        } catch (e: Exception) {
+            Log.w(TAG, "API key encryption failed; not persisting it", e)
+            null
+        }
+    }
+
     private fun persist(s: AppSettings) {
         prefs.edit()
             .putString(KEY_BACKEND, s.backend.name)
+            .remove(KEY_API_KEY) // legacy plaintext single key; migrated in load()
             .apply {
                 AiBackend.entries.forEach { b ->
                     val c = s.configOf(b)
                     putString(baseUrlPref(b), c.baseUrl)
                     putString(modelPref(b), c.model)
-                    putString(apiKeyPref(b), c.apiKey)
+                    val key = encodeApiKey(b, c.apiKey)
+                    if (key != null) putString(apiKeyPref(b), key) else remove(apiKeyPref(b))
                 }
             }
             .putString(KEY_PERSONA_ID, s.personaId)
@@ -107,6 +154,7 @@ class SettingsRepository private constructor(context: Context) : SettingsStore {
     private fun apiKeyPref(b: AiBackend) = "${KEY_API_KEY}_${b.name}"
 
     companion object {
+        private const val TAG = "Settings"
         private const val PREFS = "ai_chat_settings"
         private const val KEY_BACKEND = "backend"
         private const val KEY_BASE_URL = "base_url"
