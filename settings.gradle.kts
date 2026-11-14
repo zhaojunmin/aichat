@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 rootProject.name = "AIChatAssistant"
 include(":app")
 include(":quality:macrobenchmark")
+include(":quality:reliability")
