@@ -70,7 +70,7 @@
 | P5 | 记忆召回(top-N,500 条记忆) | ≤ 50 ms(含 embedding) |
 | P6 | 端侧模型常驻内存 | 切回云端后 30 s 内释放(`LlmEngine.unload`) |
 
-战术:用 `Trace.beginSection` 给关键路径打点,在 `adb shell perfetto` 里看;P4 把 `ChatParser.parse` 挪到后台线程并做防抖(事件合并 300 ms);P5 和 Tokenizer 写 JVM 微基准。
+战术:用 `Trace.beginSection` 给关键路径打点,在 `adb shell perfetto` 里看;P4 无障碍事件只做前台判断,`ChatParser.parse` 改为**点悬浮球时按需解析**(后台线程),聊天时不再逐事件遍历控件树;P5 和 Tokenizer 写 JVM 微基准。
 
 ### 2.4 可维护性 / 可测试性
 

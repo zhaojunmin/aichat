@@ -15,13 +15,16 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import androidx.annotation.RequiresApi
 import com.octos.aichat.AppBus
+import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
 import kotlin.coroutines.resume
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 
 /**
- * Reads the active window of supported chat apps and keeps [AppBus.conversation]
- * up to date. Also exposes [pasteText] so the overlay can drop a chosen reply
+ * Tracks which app is in the foreground (to show/hide the bubble) and, on bubble
+ * tap, reads the chat window of supported apps ([readConversation]). Also exposes [pasteText] so the overlay can drop a chosen reply
  * straight into the input box.
  */
 class ChatAccessibilityService : AccessibilityService() {
@@ -32,11 +35,11 @@ class ChatAccessibilityService : AccessibilityService() {
     private val screenHeight: Int
         get() = resources.displayMetrics.heightPixels
 
-    // Parsing walks the whole node tree (one IPC per child), so it runs on its own
-    // thread instead of the main thread the chat app's events arrive on.
-    private val parseThread = HandlerThread("a11y-parse").apply { start() }
-    private val parseHandler = Handler(parseThread.looper)
-    private val parseTask = Runnable { guarded(::parseActiveWindow) }
+    // Debug-only: the raw-tree capture walks the whole node tree (one IPC per
+    // child), so it runs on its own thread, never the main thread events arrive on.
+    private val captureThread = HandlerThread("a11y-capture").apply { start() }
+    private val captureHandler = Handler(captureThread.looper)
+    private val captureTask = Runnable { guarded(::captureActiveWindow) }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -61,7 +64,11 @@ class ChatAccessibilityService : AccessibilityService() {
         }
     }
 
-    /** Main thread: cheap foreground tracking only; hands parsing to [parseThread]. */
+    /**
+     * Main thread, on every event: cheap foreground tracking only. The chat itself
+     * is parsed on demand ([readConversation]) when the user taps the bubble — no
+     * per-event tree walks while they're just chatting.
+     */
     private fun onWindowChanged() {
         // Drive foreground state only from the *active window's* package. The IME,
         // toasts and transient sub-windows don't own the active window, so this
@@ -78,34 +85,51 @@ class ChatAccessibilityService : AccessibilityService() {
         val isTarget = pkg in settings.targetPackageSet
 
         AppBus.onForeground(pkg, isTarget)
-        if (!isTarget) return
+        if (!isTarget || !AppBus.captureRawTree) return
 
-        // Coalesce bursts: a queued parse reads the window when it runs, so one
+        // Coalesce bursts: a queued capture reads the window when it runs, so one
         // pending task is enough — later events just replace it.
-        parseHandler.removeCallbacks(parseTask)
-        parseHandler.post(parseTask)
+        captureHandler.removeCallbacks(captureTask)
+        captureHandler.post(captureTask)
     }
 
-    /** [parseThread]: re-read the active window (it may have moved on) and parse it. */
-    private fun parseActiveWindow() {
+    /**
+     * Parse the chat window of [pkg] as it is right now. Called on bubble tap; the
+     * tree walk runs off the main thread. Empty when that window can't be read.
+     */
+    suspend fun readConversation(pkg: String): Conversation = withContext(Dispatchers.IO) {
+        try {
+            val root = windowRoot(pkg) ?: return@withContext Conversation(pkg, emptyList())
+            ChatParser.parse(root, screenWidth, screenHeight, pkg)
+        } catch (e: Exception) {
+            Log.w(TAG, "accessibility read failed", e)
+            Conversation(pkg, emptyList())
+        }
+    }
+
+    /**
+     * Root of [pkg]'s app window. Looked up by package rather than "active window"
+     * because the tap itself lands on our overlay; falls back to the active window.
+     */
+    private fun windowRoot(pkg: String): AccessibilityNodeInfo? =
+        windows
+            ?.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.root?.packageName == pkg }
+            ?.root
+            ?: rootInActiveWindow?.takeIf { it.packageName?.toString() == pkg }
+
+    /** [captureThread], debug switch on: re-read the active window (it may have moved on) and capture it. */
+    private fun captureActiveWindow() {
+        if (!AppBus.captureRawTree) return
         val root = rootInActiveWindow ?: return
         val pkg = root.packageName?.toString() ?: return
-        val settings = SettingsRepository.get(this).current()
-        if (pkg !in settings.targetPackageSet) return
-
-        if (AppBus.captureRawTree) captureTree(root, pkg)
-        // OCR-managed apps (WeChat) are read via screenshot on bubble tap; don't
-        // node-parse them, or the noisy node result would overwrite the clean
-        // OCR conversation.
-        if (pkg in settings.ocrPackageSet) return
-        val conv = ChatParser.parse(root, screenWidth, screenHeight, pkg)
-        if (!conv.isEmpty) AppBus.updateConversation(conv)
+        if (pkg !in SettingsRepository.get(this).current().targetPackageSet) return
+        captureTree(root, pkg)
     }
 
     // Capture the node tree into AppBus so the in-app debug viewer can show it.
     // This is how we design per-app parse rules without relying on logcat /
     // uiautomator, both of which are blocked on some devices/apps.
-    // Only touched on parseThread.
+    // Only touched on captureThread.
     private var lastDumpAt = 0L
     private fun captureTree(root: AccessibilityNodeInfo, pkg: String) {
         val now = SystemClock.uptimeMillis()
@@ -192,8 +216,8 @@ class ChatAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         super.onDestroy()
-        parseHandler.removeCallbacksAndMessages(null)
-        parseThread.quitSafely()
+        captureHandler.removeCallbacksAndMessages(null)
+        captureThread.quitSafely()
         if (AppBus.accessibilityService === this) AppBus.accessibilityService = null
     }
 

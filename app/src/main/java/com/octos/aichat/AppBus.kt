@@ -6,12 +6,12 @@ import com.octos.aichat.bubble.FloatingBubbleService
 
 /**
  * Tiny in-process bus that lets the accessibility reader, the overlay and the
- * UI find each other without a DI framework. All access is on the main thread
- * except [conversation], which is written from accessibility callbacks and read
- * from the overlay — hence @Volatile.
+ * UI find each other without a DI framework. Service references are main-thread
+ * only; the debug fields are touched from the capture thread too — hence @Volatile.
  */
 object AppBus {
 
+    /** Debug: the conversation the last bubble tap read (the in-app viewer shows it). */
     @Volatile
     var conversation: Conversation = Conversation.empty()
         private set

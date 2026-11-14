@@ -78,8 +78,8 @@
     <string name="adv_semantic_desc">On-device vectors pick relevant memories by meaning · %1$d/%2$d embedded%3$s</string>
     <string name="adv_memory_stats">%1$d recorded · %2$d pending</string>
     <string name="adv_debug_title">Read debugging</string>
-    <string name="adv_debug_desc">Stay on a WeChat / Soul chat screen for a moment, then come back here to see what the accessibility service read — useful to check whether “Me / Them” is distinguished correctly.</string>
-    <string name="adv_debug_view_chat">View the chat currently read</string>
+    <string name="adv_debug_desc">Tap the bubble once on a WeChat / Soul chat screen, then come back here to see what that tap read — useful to check whether “Me / Them” is distinguished correctly.</string>
+    <string name="adv_debug_view_chat">View the last chat read</string>
     <string name="adv_debug_capture_title">Capture raw node tree</string>
     <string name="adv_debug_capture_desc">Turn on while adapting a new app. Reads and temporarily keeps the chat screen\'s full node tree (including message text); cleared when turned off or when the app restarts.</string>
     <string name="adv_debug_tree_off">“Capture raw node tree” is off. Turn it on, stay on a chat screen for a moment, then come back.</string>

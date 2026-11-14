@@ -256,7 +256,12 @@ class FloatingBubbleService : Service() {
         // blocked or too noisy); the global toggle is no longer required.
         val useOcr = pkg in settings.ocrPackageSet &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-        if (!useOcr) return AppBus.conversation
+        if (!useOcr) {
+            // Parse now, on tap: what's on screen this moment, no stale or post-restart-empty state.
+            val conv = AppBus.accessibilityService?.readConversation(pkg) ?: return null
+            AppBus.updateConversation(conv) // let the in-app debug viewer show it too
+            return conv
+        }
 
         val svc = AppBus.accessibilityService ?: return null
         // Hide our own bubble so it isn't part of the captured image.
