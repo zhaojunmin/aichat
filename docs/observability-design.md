@@ -203,7 +203,8 @@ DiagnosticsReport → 预览页 → 用户分享 / 复制
 一行一条,用制表符分隔,便于 grep 和脚本处理:
 
 ```
-1763173263123	AI-108	ERROR	cause=UnknownHostException ms=31 pkg=com.tencent.mm
+1763173263123	AI-108	ERROR	cause=UnknownHostException ms=31
+1763173270554	OCR-402	WARN	pkg=com.tencent.mm
 1763173301877	APP-902	INFO	reason=ANR at=1763170012000
 ```
 
