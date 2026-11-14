@@ -20,6 +20,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.AIChatAssistant">
 
+        <!-- Lets shell tools (Macrobenchmark, Perfetto) profile release builds.
+             No runtime cost; does not make the app debuggable. -->
+        <profileable
+            android:shell="true"
+            tools:targetApi="29" />
+
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
