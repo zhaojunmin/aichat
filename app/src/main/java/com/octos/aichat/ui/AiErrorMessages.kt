@@ -21,6 +21,7 @@ fun Throwable.toUserMessage(context: Context): String {
         Kind.BAD_REQUEST -> context.getString(R.string.ai_err_bad_request, e.httpCode)
         Kind.SERVER -> context.getString(R.string.ai_err_server, e.httpCode)
         Kind.TIMEOUT -> context.getString(R.string.ai_err_timeout)
+        Kind.LOCAL_TIMEOUT -> context.getString(R.string.ai_err_local_timeout)
         Kind.NETWORK -> context.getString(R.string.ai_err_network)
         Kind.BAD_RESPONSE -> context.getString(R.string.ai_err_bad_response)
         Kind.OTHER ->

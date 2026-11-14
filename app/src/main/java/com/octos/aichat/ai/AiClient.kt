@@ -45,6 +45,8 @@ class AiException(
         /** 5xx: provider-side failure or overload. */
         SERVER,
         TIMEOUT,
+        /** The on-device model didn't finish in time (device too slow for the chosen model). */
+        LOCAL_TIMEOUT,
         /** DNS / connect / TLS failure: no usable network path. */
         NETWORK,
         /** 2xx but not a usable completion (empty, or not the expected JSON). */

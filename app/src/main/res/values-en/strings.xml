@@ -113,6 +113,7 @@
     <string name="ai_err_bad_request">Request rejected (%1$d) — check the model name and other settings</string>
     <string name="ai_err_server">AI service temporarily unavailable (%1$d) — try again later</string>
     <string name="ai_err_timeout">Request timed out — check your network and try again</string>
+    <string name="ai_err_local_timeout">The on-device model took too long — try a smaller model</string>
     <string name="ai_err_network">Network connection failed — check your network</string>
     <string name="ai_err_bad_response">The AI returned nothing usable — try again</string>
     <string name="ai_err_other_http">Request failed (%1$d)</string>
