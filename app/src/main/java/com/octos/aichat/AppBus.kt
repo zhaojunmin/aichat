@@ -20,9 +20,22 @@ object AppBus {
     var foregroundPackage: String? = null
         private set
 
-    /** Debug: the last raw node tree captured from a target app (id/class/bounds/text). */
+    /**
+     * Debug: capture the raw node tree of target apps into [lastRawDump]. Off by
+     * default and deliberately not persisted — walking the whole tree costs time
+     * and the dump holds raw chat text, so it only runs while someone is actively
+     * adapting a new app, and resets when the process dies.
+     */
     @Volatile
-    var lastRawDump: String = "(尚未读取。请先在聊天界面停留片刻)"
+    var captureRawTree: Boolean = false
+        set(value) {
+            field = value
+            if (!value) lastRawDump = null
+        }
+
+    /** Debug: the last raw node tree captured from a target app (id/class/bounds/text); null if none. */
+    @Volatile
+    var lastRawDump: String? = null
 
     var accessibilityService: ChatAccessibilityService? = null
     var bubbleService: FloatingBubbleService? = null

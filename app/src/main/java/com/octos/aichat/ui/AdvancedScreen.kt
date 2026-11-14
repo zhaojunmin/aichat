@@ -68,6 +68,8 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
 
     var preview by remember { mutableStateOf<Conversation?>(null) }
     var rawDump by remember { mutableStateOf<String?>(null) }
+    // Mirrors the process-wide (non-persisted) debug flag in AppBus.
+    var captureRawTree by remember { mutableStateOf(AppBus.captureRawTree) }
 
     BackHandler(onBack = onBack)
 
@@ -272,8 +274,25 @@ internal fun AdvancedScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth()
                 ) { Text(stringResource(R.string.adv_debug_view_chat)) }
                 Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.adv_debug_capture_title))
+                        Text(
+                            stringResource(R.string.adv_debug_capture_desc),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = captureRawTree,
+                        onCheckedChange = { c -> AppBus.captureRawTree = c; captureRawTree = c }
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                val treeEmpty = stringResource(
+                    if (captureRawTree) R.string.adv_debug_tree_empty else R.string.adv_debug_tree_off
+                )
                 OutlinedButton(
-                    onClick = { rawDump = AppBus.lastRawDump },
+                    onClick = { rawDump = AppBus.lastRawDump ?: treeEmpty },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text(stringResource(R.string.adv_debug_view_tree)) }
             }

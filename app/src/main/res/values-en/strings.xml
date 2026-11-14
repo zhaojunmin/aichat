@@ -80,6 +80,10 @@
     <string name="adv_debug_title">Read debugging</string>
     <string name="adv_debug_desc">Stay on a WeChat / Soul chat screen for a moment, then come back here to see what the accessibility service read — useful to check whether “Me / Them” is distinguished correctly.</string>
     <string name="adv_debug_view_chat">View the chat currently read</string>
+    <string name="adv_debug_capture_title">Capture raw node tree</string>
+    <string name="adv_debug_capture_desc">Turn on while adapting a new app. Reads and temporarily keeps the chat screen\'s full node tree (including message text); cleared when turned off or when the app restarts.</string>
+    <string name="adv_debug_tree_off">“Capture raw node tree” is off. Turn it on, stay on a chat screen for a moment, then come back.</string>
+    <string name="adv_debug_tree_empty">Nothing captured yet. Stay on a chat screen for a moment first.</string>
     <string name="adv_debug_view_tree">View the raw node tree (for adapting new apps)</string>
     <string name="adv_raw_tree_title">Raw node tree</string>
     <string name="adv_read_result_title">Read result · %1$d messages</string>

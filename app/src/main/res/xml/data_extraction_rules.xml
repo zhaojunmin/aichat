@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ backup/transfer rules. Nothing of ours leaves the device via
+  backup: the DB holds the user's reply log + learned memories, and
+  shared_prefs holds the cloud API keys. allowBackup="false" in the manifest
+  covers Android 11 and below.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+    </device-transfer>
+</data-extraction-rules>
