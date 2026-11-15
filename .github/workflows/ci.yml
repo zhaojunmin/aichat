@@ -10,6 +10,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Kotlin style (Android Kotlin style guide via ktlint, rules in .editorconfig).
+  # Separate job so a style slip shows up on its own, in about a minute.
+  style:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          lfs: false
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Kotlin style check (fix locally with ./gradlew spotlessApply)
+        run: ./gradlew spotlessCheck --stacktrace
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
