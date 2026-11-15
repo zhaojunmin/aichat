@@ -26,7 +26,7 @@
 | 问题 | 位置 | 后果 |
 |---|---|---|
 | 异常被静默吞掉 | 27 处 `catch` / `runCatching`(清单见 §8) | 失败没有任何痕迹 |
-| `startForeground` 失败被吞掉 | `bubble/FloatingBubbleService.kt` `startForegroundNotice` | Android 12+ 后台启动前台服务会被系统拒绝。「悬浮球不见了」最可能的原因之一,现在完全不可见 |
+| `startForeground` 失败被吞掉 | `bubble/FloatingBubbleService.kt` `startForegroundNotice` | Android 12+ 后台启动前台服务会被系统拒绝。「悬浮球不见了」最可能的原因之一,现在完全不可见(前台服务后来整体移除,悬浮球改由 `ChatAssistantApp` 跟随无障碍连接创建,失败记 `BUB-503`) |
 | 异常 message 直接显示在界面上 | `ai/embedding/Encoder.kt` 的 `status` 字符串,由 `AdvancedScreen` 显示 | 文案不可控,也没法统计 |
 | 依赖 logcat | `ChatAccessibilityService`、`SettingsRepository` 的 3 处 `Log.w` | release 包在部分 ROM 上看不到 |
 | 不知道进程为什么死 | — | 崩溃、ANR、被系统杀掉,事后都无从判断 |
@@ -65,7 +65,7 @@
 | 计数 | `AI-108 × 12` |
 | App 与设备信息 | 版本、构建类型、机型、Android 版本、ABI、系统语言 |
 | 设置里的**枚举和开关** | 推理模式、云端后端名、本地模型 id、OCR 开关、记忆开关 |
-| 权限状态 | 无障碍已开启 / 已绑定、悬浮窗、通知 |
+| 权限状态 | 无障碍已开启 / 已绑定、悬浮窗 |
 | 进程退出原因 | `ApplicationExitInfo` 的 reason 和时间 |
 
 **禁止记录**:
@@ -94,7 +94,7 @@
 | `LLM` | 2xx | 端侧推理引擎、模型下载 |
 | `A11Y` | 3xx | 无障碍读屏、截图、填入 |
 | `OCR` | 4xx | 截图文字识别 |
-| `BUB` | 5xx | 悬浮窗、前台服务 |
+| `BUB` | 5xx | 悬浮窗 |
 | `MEM` | 6xx | 记忆记录、学习 |
 | `EMB` | 7xx | 向量模型 |
 | `SET` | 8xx | 设置、密钥存储 |
@@ -126,8 +126,9 @@
 | `A11Y-306` | WARN | 读取键盘区域失败 | `ChatWindowReader.imeBounds` 抛异常(OCR 截图不裁键盘) |
 | `OCR-401` | ERROR | 文字识别失败 | `OcrReader.recognize` |
 | `OCR-402` | WARN | 识别成功但没读出消息 | 解析结果为空 |
-| `BUB-501` | ERROR | 启动前台服务失败 | `startForegroundNotice` |
+| `BUB-501` | ERROR | 启动前台服务失败 | 已停用(前台服务已移除;编号保留不复用) |
 | `BUB-502` | WARN | 移除悬浮窗失败 | `removeView` |
+| `BUB-503` | ERROR | 显示悬浮球失败 | `ChatAssistantApp` 创建 `FloatingBubbleService`(如 `addView` 被拒) |
 | `MEM-601` | ERROR | 学习失败(已回滚,下次重试) | `MemoryRepository.runLearning` |
 | `MEM-602` | WARN | 学习器返回不可用结果 | `MemoryLearner.learn` 返回 null |
 | `MEM-603` | ERROR | 回复日志写入失败 | `ReplyLog.append` |
@@ -243,7 +244,7 @@ App       0.1.0 (1) release
 推理模式 cloud · 后端 DEEPSEEK · 本地模型 qwen2.5-1.5b · OCR 开 · 记忆 开 · 语义召回 开
 
 == 权限 ==
-无障碍 已开启/已绑定 · 悬浮窗 允许 · 通知 允许
+无障碍 已开启/已绑定 · 悬浮窗 允许
 
 == 上次退出原因(最近 5 次)==
 2026-11-15 00:51:10  CRASH
@@ -296,7 +297,7 @@ A11Y-304 截图失败            3
 | `SettingsRepository` 推理模式枚举解析 | 默认值 | 保持 |
 | `FloatingBubbleService` `removeView` | 吞掉 | 记 `BUB-502` |
 | `FloatingBubbleService` 生成结果 `runCatching` | 显示错误 | 额外记 `AI-1xx` / `LLM-2xx` |
-| `FloatingBubbleService.startForegroundNotice` | 吞掉 | **记 `BUB-501`(带类名)** |
+| `ChatAssistantApp` 创建 `FloatingBubbleService` | 不显示悬浮球 | 记 `BUB-503` |
 | `BubblePanel` `removeView` | 吞掉 | 记 `BUB-502` |
 | `LlmEngine` 载入原生库 | `available=false` | 记 `LLM-203` |
 | `ModelAssets.copyAssetIfMissing` | 返回 false | 记 `EMB-702` |

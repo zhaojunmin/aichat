@@ -52,7 +52,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.octos.aichat.R
 import com.octos.aichat.ai.embedding.Encoder
-import com.octos.aichat.bubble.FloatingBubbleService
 import com.octos.aichat.capture.DebugCapture
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.Speaker
@@ -173,11 +172,6 @@ internal fun AdvancedScreen(
                         enabled = overlayOn,
                         onCheckedChange = { c ->
                             vm.update { it.copy(bubbleAutoStart = c) }
-                            if (c) {
-                                FloatingBubbleService.start(context)
-                            } else {
-                                FloatingBubbleService.stop(context)
-                            }
                         },
                     )
                 }

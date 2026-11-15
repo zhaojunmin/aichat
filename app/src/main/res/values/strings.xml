@@ -17,7 +17,6 @@
     <string name="home_permissions_desc">助手需要这两项权限才能读取聊天并弹出悬浮球。</string>
     <string name="home_perm_accessibility">读取聊天内容(无障碍)</string>
     <string name="home_perm_overlay">显示悬浮球(悬浮窗)</string>
-    <string name="home_perm_notification">允许通知(让助手保持运行)</string>
     <string name="home_ai_service_title">AI 服务</string>
     <string name="home_inference_desc">选择推理方式。本地模式:聊天内容不出设备。</string>
     <string name="inference_cloud">云端</string>
@@ -160,15 +159,12 @@
     <string name="ms_manifest_http">无法获取文件清单:HTTP %1$d</string>
     <string name="ms_manifest_empty">文件清单为空</string>
 
-    <!-- Floating bubble service / notification -->
+    <!-- Floating bubble -->
     <string name="svc_need_api_key">请先在 App 内填写 API Key</string>
     <string name="svc_ocr_no_content">截图未识别到聊天内容(需无障碍已开启)</string>
     <string name="svc_no_content">未读取到聊天内容,请打开聊天界面并开启无障碍服务</string>
     <string name="svc_filled">已填入输入框</string>
     <string name="svc_copied">已复制,去粘贴发送</string>
-    <string name="svc_bubble_name">悬浮助手</string>
-    <string name="svc_notif_title">聊天助手运行中</string>
-    <string name="svc_notif_text">点击悬浮球生成 AI 回复建议</string>
 
     <!-- Appearance / theme -->
     <string name="adv_appearance_title">外观</string>

@@ -1,10 +1,6 @@
 package com.octos.aichat.ui
-import android.Manifest
 import android.content.Intent
-import android.os.Build
 import android.provider.Settings
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -104,10 +100,6 @@ internal fun HomeScreen(
     }
     val inferenceConfigured = settings.isInferenceConfigured(localModelReady = localReady)
 
-    val notifLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { }
-
     Scaffold(topBar = {
         CenterAlignedTopAppBar(title = { Text(stringResource(R.string.home_title)) })
     }) { pad ->
@@ -146,14 +138,6 @@ internal fun HomeScreen(
                             "package:${context.packageName}".toUri(),
                         ),
                     )
-                }
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    Spacer(Modifier.height(4.dp))
-                    OutlinedButton(
-                        onClick = { notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(stringResource(R.string.home_perm_notification)) }
                 }
             }
 

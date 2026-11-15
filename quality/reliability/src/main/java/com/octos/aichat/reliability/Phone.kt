@@ -15,7 +15,6 @@ import java.util.regex.Pattern
 
 const val PKG = "com.octos.aichat"
 const val A11Y_SERVICE = "$PKG/$PKG.accessibility.ChatAccessibilityService"
-private const val BUBBLE_SERVICE = "$PKG/.bubble.FloatingBubbleService"
 
 /**
  * The phone as seen from outside the app: shell commands (run with shell
@@ -41,8 +40,6 @@ object Phone {
 
     fun pid(): Int? = sh("pidof $PKG").trim().split(" ").firstOrNull()?.toIntOrNull()
 
-    private fun services(): String = sh("dumpsys activity services $PKG")
-
     /**
      * The accessibility manager currently has our service bound. Read from
      * `dumpsys accessibility` ("Bound services" lists labels, not components):
@@ -52,7 +49,9 @@ object Phone {
         .filter { it.trimStart().startsWith("Bound services") }
         .any { line -> Text.A11Y_LABEL.any { "label=$it" in line } }
 
-    fun bubbleRunning(): Boolean = BUBBLE_SERVICE in services()
+    /** The app has an overlay window (the floating bubble) on screen. */
+    fun bubbleShowing(): Boolean = sh("dumpsys window windows").split("Window #")
+        .any { PKG in it.substringBefore('\n') && "APPLICATION_OVERLAY" in it }
 
     fun accessibilitySetting(): String = sh("settings get secure enabled_accessibility_services")
         .trim()
