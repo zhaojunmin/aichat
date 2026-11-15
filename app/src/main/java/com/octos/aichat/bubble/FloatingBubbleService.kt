@@ -12,17 +12,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import android.os.SystemClock
-import android.view.Gravity
-import android.view.MotionEvent
-import android.view.View
 import android.view.WindowManager
-import android.widget.TextView
 import android.widget.Toast
-import androidx.core.view.isVisible
 import com.octos.aichat.R
 import com.octos.aichat.accessibility.AccessibilityBridge
 import com.octos.aichat.ai.AiService
@@ -31,7 +24,6 @@ import com.octos.aichat.ai.local.LocalModel
 import com.octos.aichat.ai.local.ModelStore
 import com.octos.aichat.ai.local.localModel
 import com.octos.aichat.ai.recordAiFailure
-import com.octos.aichat.capture.CaptureOverlay
 import com.octos.aichat.capture.CaptureResult
 import com.octos.aichat.capture.ChatCapture
 import com.octos.aichat.capture.ReadPath
@@ -46,14 +38,12 @@ import com.octos.aichat.diagnostics.Tracing
 import com.octos.aichat.ui.MainActivity
 import com.octos.aichat.ui.theme.ThemeVariant
 import com.octos.aichat.ui.toUserMessage
-import kotlin.math.abs
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -66,50 +56,19 @@ import kotlinx.coroutines.withContext
  * reader last captured, and shows them in a panel ([BubblePanel]). Tapping a
  * candidate copies it (and optionally auto-pastes into the chat input).
  *
- * This class owns the service lifecycle, the bubble, and orchestration; the panel's
- * view construction lives in [BubblePanel] and shared drawables in [BubbleStyle].
+ * This class owns the service lifecycle and orchestration (tap → suggestions → chosen
+ * one delivered). The ball itself is [FloatingBubble], the panel [BubblePanel], shared
+ * drawables [BubbleStyle].
  */
 class FloatingBubbleService : Service() {
 
     private lateinit var wm: WindowManager
-    private lateinit var bubble: TextView
+    private lateinit var bubble: FloatingBubble
     private lateinit var panel: BubblePanel
+    private lateinit var capture: ChatCapture
     private lateinit var palette: BubblePalette
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var generating: Job? = null
-
-    private val uiHandler = Handler(Looper.getMainLooper())
-
-    private val capture = ChatCapture(
-        screen = { AccessibilityBridge.screen.value },
-        overlay = object : CaptureOverlay {
-            // Hide our own bubble so it isn't part of the captured image; always bring
-            // it back, even if this tap is cancelled mid-capture.
-            override suspend fun <T> hiddenDuring(block: suspend () -> T): T {
-                if (::bubble.isInitialized) bubble.visibility = View.GONE
-                try {
-                    delay(HIDE_SETTLE_MS) // let the hide reach the screen first
-                    return block()
-                } finally {
-                    if (::bubble.isInitialized) bubble.visibility = View.VISIBLE
-                }
-            }
-        },
-        screenSize = {
-            resources.displayMetrics.let { ScreenSize(it.widthPixels, it.heightPixels) }
-        },
-    )
-    private val hideRunnable = Runnable {
-        if (::bubble.isInitialized && bubble.isVisible) {
-            bubble.visibility = View.GONE
-            // The user left the chat app: a good moment to learn, since a local
-            // learning pass can't hold up suggestions they're waiting for.
-            MemoryRepository.get(this).learnIfDue()
-        }
-        if (::panel.isInitialized) panel.remove()
-    }
-
-    private val dp get() = resources.displayMetrics.density
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -119,7 +78,19 @@ class FloatingBubbleService : Service() {
         palette = resolvePalette()
         panel = BubblePanel(this, wm, palette, ::onSuggestionChosen)
         startForegroundNotice()
-        addBubble()
+        bubble = FloatingBubble(this, wm, palette, onTap = ::onBubbleTapped) { wasShowing ->
+            // The user left the chat app: a good moment to learn, since a local
+            // learning pass can't hold up suggestions they're waiting for.
+            if (wasShowing) MemoryRepository.get(this).learnIfDue()
+            panel.remove()
+        }
+        capture = ChatCapture(
+            screen = { AccessibilityBridge.screen.value },
+            overlay = bubble,
+            screenSize = {
+                resources.displayMetrics.let { ScreenSize(it.widthPixels, it.heightPixels) }
+            },
+        )
         followThemeSetting()
         followForegroundApp()
     }
@@ -160,33 +131,18 @@ class FloatingBubbleService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        uiHandler.removeCallbacks(hideRunnable)
         generating?.cancel()
         scope.cancel()
         if (::panel.isInitialized) panel.remove()
-        runCatching { if (::bubble.isInitialized) wm.removeView(bubble) }
-            .onFailure { DiagLog.record(ErrorCode.BUB_502, cause = it) }
+        if (::bubble.isInitialized) bubble.remove()
     }
 
-    /**
-     * Show/hide the bubble as the foreground app changes. Showing is immediate;
-     * hiding is debounced so the IME, dialogs and transient sub-windows that
-     * briefly steal the foreground don't make the bubble flicker — if we return
-     * to a target app within [HIDE_DELAY_MS], the pending hide is cancelled.
-     */
+    /** Show the bubble inside target apps only ([FloatingBubble.setVisible] debounces the hide). */
     private fun followForegroundApp() {
         scope.launch {
-            AccessibilityBridge.foreground.filterNotNull().collect { setBubbleVisible(it.isTarget) }
-        }
-    }
-
-    private fun setBubbleVisible(visible: Boolean) {
-        if (!::bubble.isInitialized) return
-        uiHandler.removeCallbacks(hideRunnable)
-        if (visible) {
-            if (bubble.visibility != View.VISIBLE) bubble.visibility = View.VISIBLE
-        } else {
-            uiHandler.postDelayed(hideRunnable, HIDE_DELAY_MS)
+            AccessibilityBridge.foreground.filterNotNull().collect {
+                bubble.setVisible(it.isTarget)
+            }
         }
     }
 
@@ -213,94 +169,8 @@ class FloatingBubbleService : Service() {
         if (next == palette) return
         palette = next
         panel.palette = next
-        bubble.paintBall(next)
+        bubble.palette = next
     }
-
-    private fun TextView.paintBall(p: BubblePalette) {
-        setTextColor(p.onBall)
-        background = BubbleStyle.circle(p.ball)
-    }
-
-    // ---- Bubble ----------------------------------------------------------
-
-    private var bubbleSize = 0
-
-    private fun addBubble() {
-        val size = (56 * dp).toInt()
-        bubbleSize = size
-        bubble = TextView(this).apply {
-            text = getString(R.string.bubble_label)
-            textSize = 16f
-            gravity = Gravity.CENTER
-            paintBall(palette)
-            // Translucent at rest so it doesn't obscure the chat underneath; it pops
-            // to full opacity while touched (see attachDragAndTap).
-            alpha = BUBBLE_IDLE_ALPHA
-        }
-        val lp = BubbleStyle.params(size, size).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = (16 * dp).toInt()
-            y = (240 * dp).toInt()
-        }
-        attachDragAndTap(bubble, lp)
-        wm.addView(bubble, lp)
-    }
-
-    private fun attachDragAndTap(view: View, lp: WindowManager.LayoutParams) {
-        // Use the platform touch slop so tiny finger jitter during a tap isn't
-        // misread as a drag — otherwise taps on the small target often fail to
-        // open the panel.
-        val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
-        var downX = 0f
-        var downY = 0f
-        var startX = 0
-        var startY = 0
-        var dragging = false
-        view.setOnTouchListener { v, e ->
-            when (e.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    downX = e.rawX
-                    downY = e.rawY
-                    startX = lp.x
-                    startY = lp.y
-                    dragging = false
-                    v.alpha = 1f // fully opaque while the user is interacting
-                    true
-                }
-
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = (e.rawX - downX).toInt()
-                    val dy = (e.rawY - downY).toInt()
-                    if (abs(dx) > slop || abs(dy) > slop) dragging = true
-                    if (dragging) {
-                        // Clamp within the screen so the bubble can't be dragged
-                        // off-screen and effectively vanish.
-                        lp.x = clamp(startX + dx, resources.displayMetrics.widthPixels - bubbleSize)
-                        lp.y =
-                            clamp(startY + dy, resources.displayMetrics.heightPixels - bubbleSize)
-                        wm.updateViewLayout(view, lp)
-                    }
-                    true
-                }
-
-                MotionEvent.ACTION_UP -> {
-                    v.alpha = BUBBLE_IDLE_ALPHA // fade back so it stays out of the way
-                    if (!dragging) v.performClick()
-                    true
-                }
-
-                MotionEvent.ACTION_CANCEL -> {
-                    v.alpha = BUBBLE_IDLE_ALPHA
-                    true
-                }
-
-                else -> false
-            }
-        }
-        view.setOnClickListener { onBubbleTapped() }
-    }
-
-    private fun clamp(value: Int, max: Int): Int = value.coerceIn(0, max.coerceAtLeast(0))
 
     // ---- Orchestration ---------------------------------------------------
 
@@ -462,11 +332,6 @@ class FloatingBubbleService : Service() {
 
     companion object {
         private const val NOTIF_ID = 1001
-        private const val HIDE_DELAY_MS = 1000L
-        private const val HIDE_SETTLE_MS = 80L
-
-        // Resting transparency of the floating ball so it doesn't block content behind it.
-        private const val BUBBLE_IDLE_ALPHA = 0.45f
 
         fun start(context: Context) {
             val intent = Intent(context, FloatingBubbleService::class.java)
