@@ -31,8 +31,8 @@ class ReliabilityTests {
         Phone.wake()
         assumeTrue("enable the app's accessibility service first", Phone.accessibilityEnabled())
         assumeTrue("allow the app's overlay permission first", Phone.overlayAllowed())
-        Phone.openHome() // also auto-starts the bubble service
-        Phone.waitUntil("bubble service running", 10_000) { Phone.bubbleRunning() }
+        Phone.openHome()
+        Phone.waitUntil("bubble showing", 10_000) { Phone.bubbleShowing() }
         Phone.waitUntil("accessibility service bound", 10_000) { Phone.accessibilityBound() }
     }
 
@@ -64,8 +64,8 @@ class ReliabilityTests {
         val a11yMs = Phone.waitUntil("accessibility service rebound after crash", 30_000) {
             Phone.accessibilityBound()
         }
-        val bubbleMs = Phone.waitUntil("bubble service restarted after crash", 60_000) {
-            Phone.bubbleRunning()
+        val bubbleMs = Phone.waitUntil("bubble back after crash", 60_000) {
+            Phone.bubbleShowing()
         }
         assertTrue("crash must not disable the accessibility service", Phone.accessibilityEnabled())
         Phone.report("crash recovery: accessibility ${a11yMs}ms, bubble ${bubbleMs}ms")
@@ -120,7 +120,7 @@ class ReliabilityTests {
         }
         Thread.sleep(2_000)
         assertEquals("process restarted", pid, Phone.pid())
-        assertTrue(Phone.bubbleRunning())
+        assertTrue(Phone.bubbleShowing())
         assertTrue(Phone.accessibilityBound())
         Phone.report("memory pressure: same process, services up")
     }
@@ -143,8 +143,8 @@ class ReliabilityTests {
             sh("appops set $PKG SYSTEM_ALERT_WINDOW allow")
         }
         Phone.openHome()
-        val ms = Phone.waitUntil("bubble service running after re-grant", 10_000) {
-            Phone.bubbleRunning()
+        val ms = Phone.waitUntil("bubble back after re-grant", 10_000) {
+            Phone.bubbleShowing()
         }
         assertTrue(
             "home screen should show the overlay as on",
@@ -171,13 +171,16 @@ class ReliabilityTests {
                 Phone.permissionRowOff(Text.PERM_ACCESSIBILITY),
             )
             assertEquals("process restarted", pid, Phone.pid())
-            assertTrue("bubble service should keep running", Phone.bubbleRunning())
+            assertTrue("bubble follows the accessibility service away", !Phone.bubbleShowing())
         } finally {
             sh("settings put secure enabled_accessibility_services $original")
             sh("settings put secure accessibility_enabled 1")
         }
         val ms = Phone.waitUntil("accessibility service rebound", 15_000) {
             Phone.accessibilityBound()
+        }
+        Phone.waitUntil("bubble back with the accessibility service", 10_000) {
+            Phone.bubbleShowing()
         }
         Phone.openHome()
         assertTrue(

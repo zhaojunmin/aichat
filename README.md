@@ -40,7 +40,8 @@ ChatAccessibilityService(只做回调分发)
                           └─► LocalClient(MNN + Qwen2.5,隐私;自己准备模型,
                                           不支持 / 未下载 / 加载失败都以 AiException 返回)
         ▼
-FloatingBubbleService(FloatingBubble 悬浮球 + BubblePanel 建议面板)
+FloatingBubbleService(单实例,由 ChatAssistantApp 随无障碍连接创建/销毁;
+                      FloatingBubble 悬浮球 + BubblePanel 建议面板)
         │ 选中一条
         ├─► 复制到剪贴板
         └─►(可选)ScreenAccess.fill(ReplyFiller,无障碍 ACTION_SET_TEXT)填入输入框
@@ -58,7 +59,7 @@ FloatingBubbleService(FloatingBubble 悬浮球 + BubblePanel 建议面板)
 | 支持哪些 App、各自怎么读 | `data/SupportedApps.kt`(注册表:控件树规则 / 截图 OCR,加 App 只改这里) |
 | 聊天解析(控件树,按水平位置分「我/对方」) | `accessibility/ChatParser.kt`、`MessageBoundsLocator.kt` |
 | 截图 OCR(ML Kit 中文) | `ocr/OcrReader.kt`、`MessageLineMerger.kt`、`SenderNameFilter.kt` |
-| 悬浮球 + 面板 | `bubble/FloatingBubbleService.kt`(服务与编排)、`FloatingBubble.kt`(悬浮球视图:拖拽、显隐、截图时隐藏)、`BubblePanel.kt`、`BubbleStyle.kt`、`BubblePalette.kt`(主题色 → View 颜色) |
+| 悬浮球 + 面板 | `bubble/FloatingBubbleService.kt`(悬浮助手编排;不是 Android Service,由 `ChatAssistantApp` 持有)、`FloatingBubble.kt`(悬浮球视图:拖拽、显隐、截图时隐藏)、`BubblePanel.kt`、`BubbleStyle.kt`、`BubblePalette.kt`(主题色 → View 颜色) |
 | 生成建议 | `bubble/SuggestionGenerator.kt`(拼提示词、经 `AiClient` 调模型、云端超时、解析;`suggestFor` 串起记录消息与记忆) |
 | AI 接口(对外只有 `AiClient`) | `ai/AiClient.kt`(`AiClient`、`AiException`、`aiClientFor`)、`ai/CloudClient.kt`、`ai/LocalClient.kt`(自己准备本地模型,失败以 `AiException` 返回) |
 | 本地推理(MNN Qwen2.5) | `ai/local/LlmEngine.kt`、`LocalModel.kt`、`ModelStore.kt`(启动时 `ModelStore.init` 记下模型目录,AI 接口不需要 Context) |
@@ -103,7 +104,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## 使用步骤
 
-1. 打开 App,在 **权限** 中依次开启:**无障碍服务**、**悬浮窗**、(Android 13+)**通知权限**。
+1. 打开 App,在 **权限** 中依次开启:**无障碍服务**、**悬浮窗**。悬浮球随无障碍服务连接自动出现,不再需要通知权限。
 2. **AI 服务**:选 **云端**(DeepSeek / 豆包,填 Base URL、模型、API Key)或 **本地(隐私)**(下载 Qwen2.5 0.5B/1.5B/3B 其一)。
 3. 选一个 **回复风格**(恋爱/破冰/商务)或自定义。
 4. 点 **测试连接** 验证接口。

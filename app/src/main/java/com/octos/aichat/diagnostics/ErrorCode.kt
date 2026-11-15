@@ -49,6 +49,7 @@ enum class ErrorCode(val id: String, val level: Level, val zh: String, val en: S
     // BUB — floating bubble, foreground service.
     BUB_501("BUB-501", Level.ERROR, "启动前台服务失败", "Starting the foreground service failed"),
     BUB_502("BUB-502", Level.WARN, "移除悬浮窗失败", "Removing an overlay window failed"),
+    BUB_503("BUB-503", Level.ERROR, "显示悬浮球失败", "Showing the floating bubble failed"),
 
     // MEM — memory recording and learning.
     MEM_601("MEM-601", Level.ERROR, "学习失败(已回滚,下次重试)", "Learning failed (rolled back, will retry)"),

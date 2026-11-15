@@ -36,3 +36,4 @@ SET-802	WARN	API Key 无法解密,已清空
 APP-901	ERROR	未捕获异常(进程崩溃)
 APP-902	INFO	上次进程的退出原因
 LLM-205	ERROR	本地模型未就绪
+BUB-503	ERROR	显示悬浮球失败
