@@ -3,6 +3,7 @@ package com.octos.aichat.ui.theme
 import androidx.annotation.StringRes
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
@@ -212,8 +213,26 @@ enum class ThemeVariant(val id: String, @StringRes val labelRes: Int, val dark: 
     MIDNIGHT("midnight", R.string.theme_midnight, true),
     DAIQING("daiqing", R.string.theme_daiqing, true);
 
+    /** This variant's palette. Plain data, so non-Compose UI (the overlay bubble) can read it too. */
+    val colorScheme: ColorScheme
+        get() = when (this) {
+            PAPER -> PaperScheme
+            MIST -> MistScheme
+            QINGBAI -> QingbaiScheme
+            INK -> InkScheme
+            MIDNIGHT -> MidnightScheme
+            DAIQING -> DaiqingScheme
+        }
+
     companion object {
         fun of(id: String?): ThemeVariant? = entries.firstOrNull { it.id == id }
+
+        /**
+         * The variant actually shown for a stored [id]: "system" (or unknown/null)
+         * follows the device's light/dark setting, mapping to [PAPER] / [INK].
+         */
+        fun resolve(id: String?, systemDark: Boolean): ThemeVariant =
+            of(id) ?: if (systemDark) INK else PAPER
     }
 }
 
@@ -235,15 +254,6 @@ fun AiChatTheme(
     variantId: String?,
     content: @Composable () -> Unit,
 ) {
-    val resolved = ThemeVariant.of(variantId)
-        ?: if (isSystemInDarkTheme()) ThemeVariant.INK else ThemeVariant.PAPER
-    val scheme = when (resolved) {
-        ThemeVariant.PAPER -> PaperScheme
-        ThemeVariant.MIST -> MistScheme
-        ThemeVariant.QINGBAI -> QingbaiScheme
-        ThemeVariant.INK -> InkScheme
-        ThemeVariant.MIDNIGHT -> MidnightScheme
-        ThemeVariant.DAIQING -> DaiqingScheme
-    }
+    val scheme = ThemeVariant.resolve(variantId, isSystemInDarkTheme()).colorScheme
     MaterialTheme(colorScheme = scheme, typography = AppTypography, shapes = AppShapes, content = content)
 }

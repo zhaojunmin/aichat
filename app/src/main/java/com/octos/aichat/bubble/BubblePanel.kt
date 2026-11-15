@@ -1,7 +1,7 @@
 package com.octos.aichat.bubble
 
 import android.content.Context
-import android.graphics.Color
+import android.content.res.ColorStateList
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -23,6 +23,8 @@ import com.octos.aichat.diagnostics.ErrorCode
 internal class BubblePanel(
     private val context: Context,
     private val wm: WindowManager,
+    /** Theme colours; a change takes effect from the next show (an open panel keeps its look). */
+    var palette: BubblePalette,
     private val onReplyChosen: (String) -> Unit,
 ) {
 
@@ -34,7 +36,10 @@ internal class BubblePanel(
     fun showLoading(title: String = context.getString(R.string.bubble_generating)) {
         val c = basePanel()
         c.addView(header(title))
-        c.addView(ProgressBar(context).apply { val p = (12 * dp).toInt(); setPadding(p, p, p, p) })
+        c.addView(ProgressBar(context).apply {
+            val p = (12 * dp).toInt(); setPadding(p, p, p, p)
+            indeterminateTintList = ColorStateList.valueOf(palette.accent)
+        })
         swap(c)
     }
 
@@ -78,20 +83,20 @@ internal class BubblePanel(
         orientation = LinearLayout.VERTICAL
         val p = (16 * dp).toInt()
         setPadding(p, p, p, p)
-        background = BubbleStyle.roundedRect(Color.WHITE, 20f, dp)
+        background = BubbleStyle.roundedRect(palette.panel, 20f, dp)
     }
 
     private fun header(title: String): View = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         addView(TextView(context).apply {
             text = title
-            setTextColor(0xFF35557A.toInt())
+            setTextColor(palette.title)
             textSize = 16f
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         })
         addView(TextView(context).apply {
             text = "✕"
-            setTextColor(0xFF999999.toInt())
+            setTextColor(palette.muted)
             textSize = 18f
             val pad = (4 * dp).toInt(); setPadding(pad * 2, pad, pad * 2, pad)
             setOnClickListener { remove() }
@@ -100,18 +105,18 @@ internal class BubblePanel(
 
     private fun bodyText(msg: String): View = TextView(context).apply {
         text = msg
-        setTextColor(0xFF666666.toInt())
+        setTextColor(palette.muted)
         textSize = 14f
         setPadding(0, (8 * dp).toInt(), 0, 0)
     }
 
     private fun replyCard(index: Int, reply: String): View = TextView(context).apply {
         text = "$index.  $reply"
-        setTextColor(0xFF1A1A1A.toInt())
+        setTextColor(palette.onCard)
         textSize = 15f
         val p = (14 * dp).toInt()
         setPadding(p, p, p, p)
-        background = BubbleStyle.roundedRect(0xFFEAEFF5.toInt(), 12f, dp)
+        background = BubbleStyle.roundedRect(palette.card, 12f, dp)
         layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT

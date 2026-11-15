@@ -11,7 +11,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.Color
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -43,6 +43,7 @@ import com.octos.aichat.diagnostics.TimedOp
 import com.octos.aichat.diagnostics.Tracing
 import com.octos.aichat.ocr.OcrReader
 import com.octos.aichat.ui.MainActivity
+import com.octos.aichat.ui.theme.ThemeVariant
 import com.octos.aichat.ui.toUserMessage
 import kotlin.math.abs
 import kotlinx.coroutines.CancellationException
@@ -52,6 +53,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -67,8 +70,9 @@ import kotlinx.coroutines.withContext
 class FloatingBubbleService : Service() {
 
     private lateinit var wm: WindowManager
-    private lateinit var bubble: View
+    private lateinit var bubble: TextView
     private lateinit var panel: BubblePanel
+    private lateinit var palette: BubblePalette
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var generating: Job? = null
 
@@ -91,9 +95,17 @@ class FloatingBubbleService : Service() {
         super.onCreate()
         AppBus.bubbleService = this
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
-        panel = BubblePanel(this, wm, ::onReplyChosen)
+        palette = resolvePalette()
+        panel = BubblePanel(this, wm, palette, ::onReplyChosen)
         startForegroundNotice()
         addBubble()
+        followThemeSetting()
+    }
+
+    /** "System" theme follows the device's dark mode, so re-resolve when it flips. */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        applyPalette(resolvePalette())
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -149,6 +161,37 @@ class FloatingBubbleService : Service() {
         }
     }
 
+    // ---- Theme -----------------------------------------------------------
+
+    private fun resolvePalette(): BubblePalette {
+        val systemDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+        val variantId = SettingsRepository.get(this).current().themeVariantId
+        return BubblePalette.from(ThemeVariant.resolve(variantId, systemDark).colorScheme)
+    }
+
+    /** Re-colour the bubble live when the theme is changed in settings. */
+    private fun followThemeSetting() {
+        scope.launch {
+            SettingsRepository.get(this@FloatingBubbleService).state
+                .map { it.themeVariantId }
+                .distinctUntilChanged()
+                .collect { applyPalette(resolvePalette()) }
+        }
+    }
+
+    private fun applyPalette(next: BubblePalette) {
+        if (next == palette) return
+        palette = next
+        panel.palette = next
+        bubble.paintBall(next)
+    }
+
+    private fun TextView.paintBall(p: BubblePalette) {
+        setTextColor(p.onBall)
+        background = BubbleStyle.circle(p.ball)
+    }
+
     // ---- Bubble ----------------------------------------------------------
 
     private var bubbleSize = 0
@@ -158,10 +201,9 @@ class FloatingBubbleService : Service() {
         bubbleSize = size
         bubble = TextView(this).apply {
             text = "AI"
-            setTextColor(Color.WHITE)
             textSize = 16f
             gravity = Gravity.CENTER
-            background = BubbleStyle.circle(0xFF35557A.toInt())
+            paintBall(palette)
             // Translucent at rest so it doesn't obscure the chat underneath; it pops
             // to full opacity while touched (see attachDragAndTap).
             alpha = BUBBLE_IDLE_ALPHA
