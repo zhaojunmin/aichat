@@ -7,7 +7,6 @@ import com.octos.aichat.accessibility.ScreenAccess
 import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.Speaker
-import com.octos.aichat.debug.DebugCapture
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

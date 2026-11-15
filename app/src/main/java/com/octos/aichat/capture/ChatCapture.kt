@@ -6,7 +6,6 @@ import androidx.annotation.RequiresApi
 import com.octos.aichat.accessibility.MessageBounds
 import com.octos.aichat.accessibility.ScreenAccess
 import com.octos.aichat.data.Conversation
-import com.octos.aichat.debug.DebugCapture
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 import com.octos.aichat.diagnostics.TimedOp

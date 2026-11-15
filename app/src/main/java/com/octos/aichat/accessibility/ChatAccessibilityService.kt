@@ -2,9 +2,9 @@ package com.octos.aichat.accessibility
 
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
+import com.octos.aichat.capture.DebugCapture
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.SettingsStore
-import com.octos.aichat.debug.DebugCapture
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 import com.octos.aichat.diagnostics.Tracing

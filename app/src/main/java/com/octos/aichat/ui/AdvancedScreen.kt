@@ -53,9 +53,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.octos.aichat.R
 import com.octos.aichat.ai.embedding.Encoder
 import com.octos.aichat.bubble.FloatingBubbleService
+import com.octos.aichat.capture.DebugCapture
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.Speaker
-import com.octos.aichat.debug.DebugCapture
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.ui.theme.ThemeVariant
 

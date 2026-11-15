@@ -5,7 +5,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityNodeInfo
-import com.octos.aichat.debug.DebugCapture
+import com.octos.aichat.capture.DebugCapture
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 
