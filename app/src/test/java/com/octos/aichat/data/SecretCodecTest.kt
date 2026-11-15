@@ -6,6 +6,7 @@ import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import java.util.Base64
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -63,10 +64,16 @@ class SecretCodecTest {
         assertEquals(SecretCodec.Decoded(""), codec.decode(SecretCodec.PREFIX))
     }
 
+    /**
+     * Flip a bit in the decoded bytes, not in the Base64 text: a Base64 character can
+     * carry only discarded padding bits, so editing the text was a no-op ~1 in 16 runs.
+     */
     @Test fun tamperedCiphertextRejected() {
         val stored = codec.encode("sk-x")
-        val flipped = stored.dropLast(2) + (if (stored[stored.length - 2] == 'A') "B" else "A") + stored.last()
-        assertEquals("", codec.decode(flipped).value)
+        val blob = Base64.getDecoder().decode(stored.removePrefix(SecretCodec.PREFIX))
+        blob[blob.size - 1] = (blob[blob.size - 1].toInt() xor 0x01).toByte() // inside the GCM tag
+        val tampered = SecretCodec.PREFIX + Base64.getEncoder().encodeToString(blob)
+        assertEquals("", codec.decode(tampered).value)
     }
 
     /** Encryption failure must surface (caller then refuses to persist) — never a silent plaintext write. */
