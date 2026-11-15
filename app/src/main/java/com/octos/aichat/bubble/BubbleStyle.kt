@@ -8,14 +8,14 @@ import android.view.WindowManager
 /** Shared drawables + window params for the overlay bubble and panel. */
 internal object BubbleStyle {
 
-    fun params(w: Int, h: Int): WindowManager.LayoutParams =
-        WindowManager.LayoutParams(
-            w, h,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT
-        )
+    fun params(w: Int, h: Int): WindowManager.LayoutParams = WindowManager.LayoutParams(
+        w,
+        h,
+        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+        PixelFormat.TRANSLUCENT,
+    )
 
     fun circle(color: Int) = GradientDrawable().apply {
         shape = GradientDrawable.OVAL
@@ -27,5 +27,4 @@ internal object BubbleStyle {
         setColor(color)
         cornerRadius = radiusDp * density
     }
-
 }

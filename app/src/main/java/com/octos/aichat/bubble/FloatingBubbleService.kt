@@ -10,8 +10,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -53,8 +53,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -127,7 +127,9 @@ class FloatingBubbleService : Service() {
         val restart = Intent(applicationContext, FloatingBubbleService::class.java)
             .setPackage(packageName)
         val pi = PendingIntent.getForegroundService(
-            this, 1, restart,
+            this,
+            1,
+            restart,
             PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE,
         )
         val am = getSystemService(ALARM_SERVICE) as AlarmManager
@@ -229,17 +231,23 @@ class FloatingBubbleService : Service() {
         // misread as a drag — otherwise taps on the small target often fail to
         // open the panel.
         val slop = android.view.ViewConfiguration.get(this).scaledTouchSlop
-        var downX = 0f; var downY = 0f
-        var startX = 0; var startY = 0
+        var downX = 0f
+        var downY = 0f
+        var startX = 0
+        var startY = 0
         var dragging = false
         view.setOnTouchListener { v, e ->
             when (e.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    downX = e.rawX; downY = e.rawY
-                    startX = lp.x; startY = lp.y; dragging = false
+                    downX = e.rawX
+                    downY = e.rawY
+                    startX = lp.x
+                    startY = lp.y
+                    dragging = false
                     v.alpha = 1f // fully opaque while the user is interacting
                     true
                 }
+
                 MotionEvent.ACTION_MOVE -> {
                     val dx = (e.rawX - downX).toInt()
                     val dy = (e.rawY - downY).toInt()
@@ -248,20 +256,24 @@ class FloatingBubbleService : Service() {
                         // Clamp within the screen so the bubble can't be dragged
                         // off-screen and effectively vanish.
                         lp.x = clamp(startX + dx, resources.displayMetrics.widthPixels - bubbleSize)
-                        lp.y = clamp(startY + dy, resources.displayMetrics.heightPixels - bubbleSize)
+                        lp.y =
+                            clamp(startY + dy, resources.displayMetrics.heightPixels - bubbleSize)
                         wm.updateViewLayout(view, lp)
                     }
                     true
                 }
+
                 MotionEvent.ACTION_UP -> {
                     v.alpha = BUBBLE_IDLE_ALPHA // fade back so it stays out of the way
                     if (!dragging) v.performClick()
                     true
                 }
+
                 MotionEvent.ACTION_CANCEL -> {
                     v.alpha = BUBBLE_IDLE_ALPHA
                     true
                 }
+
                 else -> false
             }
         }
@@ -273,7 +285,10 @@ class FloatingBubbleService : Service() {
     // ---- Orchestration ---------------------------------------------------
 
     private fun onBubbleTapped() {
-        if (panel.isShowing) { panel.remove(); return }
+        if (panel.isShowing) {
+            panel.remove()
+            return
+        }
         val settings = SettingsRepository.get(this).current()
         if (!settings.useLocal && settings.apiKey.isBlank()) {
             toast(getString(R.string.svc_need_api_key))
@@ -290,12 +305,17 @@ class FloatingBubbleService : Service() {
         val tappedAt = SystemClock.elapsedRealtime()
         // Resolve the conversation first (may involve a screenshot); only then
         // show the loading panel so it isn't captured into the screenshot.
-        val conv = Tracing.asyncSection(Tracing.BUBBLE_RESOLVE_CONVERSATION) { resolveConversation(settings) }
+        val conv = Tracing.asyncSection(Tracing.BUBBLE_RESOLVE_CONVERSATION) {
+            resolveConversation(settings)
+        }
         panel.showLoading()
         if (conv == null || conv.isEmpty) {
             panel.showError(
-                if (settings.useScreenshotOcr) getString(R.string.svc_ocr_no_content)
-                else getString(R.string.svc_no_content)
+                if (settings.useScreenshotOcr) {
+                    getString(R.string.svc_ocr_no_content)
+                } else {
+                    getString(R.string.svc_no_content)
+                },
             )
             return
         }
@@ -311,13 +331,17 @@ class FloatingBubbleService : Service() {
         }
         val result = runCatching {
             Tracing.asyncSection(Tracing.BUBBLE_GENERATE) {
-                DiagLog.timed(if (settings.useLocal) TimedOp.GENERATE_LOCAL else TimedOp.GENERATE_CLOUD) {
+                DiagLog.timed(
+                    if (settings.useLocal) TimedOp.GENERATE_LOCAL else TimedOp.GENERATE_CLOUD,
+                ) {
                     AiService.instance.generateReplies(settings, conv, memoryBlock)
                 }
             }
         }
         // Superseded by a newer tap: don't paint an error over the new request.
-        result.exceptionOrNull()?.let { if (it is CancellationException) throw it else DiagLog.recordAiFailure(it) }
+        result.exceptionOrNull()?.let {
+            if (it is CancellationException) throw it else DiagLog.recordAiFailure(it)
+        }
         result.onSuccess {
             panel.showResults(it, conv.lastFromOther())
             DiagLog.recordDuration(TimedOp.TAP_TO_RESULT, SystemClock.elapsedRealtime() - tappedAt)
@@ -338,7 +362,9 @@ class FloatingBubbleService : Service() {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
         if (!useOcr) {
             // Parse now, on tap: what's on screen this moment, no stale or post-restart-empty state.
-            val conv = DiagLog.timed(TimedOp.PARSE) { AppBus.chatWindowReader?.readConversation(pkg) } ?: return null
+            val conv =
+                DiagLog.timed(TimedOp.PARSE) { AppBus.chatWindowReader?.readConversation(pkg) }
+                    ?: return null
             AppBus.updateConversation(conv) // let the in-app debug viewer show it too
             return conv
         }
@@ -366,20 +392,28 @@ class FloatingBubbleService : Service() {
         // the screenshot to just above the IME window before the whole-screen read.
         val imeTop = reader.imeBounds()?.top ?: -1
         val conv = withContext(Dispatchers.Default) {
-            Tracing.asyncSection(Tracing.BUBBLE_OCR) { DiagLog.timed(TimedOp.OCR) {
-                // Geometry-guided OCR when we have message bounds (Momo); otherwise the
-                // whole-screen colour/region heuristic (WeChat).
-                when {
-                    messageBounds.isNotEmpty() -> OcrReader.readConversation(bmp, messageBounds, pkg)
-                    imeTop in 1 until bmp.height -> {
-                        val cropped = Bitmap.createBitmap(bmp, 0, 0, bmp.width, imeTop)
-                        val c = OcrReader.readConversation(cropped, w, imeTop, pkg)
-                        cropped.recycle()
-                        c
+            Tracing.asyncSection(Tracing.BUBBLE_OCR) {
+                DiagLog.timed(TimedOp.OCR) {
+                    // Geometry-guided OCR when we have message bounds (Momo); otherwise the
+                    // whole-screen colour/region heuristic (WeChat).
+                    when {
+                        messageBounds.isNotEmpty() -> OcrReader.readConversation(
+                            bmp,
+                            messageBounds,
+                            pkg,
+                        )
+
+                        imeTop in 1 until bmp.height -> {
+                            val cropped = Bitmap.createBitmap(bmp, 0, 0, bmp.width, imeTop)
+                            val c = OcrReader.readConversation(cropped, w, imeTop, pkg)
+                            cropped.recycle()
+                            c
+                        }
+
+                        else -> OcrReader.readConversation(bmp, w, h, pkg)
                     }
-                    else -> OcrReader.readConversation(bmp, w, h, pkg)
                 }
-            } }
+            }
         }
         bmp.recycle()
         if (conv.isEmpty) DiagLog.record(ErrorCode.OCR_402, pkg = pkg)
@@ -390,14 +424,19 @@ class FloatingBubbleService : Service() {
     /** Ensure the on-device model is loaded; shows an error panel and returns false if not. */
     private suspend fun ensureLocalReady(model: LocalModel): Boolean {
         if (!LlmEngine.isSupported) {
-            panel.showError(getString(R.string.home_local_unsupported)); return false
+            panel.showError(getString(R.string.home_local_unsupported))
+            return false
         }
         if (!ModelStore.isReady(this, model)) {
-            panel.showError(getString(R.string.svc_local_not_downloaded, model.displayName)); return false
+            panel.showError(getString(R.string.svc_local_not_downloaded, model.displayName))
+            return false
         }
         if (!LlmEngine.isReady) panel.showLoading(getString(R.string.svc_loading_local))
         // Idempotent when the same model is already loaded; reloads on a size switch.
-        if (!LlmEngine.ensureLoaded(this, model)) { panel.showError(getString(R.string.error_local_load_failed)); return false }
+        if (!LlmEngine.ensureLoaded(this, model)) {
+            panel.showError(getString(R.string.error_local_load_failed))
+            return false
+        }
         return true
     }
 
@@ -408,7 +447,10 @@ class FloatingBubbleService : Service() {
 
         panel.remove()
         val autoPaste = SettingsRepository.get(this).current().autoPaste
-        if (!autoPaste) { toast(getString(R.string.svc_copied)); return }
+        if (!autoPaste) {
+            toast(getString(R.string.svc_copied))
+            return
+        }
         scope.launch {
             val pkg = AppBus.foregroundPackage
             val filler = AppBus.replyFiller
@@ -427,11 +469,16 @@ class FloatingBubbleService : Service() {
         val nm = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             nm.createNotificationChannel(
-                NotificationChannel(channelId, getString(R.string.svc_bubble_name), NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel(
+                    channelId,
+                    getString(R.string.svc_bubble_name),
+                    NotificationManager.IMPORTANCE_LOW,
+                ),
             )
         }
         val contentIntent = PendingIntent.getActivity(
-            this, 0,
+            this,
+            0,
             Intent(this, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE,
@@ -446,8 +493,9 @@ class FloatingBubbleService : Service() {
         runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(
-                    NOTIF_ID, notification,
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                    NOTIF_ID,
+                    notification,
+                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
                 )
             } else {
                 startForeground(NOTIF_ID, notification)
@@ -462,6 +510,7 @@ class FloatingBubbleService : Service() {
     companion object {
         private const val NOTIF_ID = 1001
         private const val HIDE_DELAY_MS = 1000L
+
         // Resting transparency of the floating ball so it doesn't block content behind it.
         private const val BUBBLE_IDLE_ALPHA = 0.45f
 

@@ -39,7 +39,11 @@ class ReliabilityTests {
     @After fun noNewCrashOrAnr() {
         val reports = Phone.failureReportsSince(startedAt)
         // The crash scenario induces exactly one on purpose.
-        assertEquals("crash/ANR reports for $PKG during this test", if (inducedCrash) 1 else 0, reports)
+        assertEquals(
+            "crash/ANR reports for $PKG during this test",
+            if (inducedCrash) 1 else 0,
+            reports,
+        )
     }
 
     private var inducedCrash = false
@@ -57,8 +61,12 @@ class ReliabilityTests {
         Phone.waitUntil("process gone", 5_000) { Phone.pid() != before }
         Phone.device.findObject(androidx.test.uiautomator.By.res("android:id/aerr_close"))?.click()
 
-        val a11yMs = Phone.waitUntil("accessibility service rebound after crash", 30_000) { Phone.accessibilityBound() }
-        val bubbleMs = Phone.waitUntil("bubble service restarted after crash", 60_000) { Phone.bubbleRunning() }
+        val a11yMs = Phone.waitUntil("accessibility service rebound after crash", 30_000) {
+            Phone.accessibilityBound()
+        }
+        val bubbleMs = Phone.waitUntil("bubble service restarted after crash", 60_000) {
+            Phone.bubbleRunning()
+        }
         assertTrue("crash must not disable the accessibility service", Phone.accessibilityEnabled())
         Phone.report("crash recovery: accessibility ${a11yMs}ms, bubble ${bubbleMs}ms")
 
@@ -66,24 +74,41 @@ class ReliabilityTests {
             Phone.report("diagnostics switched off: crash record not checked")
             return
         }
-        val diagAfter = Phone.diagnosticsExport() ?: throw AssertionError("diagnostics switched off during the test")
-        assertEquals("APP-901 recorded once", count(diagBefore, "APP-901") + 1, count(diagAfter, "APP-901"))
-        assertTrue("APP-902 recorded on restart", count(diagAfter, "APP-902") > count(diagBefore, "APP-902"))
+        val diagAfter =
+            Phone.diagnosticsExport()
+                ?: throw AssertionError("diagnostics switched off during the test")
+        assertEquals(
+            "APP-901 recorded once",
+            count(diagBefore, "APP-901") + 1,
+            count(diagAfter, "APP-901"),
+        )
+        assertTrue(
+            "APP-902 recorded on restart",
+            count(diagAfter, "APP-902") > count(diagBefore, "APP-902"),
+        )
         val newestExit = exitsOf(diagAfter).firstOrNull()
-        assertTrue("newest exit should be CRASH, was $newestExit", newestExit?.endsWith("CRASH") == true)
+        assertTrue(
+            "newest exit should be CRASH, was $newestExit",
+            newestExit?.endsWith("CRASH") == true,
+        )
         Phone.report("diagnostics: APP-901 + APP-902 exit=CRASH recorded")
     }
 
     /** "APP-901    3  …" in the counts section; 0 when the code isn't listed. */
     private fun count(report: String, id: String): Int =
-        Regex("""(?m)^${Regex.escape(id)}\s+(\d+)\s""").find(report)?.groupValues?.get(1)?.toInt() ?: 0
+        Regex("""(?m)^${Regex.escape(id)}\s+(\d+)\s""").find(report)?.groupValues?.get(1)?.toInt()
+            ?: 0
 
     /** Lines of the exit-reasons section, newest first ("<time>  CRASH"). */
-    private fun exitsOf(report: String): List<String> =
-        report.lines().dropWhile { !(it.startsWith("== ") && ("退出原因" in it || "exited" in it)) }.drop(1)
-            .takeWhile { it.isNotBlank() }
+    private fun exitsOf(report: String): List<String> = report.lines().dropWhile {
+        !(it.startsWith("== ") && ("退出原因" in it || "exited" in it))
+    }.drop(1)
+        .takeWhile { it.isNotBlank() }
 
-    /** Memory pressure, foreground and background: no crash, services stay up in the same process. */
+    /**
+     * Memory pressure, foreground and background: no crash, services stay up in the same
+     * process.
+     */
     @Test fun memoryPressure_noCrash() {
         val pid = Phone.pid()
         for (level in listOf("RUNNING_MODERATE", "RUNNING_LOW", "RUNNING_CRITICAL")) {
@@ -100,21 +125,31 @@ class ReliabilityTests {
         Phone.report("memory pressure: same process, services up")
     }
 
-    /** The user revokes the overlay permission while the bubble is showing, then grants it again. */
+    /**
+     * The user revokes the overlay permission while the bubble is showing, then grants it again.
+     */
     @Test fun overlayRevoked_noCrash_andRecovers() {
         val pid = Phone.pid()
         try {
             sh("appops set $PKG SYSTEM_ALERT_WINDOW deny")
             Thread.sleep(1_500)
             Phone.openHome()
-            assertTrue("home screen should offer to enable the overlay", Phone.permissionRowOff(Text.PERM_OVERLAY))
+            assertTrue(
+                "home screen should offer to enable the overlay",
+                Phone.permissionRowOff(Text.PERM_OVERLAY),
+            )
             assertEquals("process restarted", pid, Phone.pid())
         } finally {
             sh("appops set $PKG SYSTEM_ALERT_WINDOW allow")
         }
         Phone.openHome()
-        val ms = Phone.waitUntil("bubble service running after re-grant", 10_000) { Phone.bubbleRunning() }
-        assertTrue("home screen should show the overlay as on", !Phone.permissionRowOff(Text.PERM_OVERLAY))
+        val ms = Phone.waitUntil("bubble service running after re-grant", 10_000) {
+            Phone.bubbleRunning()
+        }
+        assertTrue(
+            "home screen should show the overlay as on",
+            !Phone.permissionRowOff(Text.PERM_OVERLAY),
+        )
         Phone.report("overlay revoked → re-granted: bubble up in ${ms}ms")
     }
 
@@ -124,20 +159,31 @@ class ReliabilityTests {
         val pid = Phone.pid()
         try {
             val others = original.split(':').filter { it.isNotBlank() && it != A11Y_SERVICE }
-            if (others.isEmpty()) sh("settings delete secure enabled_accessibility_services")
-            else sh("settings put secure enabled_accessibility_services ${others.joinToString(":")}")
+            if (others.isEmpty()) {
+                sh("settings delete secure enabled_accessibility_services")
+            } else {
+                sh("settings put secure enabled_accessibility_services ${others.joinToString(":")}")
+            }
             Phone.waitUntil("accessibility service unbound", 10_000) { !Phone.accessibilityBound() }
             Phone.openHome()
-            assertTrue("home screen should offer to enable accessibility", Phone.permissionRowOff(Text.PERM_ACCESSIBILITY))
+            assertTrue(
+                "home screen should offer to enable accessibility",
+                Phone.permissionRowOff(Text.PERM_ACCESSIBILITY),
+            )
             assertEquals("process restarted", pid, Phone.pid())
             assertTrue("bubble service should keep running", Phone.bubbleRunning())
         } finally {
             sh("settings put secure enabled_accessibility_services $original")
             sh("settings put secure accessibility_enabled 1")
         }
-        val ms = Phone.waitUntil("accessibility service rebound", 15_000) { Phone.accessibilityBound() }
+        val ms = Phone.waitUntil("accessibility service rebound", 15_000) {
+            Phone.accessibilityBound()
+        }
         Phone.openHome()
-        assertTrue("home screen should show accessibility as on", !Phone.permissionRowOff(Text.PERM_ACCESSIBILITY))
+        assertTrue(
+            "home screen should show accessibility as on",
+            !Phone.permissionRowOff(Text.PERM_ACCESSIBILITY),
+        )
         Phone.report("accessibility off → on: rebound in ${ms}ms")
     }
 
@@ -152,14 +198,21 @@ class ReliabilityTests {
             sh("svc wifi disable")
             sh("svc data disable")
             Phone.waitUntil("network down", 15_000) {
-                Regex("""Active default network: none""").containsMatchIn(sh("dumpsys connectivity"))
+                Regex(
+                    """Active default network: none""",
+                ).containsMatchIn(sh("dumpsys connectivity"))
             }
             Phone.openHome()
-            val button = Phone.scrollTo(Text.TEST_CONNECTION) ?: throw AssertionError("test-connection button not found")
+            val button =
+                Phone.scrollTo(Text.TEST_CONNECTION)
+                    ?: throw AssertionError("test-connection button not found")
             val started = android.os.SystemClock.elapsedRealtime()
             button.click()
             val local = Phone.find(Text.TESTING_LOCAL, timeoutMs = 1_500) != null
-            Phone.waitUntil("test result shown", 45_000) { Phone.find(Text.TEST_RESULT, timeoutMs = 250) != null }
+            Phone.waitUntil("test result shown", 45_000) {
+                Phone.find(Text.TEST_RESULT, timeoutMs = 250) !=
+                    null
+            }
             val ms = android.os.SystemClock.elapsedRealtime() - started
 
             val networkError = Phone.findContaining(Text.NETWORK_ERROR) != null
@@ -170,7 +223,9 @@ class ReliabilityTests {
                 assertTrue("cloud error took ${ms}ms (budget 10 s)", ms <= 10_000)
             }
             Phone.find(Text.CLOSE)?.click()
-            Phone.report("offline test connection (${if (local) "local" else "cloud"}): answered in ${ms}ms")
+            Phone.report(
+                "offline test connection (${if (local) "local" else "cloud"}): answered in ${ms}ms",
+            )
         } finally {
             if (wifiWasOn) sh("svc wifi enable")
             if (dataWasOn) sh("svc data enable")
@@ -189,7 +244,10 @@ class ReliabilityTests {
             sh("settings put system accelerometer_rotation 0")
             sh("settings put system user_rotation 1")
             Thread.sleep(1_500)
-            assertTrue("home screen gone after config changes", Phone.find(Text.PERMISSIONS_TITLE, 5_000) != null)
+            assertTrue(
+                "home screen gone after config changes",
+                Phone.find(Text.PERMISSIONS_TITLE, 5_000) != null,
+            )
         } finally {
             sh("cmd uimode night ${night.ifEmpty { "auto" }}")
             sh("settings put system user_rotation ${rotation.toIntOrNull() ?: 0}")

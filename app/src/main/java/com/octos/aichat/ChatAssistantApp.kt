@@ -8,6 +8,7 @@ import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.DiagnosticsRecorder
 import com.octos.aichat.diagnostics.DiagnosticsStore
 import com.octos.aichat.diagnostics.ExitReasons
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -15,7 +16,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import java.io.File
 
 /**
  * Process-wide setup that must run before any component: diagnostics. Wiring the
@@ -34,7 +34,10 @@ class ChatAssistantApp : Application() {
         installCrashRecorder()
 
         val settings = SettingsRepository.get(this)
-        applyDiagnosticsSwitch(settings.current().diagnosticsEnabled, settings.current().diagnosticsEnabledAt)
+        applyDiagnosticsSwitch(
+            settings.current().diagnosticsEnabled,
+            settings.current().diagnosticsEnabledAt,
+        )
         scope.launch {
             settings.state
                 .map { it.diagnosticsEnabled to it.diagnosticsEnabledAt }

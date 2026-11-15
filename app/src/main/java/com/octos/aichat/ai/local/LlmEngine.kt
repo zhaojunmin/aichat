@@ -23,10 +23,13 @@ import kotlinx.coroutines.withContext
 object LlmEngine {
 
     @Volatile private var available = false
+
     @Volatile private var handle: Long = 0L
+
     @Volatile private var loadedConfig: String? = null
 
     private val mutex = Mutex()
+
     // One dedicated thread: inference is a long blocking native call.
     private val infra = Executors.newSingleThreadExecutor { r ->
         Thread(r, "local-llm").apply { isDaemon = true }
@@ -60,10 +63,16 @@ object LlmEngine {
     suspend fun ensureLoaded(configPath: String, tmpDir: String): Boolean = mutex.withLock {
         if (!available) return false
         if (handle != 0L && loadedConfig == configPath) return true
-        if (handle != 0L) { nativeRelease(handle); handle = 0L; loadedConfig = null }
+        if (handle != 0L) {
+            nativeRelease(handle)
+            handle = 0L
+            loadedConfig = null
+        }
         val h = withContext(infra) { nativeLoad(configPath, tmpDir, GENERATION_TIMEOUT_MS.toInt()) }
         if (h != 0L) {
-            handle = h; loadedConfig = configPath; true
+            handle = h
+            loadedConfig = configPath
+            true
         } else {
             DiagLog.record(ErrorCode.LLM_202)
             false
@@ -94,21 +103,35 @@ object LlmEngine {
         return mutex.withLock {
             require(handle != 0L) { "本地模型尚未加载" }
             val started = SystemClock.elapsedRealtime()
-            val text = withContext(infra) { Tracing.section(Tracing.LLM_CHAT) { nativeChat(handle, system, user, maxTokens) } }.trim()
+            val text = withContext(infra) {
+                Tracing.section(Tracing.LLM_CHAT) { nativeChat(handle, system, user, maxTokens) }
+            }.trim()
             // The engine doesn't report why it stopped; reaching the limit means it was cut.
-            Output(text, timedOut = SystemClock.elapsedRealtime() - started >= GENERATION_TIMEOUT_MS)
+            Output(
+                text,
+                timedOut = SystemClock.elapsedRealtime() - started >= GENERATION_TIMEOUT_MS,
+            )
         }
     }
 
     /** Free the model (e.g. when switching back to cloud to reclaim RAM). */
     suspend fun unload() = mutex.withLock {
-        if (handle != 0L) { nativeRelease(handle); handle = 0L; loadedConfig = null }
+        if (handle != 0L) {
+            nativeRelease(handle)
+            handle = 0L
+            loadedConfig = null
+        }
     }
 
     /** Engine-side cap on one turn (prefill + decode). Same budget as a cloud reply. */
     const val GENERATION_TIMEOUT_MS = 30_000L
 
     private external fun nativeLoad(configPath: String, tmpDir: String, timeoutMs: Int): Long
-    private external fun nativeChat(handle: Long, system: String, user: String, maxTokens: Int): String
+    private external fun nativeChat(
+        handle: Long,
+        system: String,
+        user: String,
+        maxTokens: Int,
+    ): String
     private external fun nativeRelease(handle: Long)
 }

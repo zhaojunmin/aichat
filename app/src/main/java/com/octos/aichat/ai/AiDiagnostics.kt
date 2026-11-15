@@ -24,5 +24,12 @@ fun Throwable.diagnosticsCode(): ErrorCode = when ((this as? AiException)?.kind)
 }
 
 /** Record a failed AI request: its code, exception class and HTTP status (if any). */
-fun DiagLog.recordAiFailure(e: Throwable, ms: Long? = null) =
-    record(e.diagnosticsCode(), cause = e, ms = ms, http = (e as? AiException)?.httpCode?.takeIf { it > 0 })
+fun DiagLog.recordAiFailure(e: Throwable, ms: Long? = null) = record(
+    e.diagnosticsCode(),
+    cause = e,
+    ms = ms,
+    http = (e as? AiException)?.httpCode?.takeIf {
+        it >
+            0
+    },
+)

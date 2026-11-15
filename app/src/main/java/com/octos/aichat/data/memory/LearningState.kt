@@ -13,10 +13,7 @@ import androidx.room.Upsert
  * in between can neither lose replies nor make them be learned twice.
  */
 @Entity(tableName = "learning_state")
-data class LearningState(
-    @PrimaryKey val id: Int = SINGLE_ROW,
-    val learnedReplies: Int,
-) {
+data class LearningState(@PrimaryKey val id: Int = SINGLE_ROW, val learnedReplies: Int) {
     companion object {
         const val SINGLE_ROW = 0
     }

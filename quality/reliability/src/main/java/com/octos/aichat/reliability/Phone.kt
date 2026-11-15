@@ -30,7 +30,8 @@ object Phone {
     // is connected — which would switch off the very service under test. Must be
     // set before the first UiAutomation use.
     val device: UiDevice = run {
-        Configurator.getInstance().uiAutomationFlags = UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES
+        Configurator.getInstance().uiAutomationFlags =
+            UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES
         UiDevice.getInstance(instrumentation)
     }
 
@@ -47,15 +48,16 @@ object Phone {
      * `dumpsys accessibility` ("Bound services" lists labels, not components):
      * the activity manager's service record lingers after an unbind, so it can't tell.
      */
-    fun accessibilityBound(): Boolean =
-        sh("dumpsys accessibility").lineSequence()
-            .filter { it.trimStart().startsWith("Bound services") }
-            .any { line -> Text.A11Y_LABEL.any { "label=$it" in line } }
+    fun accessibilityBound(): Boolean = sh("dumpsys accessibility").lineSequence()
+        .filter { it.trimStart().startsWith("Bound services") }
+        .any { line -> Text.A11Y_LABEL.any { "label=$it" in line } }
 
     fun bubbleRunning(): Boolean = BUBBLE_SERVICE in services()
 
-    fun accessibilitySetting(): String =
-        sh("settings get secure enabled_accessibility_services").trim().takeUnless { it == "null" }.orEmpty()
+    fun accessibilitySetting(): String = sh("settings get secure enabled_accessibility_services")
+        .trim()
+        .takeUnless { it == "null" }
+        .orEmpty()
 
     fun accessibilityEnabled(): Boolean = A11Y_SERVICE in accessibilitySetting().split(':')
 
@@ -67,12 +69,15 @@ object Phone {
      * isn't usable: some ROMs drop release apps' logs.)
      */
     fun failureReportsSince(sinceMs: Long): Int {
-        val stampFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US) // device time zone, like dropbox
+        // device time zone, like dropbox
+        val stampFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
         val since = sinceMs - 1_000 // stamps have 1 s resolution
         return listOf("data_app_crash", "data_app_anr").sumOf { tag ->
             // Each entry: "<yyyy-MM-dd HH:mm:ss> <tag> (text, N bytes)" then the report.
-            dropbox(tag).split(Regex("""(?m)^(?=\d{4}-\d\d-\d\d \d\d:\d\d:\d\d $tag )""")).count { entry ->
-                val at = runCatching { stampFormat.parse(entry.take(19))?.time }.getOrNull() ?: return@count false
+            val entryStart = Regex("""(?m)^(?=\d{4}-\d\d-\d\d \d\d:\d\d:\d\d $tag )""")
+            dropbox(tag).split(entryStart).count { entry ->
+                val at = runCatching { stampFormat.parse(entry.take(19))?.time }.getOrNull()
+                    ?: return@count false
                 at >= since && Regex("""Process: ${Regex.escape(PKG)}\b""").containsMatchIn(entry)
             }
         }
@@ -99,7 +104,9 @@ object Phone {
     fun openHome() {
         // FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_CLEAR_TASK: fresh home screen, same process.
         sh("am start -W -f 0x10008000 -n $PKG/.ui.MainActivity")
-        if (find(Text.PERMISSIONS_TITLE, timeoutMs = 5_000) == null) throw AssertionError("app home screen did not appear")
+        if (find(Text.PERMISSIONS_TITLE, timeoutMs = 5_000) == null) {
+            throw AssertionError("app home screen did not appear")
+        }
     }
 
     fun pressHome() = device.pressHome()
@@ -134,11 +141,15 @@ object Phone {
     /** Whether the permission row labelled [label] currently offers an "enable" button. */
     fun permissionRowOff(label: List<String>): Boolean {
         // Changing accessibility settings can briefly disturb UiAutomator: look again once.
-        val row = scrollTo(label) ?: run { openHome(); scrollTo(label) }
+        val row = scrollTo(label) ?: run {
+            openHome()
+            scrollTo(label)
+        }
             ?: throw AssertionError("permission row $label not found")
         val y = row.visibleBounds.centerY()
         val slack = row.visibleBounds.height()
-        return device.findObjects(By.text(anyOf(Text.ENABLE))).any { kotlin.math.abs(it.visibleCenter.y - y) <= slack }
+        return device.findObjects(By.text(anyOf(Text.ENABLE)))
+            .any { kotlin.math.abs(it.visibleCenter.y - y) <= slack }
     }
 
     /**
@@ -153,9 +164,13 @@ object Phone {
         // advanced screen opened (its "Appearance" card), and tap again if not.
         var opened = false
         for (attempt in 1..3) {
-            val entry = scrollToContaining(Text.ADVANCED_ENTRY) ?: throw AssertionError("advanced settings entry not found")
+            val entry = scrollToContaining(Text.ADVANCED_ENTRY)
+                ?: throw AssertionError("advanced settings entry not found")
             entry.click()
-            if (find(Text.ADVANCED_MARKER, timeoutMs = 3_000) != null) { opened = true; break }
+            if (find(Text.ADVANCED_MARKER, timeoutMs = 3_000) != null) {
+                opened = true
+                break
+            }
             openHome()
         }
         if (!opened) throw AssertionError("advanced settings did not open")
@@ -176,14 +191,16 @@ object Phone {
     }
 
     /** Scroll down until a text containing one of [parts] shows up (settled, like [scrollTo]). */
-    private fun scrollToContaining(parts: List<String>): UiObject2? =
-        scrollUntil { parts.firstNotNullOfOrNull { device.wait(Until.findObject(By.textContains(it)), 300) } }
+    private fun scrollToContaining(parts: List<String>): UiObject2? = scrollUntil {
+        parts.firstNotNullOfOrNull { device.wait(Until.findObject(By.textContains(it)), 300) }
+    }
 
     /** Any on-screen text containing one of [parts] (e.g. an error inside a longer message). */
     fun findContaining(parts: List<String>): UiObject2? =
         parts.firstNotNullOfOrNull { device.findObject(By.textContains(it)) }
 
-    private fun anyOf(texts: List<String>): Pattern = Pattern.compile(texts.joinToString("|") { Pattern.quote(it) })
+    private fun anyOf(texts: List<String>): Pattern =
+        Pattern.compile(texts.joinToString("|") { Pattern.quote(it) })
 
     // ---- timing & reporting --------------------------------------------------
 
@@ -192,7 +209,9 @@ object Phone {
         val start = SystemClock.elapsedRealtime()
         while (true) {
             if (condition()) return SystemClock.elapsedRealtime() - start
-            if (SystemClock.elapsedRealtime() - start > timeoutMs) throw AssertionError("timed out after ${timeoutMs}ms: $what")
+            if (SystemClock.elapsedRealtime() - start > timeoutMs) {
+                throw AssertionError("timed out after ${timeoutMs}ms: $what")
+            }
             SystemClock.sleep(250)
         }
     }

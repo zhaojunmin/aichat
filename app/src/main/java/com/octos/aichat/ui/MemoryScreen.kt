@@ -1,6 +1,4 @@
 package com.octos.aichat.ui
-import com.octos.aichat.R
-
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,6 +35,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.octos.aichat.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,9 +54,9 @@ internal fun MemoryScreen(onBack: () -> Unit) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
-                }
+                },
             )
-        }
+        },
     ) { pad ->
         Column(
             Modifier
@@ -65,17 +64,17 @@ internal fun MemoryScreen(onBack: () -> Unit) {
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (memories.isEmpty()) {
                 Text(
                     stringResource(R.string.mem_empty),
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             } else {
                 Text(
                     stringResource(R.string.mem_intro),
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall,
                 )
                 memories.forEach { m ->
                     MemoryEditRow(
@@ -123,8 +122,11 @@ private fun DeletedMemoryRow(
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Text(
-                "【$category】" + if (byLearner) stringResource(R.string.mem_removed_by_learner)
-                                 else stringResource(R.string.mem_removed_by_user),
+                "【$category】" + if (byLearner) {
+                    stringResource(R.string.mem_removed_by_learner)
+                } else {
+                    stringResource(R.string.mem_removed_by_user)
+                },
                 color = MaterialTheme.colorScheme.outline,
                 style = MaterialTheme.typography.labelMedium,
             )
@@ -136,7 +138,10 @@ private fun DeletedMemoryRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = onPurge) {
-                    Text(stringResource(R.string.mem_purge), color = MaterialTheme.colorScheme.error)
+                    Text(
+                        stringResource(R.string.mem_purge),
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
                 Spacer(Modifier.width(4.dp))
                 TextButton(onClick = onRestore) { Text(stringResource(R.string.mem_restore)) }
@@ -156,21 +161,29 @@ private fun MemoryEditRow(
     val changed = text.trim().isNotEmpty() && text != content
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
-            Text("【$category】", color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.labelMedium)
+            Text(
+                "【$category】",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelMedium,
+            )
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
                 singleLine = false,
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Spacer(Modifier.weight(1f))
                 TextButton(onClick = onDelete) {
-                    Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
+                    Text(
+                        stringResource(R.string.action_delete),
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
                 Spacer(Modifier.width(4.dp))
-                TextButton(enabled = changed, onClick = { onSave(text) }) { Text(stringResource(R.string.action_save)) }
+                TextButton(enabled = changed, onClick = {
+                    onSave(text)
+                }) { Text(stringResource(R.string.action_save)) }
             }
         }
     }

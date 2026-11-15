@@ -54,10 +54,16 @@ object MemoryRetrieval {
     ): List<MemoryEntity> {
         if (items.isEmpty() || k <= 0) return emptyList()
         if (items.size <= k && query.isBlank()) {
-            return items.sortedWith(compareByDescending<MemoryEntity> { it.updatedAt }.thenByDescending { it.id })
+            return items.sortedWith(
+                compareByDescending<MemoryEntity> {
+                    it.updatedAt
+                }.thenByDescending { it.id },
+            )
         }
 
-        val recencyRaw = items.map { RECENCY_DECAY_PER_DAY.pow((now - it.updatedAt).coerceAtLeast(0) / MILLIS_PER_DAY) }
+        val recencyRaw = items.map {
+            RECENCY_DECAY_PER_DAY.pow((now - it.updatedAt).coerceAtLeast(0) / MILLIS_PER_DAY)
+        }
         val importanceRaw = items.map { it.importance.toDouble() }
         val relevanceRaw = relevance.scores(items, query).toList()
 
@@ -124,8 +130,14 @@ object MemoryRetrieval {
         }
 
         private fun cosine(a: FloatArray, b: FloatArray): Double {
-            var dot = 0.0; var na = 0.0; var nb = 0.0
-            for (i in a.indices) { dot += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i] }
+            var dot = 0.0
+            var na = 0.0
+            var nb = 0.0
+            for (i in a.indices) {
+                dot += a[i] * b[i]
+                na += a[i] * a[i]
+                nb += b[i] * b[i]
+            }
             val denom = kotlin.math.sqrt(na) * kotlin.math.sqrt(nb)
             return if (denom <= 0.0) 0.0 else dot / denom
         }
@@ -157,12 +169,24 @@ object MemoryRetrieval {
 
         for (ch in text) {
             when {
-                isCjk(ch) -> { flushAscii(); cjk.append(ch) }
-                ch.isLetterOrDigit() -> { flushCjk(); ascii.append(ch) }
-                else -> { flushCjk(); flushAscii() }
+                isCjk(ch) -> {
+                    flushAscii()
+                    cjk.append(ch)
+                }
+
+                ch.isLetterOrDigit() -> {
+                    flushCjk()
+                    ascii.append(ch)
+                }
+
+                else -> {
+                    flushCjk()
+                    flushAscii()
+                }
             }
         }
-        flushCjk(); flushAscii()
+        flushCjk()
+        flushAscii()
         return out
     }
 

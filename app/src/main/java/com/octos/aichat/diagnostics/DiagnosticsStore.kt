@@ -36,8 +36,7 @@ class DiagnosticsStore(private val dir: File, private val maxBytes: Long = 256L 
 
     /** The newest [n] stored lines, oldest first. */
     @Synchronized
-    fun recent(n: Int): List<String> =
-        (readLines(previous) + readLines(current)).takeLast(n)
+    fun recent(n: Int): List<String> = (readLines(previous) + readLines(current)).takeLast(n)
 
     @Synchronized
     fun readSummary(): DiagSummary {
@@ -49,11 +48,19 @@ class DiagnosticsStore(private val dir: File, private val maxBytes: Long = 256L 
             val (key, value) = line.split('\t').takeIf { it.size == 2 } ?: continue
             when {
                 key == EXIT_SEEN_KEY -> exitSeenAt = value.toLongOrNull() ?: 0L
+
                 key.startsWith(DURATION_PREFIX) -> {
-                    val op = TimedOp.entries.firstOrNull { it.name == key.removePrefix(DURATION_PREFIX) } ?: continue
+                    val op =
+                        TimedOp.entries.firstOrNull { it.name == key.removePrefix(DURATION_PREFIX) }
+                            ?: continue
                     val buckets = value.split(',').map { it.toIntOrNull() ?: return@map null }
-                    if (buckets.size == DurationBuckets.SIZE && buckets.all { it != null }) durations[op] = buckets.filterNotNull()
+                    if (buckets.size == DurationBuckets.SIZE &&
+                        buckets.all { it != null }
+                    ) {
+                        durations[op] = buckets.filterNotNull()
+                    }
                 }
+
                 else -> {
                     val code = ErrorCode.of(key) ?: continue
                     counts[code] = value.toIntOrNull() ?: continue
@@ -68,15 +75,22 @@ class DiagnosticsStore(private val dir: File, private val maxBytes: Long = 256L 
         dir.mkdirs()
         val text = buildString {
             append(EXIT_SEEN_KEY).append('\t').append(s.exitSeenAt).append('\n')
-            s.counts.filterValues { it > 0 }.forEach { (code, n) -> append(code.id).append('\t').append(n).append('\n') }
+            s.counts.filterValues {
+                it > 0
+            }.forEach { (code, n) -> append(code.id).append('\t').append(n).append('\n') }
             s.durations.filterValues { it.any { c -> c > 0 } }.forEach { (op, buckets) ->
-                append(DURATION_PREFIX).append(op.name).append('\t').append(buckets.joinToString(",")).append('\n')
+                append(
+                    DURATION_PREFIX,
+                ).append(op.name).append('\t').append(buckets.joinToString(",")).append('\n')
             }
         }
         // Write-then-rename so a crash mid-write can't leave a half summary behind.
         val tmp = File(dir, "summary.tmp")
         tmp.writeText(text)
-        if (!tmp.renameTo(summary)) { summary.delete(); tmp.renameTo(summary) }
+        if (!tmp.renameTo(summary)) {
+            summary.delete()
+            tmp.renameTo(summary)
+        }
     }
 
     /** Delete everything kept (diagnostics switched off, or "clear"). */

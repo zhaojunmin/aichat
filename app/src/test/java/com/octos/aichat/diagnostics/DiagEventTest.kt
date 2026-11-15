@@ -13,8 +13,11 @@ class DiagEventTest {
             exit = "ANR", exitAt = 1763170012000,
         )
         assertEquals(e, DiagEvent.parse(e.toLine()))
-        assertEquals("1763173263123\tA11Y-304\tERROR\tcause=IllegalStateException thread=main ms=31 http=402 platform=3 " +
-            "pkg=com.tencent.mm exit=ANR exitAt=1763170012000", e.toLine())
+        assertEquals(
+            "1763173263123\tA11Y-304\tERROR\tcause=IllegalStateException thread=main ms=31 " +
+                "http=402 platform=3 pkg=com.tencent.mm exit=ANR exitAt=1763170012000",
+            e.toLine(),
+        )
     }
 
     @Test fun minimalLine() {

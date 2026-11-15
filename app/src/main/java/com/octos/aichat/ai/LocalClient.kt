@@ -20,7 +20,10 @@ class LocalClient(
         val out = infer(system, user, MAX_TOKENS)
         // Truncated output would parse into fragments; report the timeout instead.
         if (out.timedOut) {
-            throw AiException(AiException.Kind.LOCAL_TIMEOUT, detail = "local engine hit ${LlmEngine.GENERATION_TIMEOUT_MS}ms")
+            throw AiException(
+                AiException.Kind.LOCAL_TIMEOUT,
+                detail = "local engine hit ${LlmEngine.GENERATION_TIMEOUT_MS}ms",
+            )
         }
         return out.text
     }

@@ -15,8 +15,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.bubble.FloatingBubbleService
+import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.ui.theme.AiChatTheme
 
 class MainActivity : ComponentActivity() {
@@ -50,14 +50,16 @@ private fun AppRoot() {
                     onOpenAdvanced = { screen = Screen.Advanced },
                     onOpenMemory = { screen = Screen.Memory },
                 )
+
                 Screen.Advanced -> AdvancedScreen(
                     onBack = { screen = Screen.Home },
                     onOpenDiagnostics = { screen = Screen.Diagnostics },
                 )
+
                 Screen.Diagnostics -> DiagnosticsScreen(onBack = { screen = Screen.Advanced })
+
                 Screen.Memory -> MemoryScreen(onBack = { screen = Screen.Home })
             }
         }
     }
 }
-

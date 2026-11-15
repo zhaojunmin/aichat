@@ -28,6 +28,7 @@ class DiagnosticsRecorder(
     private val pendingCount = AtomicInteger()
     private val counts = AtomicIntegerArray(ErrorCode.entries.size)
     private val durations = AtomicIntegerArray(TimedOp.entries.size * DurationBuckets.SIZE)
+
     @Volatile private var exitSeenAt = 0L
     private val fileLock = Any()
 
@@ -36,7 +37,9 @@ class DiagnosticsRecorder(
         val s = store.readSummary()
         s.counts.forEach { (code, n) -> counts.addAndGet(code.ordinal, n) }
         s.durations.forEach { (op, buckets) ->
-            buckets.forEachIndexed { i, n -> durations.addAndGet(op.ordinal * DurationBuckets.SIZE + i, n) }
+            buckets.forEachIndexed { i, n ->
+                durations.addAndGet(op.ordinal * DurationBuckets.SIZE + i, n)
+            }
         }
         exitSeenAt = maxOf(exitSeenAt, s.exitSeenAt)
     }
@@ -60,8 +63,14 @@ class DiagnosticsRecorder(
                 platform = platform,
                 // Package names reveal which apps someone uses: only kept where they
                 // tell us which app's parsing broke (design §11.2).
-                pkg = if (code.domain == ErrorCode.Domain.A11Y || code.domain == ErrorCode.Domain.OCR) DiagEvent.safeName(pkg) else null,
-            )
+                pkg = if (code.domain == ErrorCode.Domain.A11Y ||
+                    code.domain == ErrorCode.Domain.OCR
+                ) {
+                    DiagEvent.safeName(pkg)
+                } else {
+                    null
+                },
+            ),
         )
     }
 
@@ -80,7 +89,7 @@ class DiagnosticsRecorder(
                 code = ErrorCode.APP_901,
                 cause = DiagEvent.safeName(cause.javaClass.simpleName),
                 thread = DiagEvent.safeName(thread.name),
-            )
+            ),
         )
         flush()
     }
@@ -90,7 +99,14 @@ class DiagnosticsRecorder(
         if (!enabled) return
         val after = maxOf(sinceMs, exitSeenAt)
         exits.filter { it.atMs > after }.sortedBy { it.atMs }.forEach {
-            add(DiagEvent(atMs = clock(), code = ErrorCode.APP_902, exit = DiagEvent.safeName(it.reason), exitAt = it.atMs))
+            add(
+                DiagEvent(
+                    atMs = clock(),
+                    code = ErrorCode.APP_902,
+                    exit = DiagEvent.safeName(it.reason),
+                    exitAt = it.atMs,
+                ),
+            )
             exitSeenAt = maxOf(exitSeenAt, it.atMs)
         }
     }
@@ -127,10 +143,9 @@ class DiagnosticsRecorder(
         ErrorCode.entries.associateWith { counts.get(it.ordinal) }.filterValues { it > 0 }
 
     /** Bucket counts per operation (only operations with at least one sample). */
-    fun durationsSnapshot(): Map<TimedOp, List<Int>> =
-        TimedOp.entries.associateWith { op ->
-            List(DurationBuckets.SIZE) { i -> durations.get(op.ordinal * DurationBuckets.SIZE + i) }
-        }.filterValues { it.any { c -> c > 0 } }
+    fun durationsSnapshot(): Map<TimedOp, List<Int>> = TimedOp.entries.associateWith { op ->
+        List(DurationBuckets.SIZE) { i -> durations.get(op.ordinal * DurationBuckets.SIZE + i) }
+    }.filterValues { it.any { c -> c > 0 } }
 
     /** The newest [n] events, including ones not yet flushed. */
     fun recent(n: Int): List<DiagEvent> {

@@ -67,12 +67,18 @@ class AiService(
         } else {
             // Timing out cancels the coroutine, which cancels the HTTP call.
             withTimeoutOrNull(replyTimeoutMs) { client.complete(settings, system, user) }
-                ?: throw AiException(AiException.Kind.TIMEOUT, detail = "reply budget ${replyTimeoutMs}ms")
+                ?: throw AiException(
+                    AiException.Kind.TIMEOUT,
+                    detail = "reply budget ${replyTimeoutMs}ms",
+                )
         }
 
         // An empty or content-free answer must surface as an error, never as a blank candidate.
         parseReplies(raw, n).ifEmpty {
-            throw AiException(AiException.Kind.BAD_RESPONSE, detail = "no replies in: ${raw.take(80)}")
+            throw AiException(
+                AiException.Kind.BAD_RESPONSE,
+                detail = "no replies in: ${raw.take(80)}",
+            )
         }
     }
 
@@ -87,15 +93,20 @@ class AiService(
         existing: List<MemoryEntity>,
         replies: List<String>,
     ): MemoryLearnResult? = withContext(Dispatchers.IO) {
-        if ((!settings.useLocal && settings.apiKey.isBlank()) || replies.isEmpty()) return@withContext null
+        if ((!settings.useLocal && settings.apiKey.isBlank()) || replies.isEmpty()) {
+            return@withContext null
+        }
         if (settings.useLocal && !LlmEngine.isReady) return@withContext null
 
         val system = "你是用户画像分析助手。从用户的历史发言中提炼稳定、长期有用的个人信息,维护一份干净、不矛盾的记忆库。"
         val user = buildString {
             append("已有记忆(带编号,可能为空):\n")
             append(
-                if (existing.isEmpty()) "(无)"
-                else existing.joinToString("\n") { "#${it.id} 【${it.category}】${it.content}" }
+                if (existing.isEmpty()) {
+                    "(无)"
+                } else {
+                    existing.joinToString("\n") { "#${it.id} 【${it.category}】${it.content}" }
+                },
             )
             append("\n\n用户最近的发言(每行一条,均出自\"我\"):\n")
             append(replies.joinToString("\n") { "- $it" })
@@ -111,8 +122,10 @@ class AiService(
             append("\n- keywords:2-5 个便于日后检索的关键词,空格分隔(含同义词/相关实体)。")
             append("\n- importance:重要程度 1-10 整数(越稳定、越能代表本人取值越高)。")
             append("\n仅返回 JSON,形如 ")
-            append("{\"additions\":[{\"category\":\"事实\",\"content\":\"在北京做程序员\",\"keywords\":\"北京 程序员 工作\",\"importance\":8}],")
-            append("\"updates\":[{\"id\":12,\"category\":\"偏好\",\"content\":\"现在改喝拿铁\",\"keywords\":\"拿铁 咖啡 口味\",\"importance\":5}],")
+            append("{\"additions\":[{\"category\":\"事实\",\"content\":\"在北京做程序员\",")
+            append("\"keywords\":\"北京 程序员 工作\",\"importance\":8}],")
+            append("\"updates\":[{\"id\":12,\"category\":\"偏好\",\"content\":\"现在改喝拿铁\",")
+            append("\"keywords\":\"拿铁 咖啡 口味\",\"importance\":5}],")
             append("\"deletions\":[7]},不要多余文字。")
         }
 
@@ -125,8 +138,6 @@ class AiService(
             null
         }
     }
-
-    private val MEMORY_CATEGORIES = setOf("画像", "事实", "偏好", "风格")
 
     /** Tolerant parse of the learner's {additions:[...], updates:[...]} object. */
     internal fun parseLearnResult(raw: String): MemoryLearnResult? {
@@ -150,7 +161,7 @@ class AiService(
                             content,
                             normKeywords(o.optString("keywords")),
                             normImportance(o.optInt("importance", 5)),
-                        )
+                        ),
                     )
                 }
             }
@@ -168,7 +179,7 @@ class AiService(
                             content,
                             normKeywords(o.optString("keywords")),
                             normImportance(o.optInt("importance", 5)),
-                        )
+                        ),
                     )
                 }
             }
@@ -231,6 +242,8 @@ class AiService(
 
     companion object {
         const val REPLY_TIMEOUT_MS = 30_000L
+
+        private val MEMORY_CATEGORIES = setOf("画像", "事实", "偏好", "风格")
 
         private val cloud: AiClient = CloudClient()
         private val local: AiClient by lazy { LocalClient() }

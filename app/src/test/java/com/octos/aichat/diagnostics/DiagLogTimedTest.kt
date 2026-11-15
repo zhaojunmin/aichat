@@ -1,12 +1,12 @@
 package com.octos.aichat.diagnostics
 
+import java.io.File
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import java.io.File
 
 class DiagLogTimedTest {
 
@@ -15,7 +15,9 @@ class DiagLogTimedTest {
     @After fun tearDown() = DiagLog.setEnabled(false)
 
     @Test fun countsOnlyCompletedBlocks() {
-        val recorder = DiagnosticsRecorder(DiagnosticsStore(File(tmp.root, "diag"))).apply { setEnabled(true) }
+        val recorder = DiagnosticsRecorder(DiagnosticsStore(File(tmp.root, "diag"))).apply {
+            setEnabled(true)
+        }
         DiagLog.install(recorder)
 
         assertEquals("ok", DiagLog.timed(TimedOp.GENERATE_CLOUD) { "ok" })

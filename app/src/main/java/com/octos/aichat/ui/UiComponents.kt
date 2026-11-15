@@ -1,6 +1,4 @@
 package com.octos.aichat.ui
-import com.octos.aichat.R
-
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +25,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.octos.aichat.R
 
 /** Shared settings-UI atoms used across the Home / Advanced screens. */
 
@@ -68,21 +67,19 @@ internal fun SectionCard(
 }
 
 @Composable
-internal fun PermissionRow(
-    label: String,
-    granted: Boolean,
-    action: String,
-    onClick: () -> Unit,
-) {
+internal fun PermissionRow(label: String, granted: Boolean, action: String, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             if (granted) Icons.Filled.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
             contentDescription = null,
-            tint = if (granted) MaterialTheme.colorScheme.primary
-                   else MaterialTheme.colorScheme.outline,
+            tint = if (granted) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.outline
+            },
             modifier = Modifier.size(22.dp),
         )
         Spacer(Modifier.width(10.dp))
@@ -112,9 +109,11 @@ internal fun LabeledField(
         onValueChange = onChange,
         label = { Text(label) },
         singleLine = singleLine,
-        visualTransformation = if (isSecret)
+        visualTransformation = if (isSecret) {
             androidx.compose.ui.text.input.PasswordVisualTransformation()
-        else androidx.compose.ui.text.input.VisualTransformation.None,
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+        } else {
+            androidx.compose.ui.text.input.VisualTransformation.None
+        },
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
     )
 }

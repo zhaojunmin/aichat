@@ -144,15 +144,15 @@ private val MidnightScheme = darkColorScheme(
 
 // ---- 月白 Qingbai (light · 新中式, Morandi celadon on moon-white) ----
 private val QingbaiScheme = lightColorScheme(
-    primary = Color(0xFF6F9A94),          // 天青 celadon
+    primary = Color(0xFF6F9A94), // 天青 celadon
     onPrimary = Color(0xFFFFFFFF),
     primaryContainer = Color(0xFFCFE0DC),
     onPrimaryContainer = Color(0xFF0E2C28),
-    secondary = Color(0xFF627079),        // 黛 slate
+    secondary = Color(0xFF627079), // 黛 slate
     onSecondary = Color(0xFFFFFFFF),
     secondaryContainer = Color(0xFFD9E0E2),
     onSecondaryContainer = Color(0xFF18242A),
-    tertiary = Color(0xFFA97E7A),         // 藕/胭脂 muted rose (暖)
+    tertiary = Color(0xFFA97E7A), // 藕/胭脂 muted rose (暖)
     onTertiary = Color(0xFFFFFFFF),
     tertiaryContainer = Color(0xFFEEDAD6),
     onTertiaryContainer = Color(0xFF331D1A),
@@ -160,7 +160,7 @@ private val QingbaiScheme = lightColorScheme(
     onError = Color(0xFFFFFFFF),
     errorContainer = Color(0xFFF3DBD7),
     onErrorContainer = Color(0xFF36100C),
-    background = Color(0xFFEAEFEF),        // 月白
+    background = Color(0xFFEAEFEF), // 月白
     onBackground = Color(0xFF242A29),
     surface = Color(0xFFF2F6F5),
     onSurface = Color(0xFF242A29),
@@ -175,7 +175,7 @@ private val QingbaiScheme = lightColorScheme(
 
 // ---- 黛青 Daiqing (dark · 新中式) ----
 private val DaiqingScheme = darkColorScheme(
-    primary = Color(0xFF9CC0B9),          // soft celadon
+    primary = Color(0xFF9CC0B9), // soft celadon
     onPrimary = Color(0xFF0A302A),
     primaryContainer = Color(0xFF2C4540),
     onPrimaryContainer = Color(0xFFBFE0D9),
@@ -183,7 +183,7 @@ private val DaiqingScheme = darkColorScheme(
     onSecondary = Color(0xFF1E2828),
     secondaryContainer = Color(0xFF343E3D),
     onSecondaryContainer = Color(0xFFD4DEDC),
-    tertiary = Color(0xFFD6AEA9),         // muted rose (暖)
+    tertiary = Color(0xFFD6AEA9), // muted rose (暖)
     onTertiary = Color(0xFF3E2420),
     tertiaryContainer = Color(0xFF583C38),
     onTertiaryContainer = Color(0xFFF3D9D4),
@@ -191,7 +191,7 @@ private val DaiqingScheme = darkColorScheme(
     onError = Color(0xFF511A14),
     errorContainer = Color(0xFF6E322B),
     onErrorContainer = Color(0xFFF8DAD5),
-    background = Color(0xFF14191A),        // 黛
+    background = Color(0xFF14191A), // 黛
     onBackground = Color(0xFFDDE3E1),
     surface = Color(0xFF1A2120),
     onSurface = Color(0xFFDDE3E1),
@@ -211,7 +211,8 @@ enum class ThemeVariant(val id: String, @StringRes val labelRes: Int, val dark: 
     QINGBAI("qingbai", R.string.theme_qingbai, false),
     INK("ink", R.string.theme_ink, true),
     MIDNIGHT("midnight", R.string.theme_midnight, true),
-    DAIQING("daiqing", R.string.theme_daiqing, true);
+    DAIQING("daiqing", R.string.theme_daiqing, true),
+    ;
 
     /** This variant's palette. Plain data, so non-Compose UI (the overlay bubble) can read it too. */
     val colorScheme: ColorScheme
@@ -250,10 +251,12 @@ private val AppShapes = Shapes(
  * light/dark setting, mapping to [ThemeVariant.PAPER] / [ThemeVariant.INK].
  */
 @Composable
-fun AiChatTheme(
-    variantId: String?,
-    content: @Composable () -> Unit,
-) {
+fun AiChatTheme(variantId: String?, content: @Composable () -> Unit) {
     val scheme = ThemeVariant.resolve(variantId, isSystemInDarkTheme()).colorScheme
-    MaterialTheme(colorScheme = scheme, typography = AppTypography, shapes = AppShapes, content = content)
+    MaterialTheme(
+        colorScheme = scheme,
+        typography = AppTypography,
+        shapes = AppShapes,
+        content = content,
+    )
 }

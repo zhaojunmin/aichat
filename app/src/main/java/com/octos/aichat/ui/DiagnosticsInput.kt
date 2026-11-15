@@ -38,10 +38,18 @@ fun diagnosticsPermissions(context: Context): List<Pair<String, Boolean>> = list
 
 fun deviceInfo(context: Context): DeviceInfo {
     val pkg = context.packageManager.getPackageInfo(context.packageName, 0)
-    val debuggable = context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+    val debuggable =
+        context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
     return DeviceInfo(
         appVersion = pkg.versionName ?: "?",
-        versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) pkg.longVersionCode else @Suppress("DEPRECATION") pkg.versionCode.toLong(),
+        versionCode = if (Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.P
+        ) {
+            pkg.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            pkg.versionCode.toLong()
+        },
         buildType = if (debuggable) "debug" else "release",
         manufacturer = Build.MANUFACTURER,
         model = Build.MODEL,
@@ -57,7 +65,7 @@ internal fun isAccessibilityEnabled(context: Context): Boolean {
     val expected = "${context.packageName}/${ChatAccessibilityService::class.java.name}"
     val enabled = Settings.Secure.getString(
         context.contentResolver,
-        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
     ) ?: return false
     return enabled.split(':').any { it.equals(expected, ignoreCase = true) }
 }

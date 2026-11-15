@@ -26,8 +26,11 @@ object Encoder {
     private const val MAX_TOKENS = 256
 
     private val lock = Any()
+
     @Volatile private var libsLoaded = false
+
     @Volatile private var handle = 0L
+
     @Volatile private var tokenizer: WordPieceTokenizer? = null
 
     /** Why the last load/embed attempt failed (shown in the advanced settings); null if it didn't. */
@@ -82,11 +85,17 @@ object Encoder {
         val tk = tokenizer ?: return null
         val (ids, mask) = tk.encode(text, MAX_TOKENS)
         runCatching { nativeEmbed(handle, ids, mask) }
-            .getOrElse { failed(ErrorCode.EMB_704, it); null }
+            .getOrElse {
+                failed(ErrorCode.EMB_704, it)
+                null
+            }
     }
 
     fun release() = synchronized(lock) {
-        if (handle != 0L) { runCatching { nativeEmbedRelease(handle) }; handle = 0L }
+        if (handle != 0L) {
+            runCatching { nativeEmbedRelease(handle) }
+            handle = 0L
+        }
     }
 
     // --- native (bound in the encoder JNI build; see embedding-integration-design.md §3) ---

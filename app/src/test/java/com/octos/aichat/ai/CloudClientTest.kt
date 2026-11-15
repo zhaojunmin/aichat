@@ -4,6 +4,7 @@ import com.octos.aichat.ai.AiException.Kind
 import com.octos.aichat.data.AiBackend
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.BackendConfig
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -19,14 +20,18 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
-import java.util.concurrent.TimeUnit
 
 class CloudClientTest {
 
     private lateinit var server: MockWebServer
 
-    @Before fun setUp() { server = MockWebServer().apply { start() } }
-    @After fun tearDown() { server.shutdown() }
+    @Before fun setUp() {
+        server = MockWebServer().apply { start() }
+    }
+
+    @After fun tearDown() {
+        server.shutdown()
+    }
 
     private fun settings(baseUrl: String = server.url("/v1").toString()) = AppSettings(
         backendConfigs = mapOf(AiBackend.DEEPSEEK to BackendConfig(baseUrl, "m", "sk-test")),
@@ -36,12 +41,16 @@ class CloudClientTest {
         .readTimeout(100, TimeUnit.MILLISECONDS)
         .build()
 
-    private fun ok(content: String) =
-        MockResponse().setBody("""{"choices":[{"message":{"role":"assistant","content":${org.json.JSONObject.quote(content)}}}]}""")
+    private fun ok(content: String) = MockResponse().setBody(
+        """{"choices":[{"message":{"role":"assistant","content":""" +
+            """${org.json.JSONObject.quote(content)}}}]}""",
+    )
 
     private fun kindOf(block: suspend () -> Unit): AiException = runBlocking {
         try {
-            block(); fail("expected AiException"); error("unreachable")
+            block()
+            fail("expected AiException")
+            error("unreachable")
         } catch (e: AiException) {
             e
         }
@@ -67,7 +76,9 @@ class CloudClientTest {
             503 to Kind.SERVER,
         )
         for ((code, kind) in cases) {
-            server.enqueue(MockResponse().setResponseCode(code).setBody("""{"error":{"message":"x"}}"""))
+            server.enqueue(
+                MockResponse().setResponseCode(code).setBody("""{"error":{"message":"x"}}"""),
+            )
             val e = kindOf { CloudClient(fastHttp).complete(settings(), "s", "u") }
             assertEquals("HTTP $code", kind, e.kind)
             assertEquals(code, e.httpCode)
@@ -76,21 +87,32 @@ class CloudClientTest {
 
     /** Volcengine Ark reports arrears as 403 + AccountOverdueError: that's money, not a bad key. */
     @Test fun arkOverdue403IsBalanceNotAuth() {
-        server.enqueue(MockResponse().setResponseCode(403)
-            .setBody("""{"error":{"code":"AccountOverdueError","message":"overdue"}}"""))
-        assertEquals(Kind.INSUFFICIENT_BALANCE, kindOf { CloudClient(fastHttp).complete(settings(), "s", "u") }.kind)
+        server.enqueue(
+            MockResponse().setResponseCode(403)
+                .setBody("""{"error":{"code":"AccountOverdueError","message":"overdue"}}"""),
+        )
+        assertEquals(
+            Kind.INSUFFICIENT_BALANCE,
+            kindOf { CloudClient(fastHttp).complete(settings(), "s", "u") }.kind,
+        )
     }
 
     @Test fun readTimeoutIsTimeout() {
         // Server accepts the request but never answers: no real sleep to wait out on shutdown.
         server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
-        assertEquals(Kind.TIMEOUT, kindOf { CloudClient(fastHttp).complete(settings(), "s", "u") }.kind)
+        assertEquals(
+            Kind.TIMEOUT,
+            kindOf { CloudClient(fastHttp).complete(settings(), "s", "u") }.kind,
+        )
     }
 
     @Test fun refusedConnectionIsNetwork() {
         val deadUrl = server.url("/v1").toString()
         server.shutdown()
-        assertEquals(Kind.NETWORK, kindOf { CloudClient(fastHttp).complete(settings(deadUrl), "s", "u") }.kind)
+        assertEquals(
+            Kind.NETWORK,
+            kindOf { CloudClient(fastHttp).complete(settings(deadUrl), "s", "u") }.kind,
+        )
     }
 
     @Test fun disconnectMidResponseIsClassified() {
@@ -101,15 +123,27 @@ class CloudClientTest {
 
     @Test fun malformedOrEmptyBodyIsBadResponse() {
         server.enqueue(MockResponse().setBody("<html>gateway</html>"))
-        assertEquals(Kind.BAD_RESPONSE, kindOf { CloudClient(fastHttp).complete(settings(), "s", "u") }.kind)
+        assertEquals(
+            Kind.BAD_RESPONSE,
+            kindOf { CloudClient(fastHttp).complete(settings(), "s", "u") }.kind,
+        )
         server.enqueue(ok("   "))
-        assertEquals(Kind.BAD_RESPONSE, kindOf { CloudClient(fastHttp).complete(settings(), "s", "u") }.kind)
+        assertEquals(
+            Kind.BAD_RESPONSE,
+            kindOf { CloudClient(fastHttp).complete(settings(), "s", "u") }.kind,
+        )
         server.enqueue(MockResponse().setBody("""{"choices":[]}"""))
-        assertEquals(Kind.BAD_RESPONSE, kindOf { CloudClient(fastHttp).complete(settings(), "s", "u") }.kind)
+        assertEquals(
+            Kind.BAD_RESPONSE,
+            kindOf { CloudClient(fastHttp).complete(settings(), "s", "u") }.kind,
+        )
     }
 
     @Test fun malformedBaseUrlIsNotFound() {
-        assertEquals(Kind.NOT_FOUND, kindOf { CloudClient(fastHttp).complete(settings("api.deepseek.com"), "s", "u") }.kind)
+        assertEquals(
+            Kind.NOT_FOUND,
+            kindOf { CloudClient(fastHttp).complete(settings("api.deepseek.com"), "s", "u") }.kind,
+        )
     }
 
     /** Cancelling the coroutine must abort the in-flight HTTP call, not wait for it. */
@@ -118,7 +152,8 @@ class CloudClientTest {
         val slowHttp = OkHttpClient.Builder().readTimeout(30, TimeUnit.SECONDS).build()
         val started = System.nanoTime()
         val job = async(Dispatchers.IO) { CloudClient(slowHttp).complete(settings(), "s", "u") }
-        withContext(Dispatchers.IO) { server.takeRequest(5, TimeUnit.SECONDS) } // request is in flight
+        // request is in flight
+        withContext(Dispatchers.IO) { server.takeRequest(5, TimeUnit.SECONDS) }
         delay(20)
         job.cancel()
         runCatching { job.await() }
@@ -130,8 +165,14 @@ class CloudClientTest {
 class AiExceptionTest {
 
     @Test fun balanceMarkersWinOverStatus() {
-        assertEquals(Kind.INSUFFICIENT_BALANCE, AiException.fromHttp(400, """{"error":{"code":"insufficient_balance"}}""").kind)
-        assertEquals(Kind.INSUFFICIENT_BALANCE, AiException.fromHttp(403, "AccountOverdueError").kind)
+        assertEquals(
+            Kind.INSUFFICIENT_BALANCE,
+            AiException.fromHttp(400, """{"error":{"code":"insufficient_balance"}}""").kind,
+        )
+        assertEquals(
+            Kind.INSUFFICIENT_BALANCE,
+            AiException.fromHttp(403, "AccountOverdueError").kind,
+        )
         assertEquals(Kind.UNAUTHORIZED, AiException.fromHttp(403, "AccessDenied").kind)
     }
 
@@ -143,9 +184,15 @@ class AiExceptionTest {
 
     @Test fun ioMapping() {
         assertEquals(Kind.TIMEOUT, AiException.fromIo(java.net.SocketTimeoutException()).kind)
-        assertEquals(Kind.TIMEOUT, AiException.fromIo(java.io.InterruptedIOException("timeout")).kind)
+        assertEquals(
+            Kind.TIMEOUT,
+            AiException.fromIo(java.io.InterruptedIOException("timeout")).kind,
+        )
         assertEquals(Kind.NETWORK, AiException.fromIo(java.net.UnknownHostException("x")).kind)
-        assertEquals(Kind.NETWORK, AiException.fromIo(javax.net.ssl.SSLHandshakeException("x")).kind)
+        assertEquals(
+            Kind.NETWORK,
+            AiException.fromIo(javax.net.ssl.SSLHandshakeException("x")).kind,
+        )
         assertEquals(Kind.OTHER, AiException.fromIo(java.io.IOException("x")).kind)
     }
 

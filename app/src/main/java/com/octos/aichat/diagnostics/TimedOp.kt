@@ -49,8 +49,13 @@ object DurationBuckets {
     }
 
     /** "≤ 2.0s" for a bounded bucket, "> 30s" for the open-ended one. */
-    fun label(bucket: Int): String =
-        if (bucket < BOUNDS_MS.size) "≤ ${seconds(BOUNDS_MS[bucket])}" else "> ${seconds(BOUNDS_MS.last())}"
+    fun label(bucket: Int): String = if (bucket <
+        BOUNDS_MS.size
+    ) {
+        "≤ ${seconds(BOUNDS_MS[bucket])}"
+    } else {
+        "> ${seconds(BOUNDS_MS.last())}"
+    }
 
     /** Every bound is either under a second or a whole number of seconds. */
     private fun seconds(ms: Long): String = if (ms < 1_000) "${ms}ms" else "${ms / 1_000}s"

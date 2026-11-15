@@ -38,8 +38,15 @@ class RawTreeDumper(
     /** Main thread: schedule a dump. Bursts coalesce — a queued dump reads the window when it runs. */
     fun request() {
         if (!enabled) return
-        val h = handler ?: Handler(HandlerThread("a11y-raw-tree").also { it.start(); thread = it }.looper)
-            .also { handler = it }
+        val h =
+            handler
+                ?: Handler(
+                    HandlerThread("a11y-raw-tree").also {
+                        it.start()
+                        thread = it
+                    }.looper,
+                )
+                    .also { handler = it }
         h.removeCallbacks(dumpTask)
         h.post(dumpTask)
     }

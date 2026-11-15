@@ -12,20 +12,34 @@ import com.octos.aichat.ai.AiException.Kind
  */
 fun Throwable.toUserMessage(context: Context): String {
     val e = this as? AiException
-        ?: return message?.takeIf { it.isNotBlank() } ?: context.getString(R.string.generation_failed)
+        ?: return message?.takeIf { it.isNotBlank() }
+            ?: context.getString(R.string.generation_failed)
     return when (e.kind) {
         Kind.UNAUTHORIZED -> context.getString(R.string.ai_err_unauthorized)
+
         Kind.INSUFFICIENT_BALANCE -> context.getString(R.string.ai_err_balance)
+
         Kind.RATE_LIMITED -> context.getString(R.string.ai_err_rate_limited)
+
         Kind.NOT_FOUND -> context.getString(R.string.ai_err_not_found)
+
         Kind.BAD_REQUEST -> context.getString(R.string.ai_err_bad_request, e.httpCode)
+
         Kind.SERVER -> context.getString(R.string.ai_err_server, e.httpCode)
+
         Kind.TIMEOUT -> context.getString(R.string.ai_err_timeout)
+
         Kind.LOCAL_TIMEOUT -> context.getString(R.string.ai_err_local_timeout)
+
         Kind.NETWORK -> context.getString(R.string.ai_err_network)
+
         Kind.BAD_RESPONSE -> context.getString(R.string.ai_err_bad_response)
+
         Kind.OTHER ->
-            if (e.httpCode > 0) context.getString(R.string.ai_err_other_http, e.httpCode)
-            else context.getString(R.string.generation_failed)
+            if (e.httpCode > 0) {
+                context.getString(R.string.ai_err_other_http, e.httpCode)
+            } else {
+                context.getString(R.string.generation_failed)
+            }
     }
 }

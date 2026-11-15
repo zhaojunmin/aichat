@@ -23,7 +23,8 @@ class ChatAccessibilityService : AccessibilityService() {
     private val settings: SettingsStore by lazy { SettingsRepository.get(this) }
     private val isTarget: (String) -> Boolean = { it in settings.current().targetPackageSet }
 
-    private val foreground = ForegroundTracker(isTarget, { AppBus.captureRawTree }, AppBus::onForeground)
+    private val foreground =
+        ForegroundTracker(isTarget, { AppBus.captureRawTree }, AppBus::onForeground)
     private val treeDumper = RawTreeDumper({ rootInActiveWindow }, isTarget)
     private val reader = ChatWindowReader(this)
     private val replyFiller = ReplyFiller { rootInActiveWindow }

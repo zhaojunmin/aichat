@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.withTransaction
 import androidx.test.core.app.ApplicationProvider
+import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -14,7 +15,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import java.io.File
 
 /**
  * R5 against a real Room database: a learning pass that fails part-way — including
@@ -42,7 +42,7 @@ class LearningTransactionTest {
             listOf(
                 MemoryEntity(category = "事实", content = "住在北京", updatedAt = 1),
                 MemoryEntity(category = "事实", content = "养了只猫", updatedAt = 1),
-            )
+            ),
         )
         log = ReplyLog(context, db.learningStateDao())
         log.append("我搬到上海了")
@@ -76,7 +76,8 @@ class LearningTransactionTest {
     /** The window that used to make retries learn the same replies twice. */
     @Test fun offsetFailingAfterWritesRollsBackTheWrites() = runBlocking {
         val failingMark = object : ReplyLedger by log {
-            override suspend fun markLearned(total: Int) = error("killed before the offset was saved")
+            override suspend fun markLearned(total: Int) =
+                error("killed before the offset was saved")
         }
         try {
             pass(ledger = failingMark).run { _, _ -> result }
@@ -104,8 +105,17 @@ class LearningTransactionTest {
         runCatching { pass(dao = failingInsert).run { _, _ -> result } }
 
         var calls = 0
-        pass().run { _, replies -> calls++; assertEquals(listOf("我搬到上海了"), replies); result }
-        assertNull(pass().run { _, _ -> calls++; result })
+        pass().run { _, replies ->
+            calls++
+            assertEquals(listOf("我搬到上海了"), replies)
+            result
+        }
+        assertNull(
+            pass().run { _, _ ->
+                calls++
+                result
+            },
+        )
 
         assertEquals(1, calls)
         assertEquals(1, db.memoryDao().all().count { it.content == "喜欢爬山" })

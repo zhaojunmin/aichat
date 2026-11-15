@@ -16,13 +16,20 @@ class LocalClientTest {
 
     @Test fun normalOutputPassesThrough_withTokenCap() = runTest {
         var cap = 0
-        val client = LocalClient { _, _, max -> cap = max; LlmEngine.Output("""["好"]""", timedOut = false) }
+        val client =
+            LocalClient { _, _, max ->
+                cap = max
+                LlmEngine.Output("""["好"]""", timedOut = false)
+            }
 
         assertEquals("""["好"]""", client.complete(AppSettings(), "sys", "user"))
         assertEquals(LocalClient.MAX_TOKENS, cap)
     }
 
-    /** A truncated answer must not be parsed into fragments — and must not read as a network problem. */
+    /**
+     * A truncated answer must not be parsed into fragments — and must not read as a network
+     * problem.
+     */
     @Test fun engineTimeoutIsLocalTimeout() = runTest {
         val client = LocalClient { _, _, _ -> LlmEngine.Output("""["半截""", timedOut = true) }
         try {
@@ -35,20 +42,32 @@ class LocalClientTest {
 
     /** After a timeout the next turn is independent (the engine resets itself natively). */
     @Test fun nextTurnAfterTimeoutSucceeds() = runTest {
-        val outputs = ArrayDeque(listOf(LlmEngine.Output("", timedOut = true), LlmEngine.Output("ok", timedOut = false)))
+        val outputs =
+            ArrayDeque(
+                listOf(
+                    LlmEngine.Output("", timedOut = true),
+                    LlmEngine.Output("ok", timedOut = false),
+                ),
+            )
         val client = LocalClient { _, _, _ -> outputs.removeFirst() }
 
         runCatching { client.complete(AppSettings(), "s", "u") }
         assertEquals("ok", client.complete(AppSettings(), "s", "u"))
     }
 
-    /** Through AiService: the local timeout reaches the caller as-is, not rewrapped as a cloud TIMEOUT. */
+    /**
+     * Through AiService: the local timeout reaches the caller as-is, not rewrapped as a cloud
+     * TIMEOUT.
+     */
     @Test fun localTimeoutSurfacesFromGenerateReplies() = runTest {
         val local = LocalClient { _, _, _ -> LlmEngine.Output("", timedOut = true) }
         val svc = AiService { local }
         val settings = AppSettings(inferenceMode = InferenceMode.LOCAL)
         try {
-            svc.generateReplies(settings, Conversation("pkg", listOf(ChatMessage(Speaker.OTHER, "hi"))))
+            svc.generateReplies(
+                settings,
+                Conversation("pkg", listOf(ChatMessage(Speaker.OTHER, "hi"))),
+            )
             fail("expected LOCAL_TIMEOUT")
         } catch (e: AiException) {
             assertEquals(AiException.Kind.LOCAL_TIMEOUT, e.kind)

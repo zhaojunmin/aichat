@@ -21,6 +21,10 @@ class AppSettingsTest {
         val local = noKey.copy(inferenceMode = InferenceMode.LOCAL)
         assertTrue(local.isInferenceConfigured(localModelReady = true))
         assertFalse(local.isInferenceConfigured(localModelReady = false))
-        assertFalse(withKey.copy(inferenceMode = InferenceMode.LOCAL).isInferenceConfigured(localModelReady = false))
+        assertFalse(
+            withKey.copy(
+                inferenceMode = InferenceMode.LOCAL,
+            ).isInferenceConfigured(localModelReady = false),
+        )
     }
 }

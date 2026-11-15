@@ -64,7 +64,7 @@ internal fun DiagnosticsScreen(onBack: () -> Unit) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
-                }
+                },
             )
         },
         bottomBar = {
@@ -94,18 +94,28 @@ internal fun DiagnosticsScreen(onBack: () -> Unit) {
                 .fillMaxSize()
                 .padding(horizontal = 16.dp),
         ) {
-            Text(stringResource(R.string.diag_preview_hint), style = MaterialTheme.typography.bodySmall)
+            Text(
+                stringResource(R.string.diag_preview_hint),
+                style = MaterialTheme.typography.bodySmall,
+            )
             val text = report
             if (text == null) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             } else {
                 SelectionContainer(
                     Modifier
                         .padding(top = 8.dp)
                         .verticalScroll(rememberScrollState())
-                        .horizontalScroll(rememberScrollState())
+                        .horizontalScroll(rememberScrollState()),
                 ) {
-                    Text(text, fontFamily = FontFamily.Monospace, fontSize = 11.sp, lineHeight = 15.sp)
+                    Text(
+                        text,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                    )
                 }
             }
         }

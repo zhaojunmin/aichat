@@ -47,7 +47,10 @@ class WordPieceTokenizer private constructor(private val vocab: Map<String, Int>
 
     /** Greedy longest-match WordPiece; whole token → [UNK] if any piece is OOV. */
     private fun wordPiece(token: String, out: MutableList<Int>) {
-        if (token.length > MAX_CHARS_PER_WORD) { out.add(unkId); return }
+        if (token.length > MAX_CHARS_PER_WORD) {
+            out.add(unkId)
+            return
+        }
         val sub = ArrayList<Int>()
         var start = 0
         while (start < token.length) {
@@ -56,11 +59,18 @@ class WordPieceTokenizer private constructor(private val vocab: Map<String, Int>
             while (start < end) {
                 val piece = (if (start > 0) "##" else "") + token.substring(start, end)
                 val v = vocab[piece]
-                if (v != null) { curId = v; break }
+                if (v != null) {
+                    curId = v
+                    break
+                }
                 end--
             }
-            if (curId < 0) { out.add(unkId); return }
-            sub.add(curId); start = end
+            if (curId < 0) {
+                out.add(unkId)
+                return
+            }
+            sub.add(curId)
+            start = end
         }
         out.addAll(sub)
     }
@@ -79,7 +89,9 @@ class WordPieceTokenizer private constructor(private val vocab: Map<String, Int>
             Character.CONNECTOR_PUNCTUATION.toInt(), Character.DASH_PUNCTUATION.toInt(),
             Character.START_PUNCTUATION.toInt(), Character.END_PUNCTUATION.toInt(),
             Character.INITIAL_QUOTE_PUNCTUATION.toInt(), Character.FINAL_QUOTE_PUNCTUATION.toInt(),
-            Character.OTHER_PUNCTUATION.toInt() -> true
+            Character.OTHER_PUNCTUATION.toInt(),
+            -> true
+
             else -> false
         }
     }

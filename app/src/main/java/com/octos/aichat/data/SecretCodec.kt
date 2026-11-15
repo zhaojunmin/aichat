@@ -29,9 +29,12 @@ class SecretCodec(private val cipher: SecretCipher) {
     data class Decoded(val value: String, val isLegacyPlaintext: Boolean = false)
 
     /** Throws if encryption fails; callers must not fall back to writing plaintext. */
-    fun encode(secret: String): String =
-        if (secret.isEmpty()) ""
-        else PREFIX + Base64.getEncoder().encodeToString(cipher.encrypt(secret.toByteArray(Charsets.UTF_8)))
+    fun encode(secret: String): String = if (secret.isEmpty()) {
+        ""
+    } else {
+        PREFIX +
+            Base64.getEncoder().encodeToString(cipher.encrypt(secret.toByteArray(Charsets.UTF_8)))
+    }
 
     /**
      * An encrypted value that can't be decrypted (e.g. the Keystore key was wiped)
@@ -41,7 +44,10 @@ class SecretCodec(private val cipher: SecretCipher) {
         if (stored.isNullOrEmpty()) return Decoded("")
         if (!stored.startsWith(PREFIX)) return Decoded(stored, isLegacyPlaintext = true)
         val plain = runCatching {
-            String(cipher.decrypt(Base64.getDecoder().decode(stored.removePrefix(PREFIX))), Charsets.UTF_8)
+            String(
+                cipher.decrypt(Base64.getDecoder().decode(stored.removePrefix(PREFIX))),
+                Charsets.UTF_8,
+            )
         }.getOrElse {
             DiagLog.record(ErrorCode.SET_802, cause = it)
             ""
@@ -72,11 +78,14 @@ object KeystoreSecretCipher : SecretCipher {
         (ks.getKey(ALIAS, null) as? SecretKey)?.let { return it }
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE).run {
             init(
-                KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+                KeyGenParameterSpec.Builder(
+                    ALIAS,
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+                )
                     .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                     .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                     .setKeySize(256)
-                    .build()
+                    .build(),
             )
             generateKey()
         }

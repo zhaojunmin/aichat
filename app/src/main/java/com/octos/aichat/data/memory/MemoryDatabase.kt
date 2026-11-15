@@ -37,7 +37,9 @@ abstract class MemoryDatabase : RoomDatabase() {
         private val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE memory ADD COLUMN embedding BLOB")
-                db.execSQL("ALTER TABLE memory ADD COLUMN embeddingVersion INTEGER NOT NULL DEFAULT 0")
+                db.execSQL(
+                    "ALTER TABLE memory ADD COLUMN embeddingVersion INTEGER NOT NULL DEFAULT 0",
+                )
             }
         }
 
@@ -50,24 +52,25 @@ abstract class MemoryDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "CREATE TABLE IF NOT EXISTS `learning_state` " +
-                        "(`id` INTEGER NOT NULL, `learnedReplies` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                        "(`id` INTEGER NOT NULL, `learnedReplies` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`id`))",
                 )
             }
         }
 
         /** Every upgrade step, in order. Internal so the migration test runs the real chain. */
-        internal val MIGRATIONS = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+        internal val MIGRATIONS =
+            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
 
         @Volatile
-        private var INSTANCE: MemoryDatabase? = null
+        private var instance: MemoryDatabase? = null
 
-        fun get(context: Context): MemoryDatabase =
-            INSTANCE ?: synchronized(this) {
-                INSTANCE ?: Room.databaseBuilder(
-                    context.applicationContext,
-                    MemoryDatabase::class.java,
-                    "memory.db",
-                ).addMigrations(*MIGRATIONS).build().also { INSTANCE = it }
-            }
+        fun get(context: Context): MemoryDatabase = instance ?: synchronized(this) {
+            instance ?: Room.databaseBuilder(
+                context.applicationContext,
+                MemoryDatabase::class.java,
+                "memory.db",
+            ).addMigrations(*MIGRATIONS).build().also { instance = it }
+        }
     }
 }

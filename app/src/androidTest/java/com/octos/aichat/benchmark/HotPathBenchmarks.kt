@@ -11,14 +11,14 @@ import com.octos.aichat.ai.embedding.VectorCodec
 import com.octos.aichat.ai.embedding.WordPieceTokenizer
 import com.octos.aichat.data.memory.MemoryEntity
 import com.octos.aichat.data.memory.MemoryRetrieval
+import java.io.File
+import kotlin.random.Random
 import org.junit.Assert.assertNotNull
 import org.junit.Assume.assumeTrue
 import org.junit.BeforeClass
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
-import kotlin.random.Random
 
 /**
  * On-device microbenchmarks for the pure-compute pieces on the reply path
@@ -62,7 +62,9 @@ class HotPathBenchmarks {
         }
 
         /** Query = last 12 transcript lines — MemoryInjector uses toTranscript(maxLines = 12). */
-        val query: String = (1..12).joinToString("\n") { (if (it % 2 == 0) "我: " else "对方: ") + sentence(4) }
+        val query: String = (1..12).joinToString("\n") {
+            (if (it % 2 == 0) "我: " else "对方: ") + sentence(4)
+        }
 
         /** Fixed query vector: isolates the scoring cost from the model forward pass. */
         private val queryVector = vector()
@@ -77,13 +79,17 @@ class HotPathBenchmarks {
             override fun decode(bytes: ByteArray) = VectorCodec.decode(bytes)
         }
 
-        private val context: Context get() = InstrumentationRegistry.getInstrumentation().targetContext
+        private val context: Context
+            get() = InstrumentationRegistry.getInstrumentation().targetContext
 
         lateinit var tokenizer: WordPieceTokenizer
 
-        @BeforeClass @JvmStatic fun loadVocab() {
+        @BeforeClass @JvmStatic
+        fun loadVocab() {
             val f = File(context.cacheDir, "bench_vocab.txt")
-            context.assets.open("embed/vocab.txt").use { input -> f.outputStream().use { input.copyTo(it) } }
+            context.assets.open("embed/vocab.txt").use { input ->
+                f.outputStream().use { input.copyTo(it) }
+            }
             tokenizer = WordPieceTokenizer.fromFile(f.path)
         }
     }
@@ -96,7 +102,13 @@ class HotPathBenchmarks {
 
     /** Semantic scoring only (decode 500 stored vectors + cosine); query vector precomputed. */
     @Test fun recall_semanticScoring_500() = benchmark.measureRepeated {
-        MemoryRetrieval.retrieve(memories, query, now, k = 30, relevance = MemoryRetrieval.EmbeddingRelevance(fakeEmbedder))
+        MemoryRetrieval.retrieve(
+            memories,
+            query,
+            now,
+            k = 30,
+            relevance = MemoryRetrieval.EmbeddingRelevance(fakeEmbedder),
+        )
     }
 
     /** The real bge-small-zh forward pass for one query (MNN, on-device). */

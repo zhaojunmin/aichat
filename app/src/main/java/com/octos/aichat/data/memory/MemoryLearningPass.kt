@@ -47,15 +47,17 @@ internal class MemoryLearningPass(
                 dao.softDelete(it, now, DELETED_BY_LEARNER)
             }
             if (result.additions.isNotEmpty()) {
-                dao.insertAll(result.additions.map {
-                    MemoryEntity(
-                        category = it.category,
-                        content = it.content,
-                        updatedAt = now,
-                        keywords = it.keywords,
-                        importance = it.importance,
-                    )
-                })
+                dao.insertAll(
+                    result.additions.map {
+                        MemoryEntity(
+                            category = it.category,
+                            content = it.content,
+                            updatedAt = now,
+                            keywords = it.keywords,
+                            importance = it.importance,
+                        )
+                    },
+                )
             }
             ledger.markLearned(pending.total)
         }

@@ -1,16 +1,16 @@
 package com.octos.aichat.data
 
+import java.util.Base64
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
-import java.util.Base64
-import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
-import javax.crypto.SecretKey
-import javax.crypto.spec.GCMParameterSpec
 
 class SecretCodecTest {
 
@@ -26,7 +26,9 @@ class SecretCodecTest {
             return c.doFinal(blob, 12, blob.size - 12)
         }
         companion object {
-            fun newKey(): SecretKey = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+            fun newKey(): SecretKey = KeyGenerator.getInstance("AES").apply {
+                init(256)
+            }.generateKey()
         }
     }
 
@@ -50,9 +52,14 @@ class SecretCodecTest {
         assertEquals(SecretCodec.Decoded(""), codec.decode(null))
     }
 
-    /** Upgrade from a version that stored keys in plaintext: still readable, flagged for re-save. */
+    /**
+     * Upgrade from a version that stored keys in plaintext: still readable, flagged for re-save.
+     */
     @Test fun legacyPlaintextIsReturnedAndFlagged() {
-        assertEquals(SecretCodec.Decoded("sk-old", isLegacyPlaintext = true), codec.decode("sk-old"))
+        assertEquals(
+            SecretCodec.Decoded("sk-old", isLegacyPlaintext = true),
+            codec.decode("sk-old"),
+        )
     }
 
     /** Keystore key wiped / different device: decode to "" (user re-enters) instead of crashing. */
@@ -76,10 +83,14 @@ class SecretCodecTest {
         assertEquals("", codec.decode(tampered).value)
     }
 
-    /** Encryption failure must surface (caller then refuses to persist) — never a silent plaintext write. */
+    /**
+     * Encryption failure must surface (caller then refuses to persist) — never a silent
+     * plaintext write.
+     */
     @Test fun encryptFailurePropagates() {
         val broken = SecretCodec(object : SecretCipher {
-            override fun encrypt(plain: ByteArray): ByteArray = throw IllegalStateException("keystore down")
+            override fun encrypt(plain: ByteArray): ByteArray =
+                throw IllegalStateException("keystore down")
             override fun decrypt(blob: ByteArray): ByteArray = throw IllegalStateException()
         })
         try {

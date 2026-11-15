@@ -10,7 +10,11 @@ class ErrorCodeTest {
         val format = Regex("""^(AI|LLM|A11Y|OCR|BUB|MEM|EMB|SET|APP)-(\d)\d\d$""")
         for (code in ErrorCode.entries) {
             val m = format.matchEntire(code.id) ?: throw AssertionError("bad id ${code.id}")
-            assertEquals("${code.id}: hundreds digit vs domain", code.domain.hundreds, m.groupValues[2].toInt())
+            assertEquals(
+                "${code.id}: hundreds digit vs domain",
+                code.domain.hundreds,
+                m.groupValues[2].toInt(),
+            )
             assertEquals("${code.id}: enum name", code.id.replace('-', '_'), code.name)
             assertTrue("${code.id}: descriptions", code.zh.isNotBlank() && code.en.isNotBlank())
         }

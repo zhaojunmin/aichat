@@ -34,7 +34,8 @@ class ForegroundEventFilterTest {
     }
 
     @Test fun unknownStateIsChecked() {
-        assertFalse(skip(TYPE_VIEW_SCROLLED, soul, fg = null)) // nothing known yet (e.g. right after start)
+        // nothing known yet (e.g. right after start)
+        assertFalse(skip(TYPE_VIEW_SCROLLED, soul, fg = null))
         assertFalse(skip(TYPE_VIEW_SCROLLED, null))
     }
 

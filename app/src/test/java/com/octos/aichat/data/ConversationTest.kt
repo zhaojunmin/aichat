@@ -12,7 +12,12 @@ class ConversationTest {
         Conversation("pkg", lines.map { ChatMessage(it.first, it.second) })
 
     @Test fun lastFromOther_picksLatestOtherLine() {
-        val c = conv(Speaker.OTHER to "a", Speaker.ME to "b", Speaker.OTHER to "c", Speaker.ME to "d")
+        val c = conv(
+            Speaker.OTHER to "a",
+            Speaker.ME to "b",
+            Speaker.OTHER to "c",
+            Speaker.ME to "d",
+        )
         assertEquals("c", c.lastFromOther())
     }
 

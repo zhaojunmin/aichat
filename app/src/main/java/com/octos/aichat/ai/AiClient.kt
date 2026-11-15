@@ -29,26 +29,38 @@ class AiException(
     val httpCode: Int = 0,
     detail: String = "",
     cause: Throwable? = null,
-) : Exception("$kind${if (httpCode > 0) " $httpCode" else ""}${if (detail.isNotEmpty()) ": $detail" else ""}", cause) {
+) : Exception(
+    "$kind${if (httpCode > 0) " $httpCode" else ""}" +
+        "${if (detail.isNotEmpty()) ": $detail" else ""}",
+    cause,
+) {
 
     enum class Kind {
         /** 401/403: key missing, wrong, or not allowed to use this model. */
         UNAUTHORIZED,
+
         /** Out of credit / account in arrears (DeepSeek 402, Ark AccountOverdue). */
         INSUFFICIENT_BALANCE,
+
         /** 429: rate limit or quota exhausted. */
         RATE_LIMITED,
+
         /** 404: wrong Base URL, model name or endpoint id. */
         NOT_FOUND,
+
         /** 400/422: request rejected, usually a bad model name / parameter. */
         BAD_REQUEST,
+
         /** 5xx: provider-side failure or overload. */
         SERVER,
         TIMEOUT,
+
         /** The on-device model didn't finish in time (device too slow for the chosen model). */
         LOCAL_TIMEOUT,
+
         /** DNS / connect / TLS failure: no usable network path. */
         NETWORK,
+
         /** 2xx but not a usable completion (empty, or not the expected JSON). */
         BAD_RESPONSE,
         OTHER,
@@ -57,7 +69,12 @@ class AiException(
     companion object {
         // Provider error codes that mean "no money", whatever the HTTP status
         // (Volcengine Ark reports arrears as 403 AccountOverdueError).
-        private val BALANCE_MARKERS = listOf("insufficient_balance", "insufficient balance", "accountoverdue", "overdue")
+        private val BALANCE_MARKERS = listOf(
+            "insufficient_balance",
+            "insufficient balance",
+            "accountoverdue",
+            "overdue",
+        )
 
         /** Classify a non-2xx response from an OpenAI-compatible endpoint. */
         fun fromHttp(code: Int, body: String): AiException {
@@ -77,10 +94,17 @@ class AiException(
         /** Classify a transport-level failure (no HTTP response). */
         fun fromIo(e: Throwable): AiException = when (e) {
             is AiException -> e
+
             // SocketTimeoutException and OkHttp's call timeout are both InterruptedIOException.
             is InterruptedIOException -> AiException(Kind.TIMEOUT, cause = e)
-            is UnknownHostException, is ConnectException, is NoRouteToHostException, is SSLException ->
+
+            is UnknownHostException,
+            is ConnectException,
+            is NoRouteToHostException,
+            is SSLException,
+            ->
                 AiException(Kind.NETWORK, detail = e.javaClass.simpleName, cause = e)
+
             else -> AiException(Kind.OTHER, detail = e.toString(), cause = e)
         }
     }

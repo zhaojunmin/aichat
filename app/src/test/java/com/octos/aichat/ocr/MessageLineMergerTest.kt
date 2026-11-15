@@ -18,13 +18,19 @@ class MessageLineMergerTest {
             always,
         )
         assertEquals(listOf("不同品种,5.5远超4.8,5.5各种场景都非常稳,又快又稳又好"), out.map { it.text })
-        assertEquals(OcrBlock(230, 2300, 1000, 2402, out[0].text, lines = 2, firstLineHeight = 45), out[0])
+        assertEquals(
+            OcrBlock(230, 2300, 1000, 2402, out[0].text, lines = 2, firstLineHeight = 45),
+            out[0],
+        )
     }
 
     /** Real device boxes: lines of one bubble started at x=212 and x=231 (OCR jitter). */
     @Test fun leftEdgeJitterWithinALineHeightStillMerges() {
         val out = MessageLineMerger.merge(
-            listOf(OcrBlock(212, 1923, 1002, 1984, "之前用pus4.8 就挺好,今天升级到"), OcrBlock(231, 1995, 662, 2043, "5.5看看是不是更好")),
+            listOf(
+                OcrBlock(212, 1923, 1002, 1984, "之前用pus4.8 就挺好,今天升级到"),
+                OcrBlock(231, 1995, 662, 2043, "5.5看看是不是更好"),
+            ),
             always,
         )
         assertEquals(listOf("之前用pus4.8 就挺好,今天升级到5.5看看是不是更好"), out.map { it.text })
@@ -38,7 +44,10 @@ class MessageLineMergerTest {
     }
 
     @Test fun threeLinesBecomeOne_inputOrderDoesNotMatter() {
-        val out = MessageLineMerger.merge(listOf(line(1114, "三"), line(1000, "一"), line(1057, "二")), always)
+        val out = MessageLineMerger.merge(
+            listOf(line(1114, "三"), line(1000, "一"), line(1057, "二")),
+            always,
+        )
         assertEquals(listOf("一二三"), out.map { it.text })
     }
 
@@ -49,7 +58,9 @@ class MessageLineMergerTest {
     }
 
     @Test fun pixelCheckVetoesTightMessages() {
-        val out = MessageLineMerger.merge(listOf(line(1000, "第一条"), line(1057, "第二条"))) { _, _ -> false }
+        val out = MessageLineMerger.merge(listOf(line(1000, "第一条"), line(1057, "第二条"))) { _, _ ->
+            false
+        }
         assertEquals(2, out.size)
     }
 
@@ -71,7 +82,10 @@ class MessageLineMergerTest {
 
     @Test fun pixelCheckOnlyAskedForGeometricNeighbours() {
         var asked = 0
-        MessageLineMerger.merge(listOf(line(1000, "a"), line(1300, "b"))) { _, _ -> asked++; true }
+        MessageLineMerger.merge(listOf(line(1000, "a"), line(1300, "b"))) { _, _ ->
+            asked++
+            true
+        }
         assertEquals(0, asked)
     }
 
