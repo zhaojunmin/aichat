@@ -1,5 +1,8 @@
-package com.octos.aichat.ai
+package com.octos.aichat.bubble
 
+import com.octos.aichat.ai.AiClient
+import com.octos.aichat.ai.AiException
+import com.octos.aichat.ai.aiClientFor
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 import kotlinx.coroutines.Dispatchers
@@ -9,20 +12,21 @@ import org.json.JSONArray
 import org.json.JSONException
 
 /**
- * Turns an extracted [Conversation] into a handful of suggestions via the
- * configured OpenAI-compatible chat API (DeepSeek / Doubao).
+ * Turns the chat on screen into a handful of suggestions: builds the prompt, asks the
+ * model through [AiClient] (cloud or on-device, per settings), enforces the cloud time
+ * budget and parses the answer. The AI layer is reached only through [AiClient].
  */
-class AiService(
+class SuggestionGenerator(
     // The user is waiting mid-chat: past this they'd rather type themselves.
     // Cloud only — a blocking on-device inference can't be interrupted midway.
     private val suggestionTimeoutMs: Long = SUGGESTION_TIMEOUT_MS,
-    // Which AiClient to use for a given request — injected so suggestion generation and
-    // learning can be unit-tested with a fake client. Default = cloud/local selection.
+    // Which AiClient to use for a given request — injected so generation can be
+    // unit-tested with a fake client. Default = cloud/local selection.
     // Last, so callers can pass it as a trailing lambda.
     private val clientFor: (AppSettings) -> AiClient = ::aiClientFor,
 ) {
 
-    suspend fun generateSuggestions(
+    suspend fun generate(
         settings: AppSettings,
         conversation: Conversation,
         memoryBlock: String = "",
@@ -111,8 +115,5 @@ class AiService(
 
     companion object {
         const val SUGGESTION_TIMEOUT_MS = 30_000L
-
-        /** Production singleton with the real cloud/local client selection. */
-        val instance: AiService by lazy { AiService() }
     }
 }

@@ -27,8 +27,8 @@ ChatAccessibilityService(只做回调分发)
         │
         │ 点悬浮球时:ChatCapture(只依赖 ScreenAccess 接口)
         ├─► ChatParser(控件树)──────┐
-        └─► 截图 + OcrReader(OCR)──┴──► Conversation ──► AiService ─────┬─► 云端(DeepSeek/豆包,OpenAI 兼容)
-                                                         ▲                └─► 本地(MNN + Qwen2.5,隐私)
+        └─► 截图 + OcrReader(OCR)──┴──► Conversation ──► SuggestionGenerator ─┬─► 云端(DeepSeek/豆包,OpenAI 兼容)
+                                                         ▲                  └─► 本地(MNN + Qwen2.5,隐私)
                                                          │
                                        MemoryRepository(三因子召回:
                                        recency + importance + relevance)
@@ -52,7 +52,7 @@ FloatingBubbleService(悬浮球 + 建议面板)
 | 聊天解析(控件树,按水平位置分「我/对方」) | `accessibility/ChatParser.kt`、`MessageBoundsLocator.kt` |
 | 截图 OCR(ML Kit 中文) | `ocr/OcrReader.kt`、`MessageLineMerger.kt`、`SenderNameFilter.kt` |
 | 悬浮球 + 面板 | `bubble/FloatingBubbleService.kt`、`BubblePanel.kt`、`BubbleStyle.kt`、`BubblePalette.kt`(主题色 → View 颜色) |
-| AI 接口抽象 | `ai/AiClient.kt`、`ai/CloudClient.kt`、`ai/LocalClient.kt`、`ai/AiService.kt` |
+| AI 接口抽象 | `ai/AiClient.kt`、`ai/CloudClient.kt`、`ai/LocalClient.kt`(生成建议:`bubble/SuggestionGenerator.kt`) |
 | 本地推理(MNN Qwen2.5) | `ai/local/LlmEngine.kt`、`LocalModel.kt`、`ModelStore.kt` |
 | 语义向量(bge-small-zh) | `ai/embedding/`(`Encoder`、`Embedder`、`WordPieceTokenizer` …) |
 | 专属记忆 | `data/memory/`(`MemoryRepository`、`MemoryRetrieval`、`MemoryLearningPass`、`ReplyLog` …) |

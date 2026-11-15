@@ -289,7 +289,7 @@ A11Y-304 截图失败            3
 | `ReplyLog.clear` `runCatching { delete }` | 吞掉 | 保持(删除失败下次会覆盖) |
 | `CloudClient` 4 处 | 转成 `AiException` | 保持;由调用方按 `Kind` 记 `AI-1xx` |
 | `MemoryLearner.learn` `runCatching { complete }` | 返回 null | 记对应的 `AI-1xx` / `LLM-2xx`,再返回 null |
-| `AiService` 2 处 `JSONException` | 退回宽松解析 | 保持(解析失败最终会体现为 `AI-109`) |
+| `SuggestionGenerator` 2 处 `JSONException` | 退回宽松解析 | 保持(解析失败最终会体现为 `AI-109`) |
 | `ModelStore.download` | 返回 `Result` | 失败时记 `LLM-204` |
 | `SecretCodec.decode` | 解不开就返回 "" | 记 `SET-802` |
 | `SettingsRepository` 加密失败 `Log.w` | logcat | 记 `SET-801` |

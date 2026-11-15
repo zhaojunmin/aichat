@@ -5,10 +5,10 @@ import androidx.benchmark.junit4.BenchmarkRule
 import androidx.benchmark.junit4.measureRepeated
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.octos.aichat.ai.AiService
 import com.octos.aichat.ai.embedding.Embedder
 import com.octos.aichat.ai.embedding.VectorCodec
 import com.octos.aichat.ai.embedding.WordPieceTokenizer
+import com.octos.aichat.bubble.SuggestionGenerator
 import com.octos.aichat.data.memory.MemoryEntity
 import com.octos.aichat.data.memory.MemoryLearner
 import com.octos.aichat.data.memory.MemoryRetrieval
@@ -133,7 +133,7 @@ class HotPathBenchmarks {
 
     // ---- model output parsing ----------------------------------------------
 
-    private val service = AiService()
+    private val generator = SuggestionGenerator()
     private val learner = MemoryLearner()
     private val suggestionsRaw = "```json\n[\"周末一起去爬山吧\",\"好呀,几点出发?\",\"最近有点累,下次吧\"]\n```"
     private val learnRaw = """{"additions":[{"category":"事实","content":"在北京做程序员",
@@ -142,7 +142,7 @@ class HotPathBenchmarks {
         "keywords":"拿铁 咖啡","importance":5}],"deletions":[7]}"""
 
     @Test fun parseSuggestions() = benchmark.measureRepeated {
-        service.parseSuggestions(suggestionsRaw, 3)
+        generator.parseSuggestions(suggestionsRaw, 3)
     }
 
     @Test fun parseLearnResult() = benchmark.measureRepeated {

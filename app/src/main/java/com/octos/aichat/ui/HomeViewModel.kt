@@ -7,11 +7,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.octos.aichat.R
-import com.octos.aichat.ai.AiService
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.LocalModel
 import com.octos.aichat.ai.local.ModelStore
 import com.octos.aichat.ai.local.localModel
+import com.octos.aichat.bubble.SuggestionGenerator
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
@@ -39,6 +39,8 @@ class HomeViewModel(
     val settingsState = settings.state
     val memories = memory.memories
     val stats = memory.stats
+
+    private val suggestions = SuggestionGenerator()
 
     private val _testing = MutableStateFlow(false)
     val testing: StateFlow<Boolean> = _testing
@@ -122,7 +124,7 @@ class HomeViewModel(
                         appContext.getString(R.string.error_local_load_failed)
                     }
                 }
-                AiService.instance.generateSuggestions(s, sample)
+                suggestions.generate(s, sample)
             }.getOrElse {
                 listOf(appContext.getString(R.string.vm_error_prefix, it.toUserMessage(appContext)))
             }

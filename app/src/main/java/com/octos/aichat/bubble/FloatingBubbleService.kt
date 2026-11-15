@@ -18,7 +18,6 @@ import android.view.WindowManager
 import android.widget.Toast
 import com.octos.aichat.R
 import com.octos.aichat.accessibility.AccessibilityBridge
-import com.octos.aichat.ai.AiService
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.LocalModel
 import com.octos.aichat.ai.local.ModelStore
@@ -69,6 +68,7 @@ class FloatingBubbleService : Service() {
     private lateinit var palette: BubblePalette
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var generating: Job? = null
+    private val suggestions = SuggestionGenerator()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -224,7 +224,7 @@ class FloatingBubbleService : Service() {
                 DiagLog.timed(
                     if (settings.useLocal) TimedOp.GENERATE_LOCAL else TimedOp.GENERATE_CLOUD,
                 ) {
-                    AiService.instance.generateSuggestions(settings, conv, memoryBlock)
+                    suggestions.generate(settings, conv, memoryBlock)
                 }
             }
         }
