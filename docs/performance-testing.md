@@ -92,3 +92,45 @@ python3 -I quality/scripts/trace_summary.py build/benchmark-results/e2e-trace.tx
 ### 点悬浮球 → 出结果
 
 待测:需要人在一个可以测试的聊天里手动点几次悬浮球(上面的脚本会记录下来)。自动点击容易点到回复面板上,误触发「选中回复」。
+
+## 闭环测试与调用栈采样(perf-loop.sh + Perfetto)
+
+把「点悬浮球 → 出结果」做成可重复的真机闭环:自动点击、录打点、汇总、对照预算、记历史;需要时同时用 Perfetto 采样调用栈,看每个阶段的 CPU 花在哪。
+
+```bash
+# 一次性:手机上打开测试用的聊天(如微信「文件传输助手」),记下它的标题栏
+ADB=adb.exe quality/scripts/perf-loop.sh reference
+# 点击测试:N 次点击 × M 轮;结果追加到 build/benchmark-results/perf-history.csv
+ADB=adb.exe quality/scripts/perf-loop.sh run 8 1
+# 只切换 App、不点击(测前台判断,不读聊天、不生成)
+ADB=adb.exe quality/scripts/perf-loop.sh switch 15
+# 带调用栈采样(1 kHz,本进程用户态)
+adb.exe shell setprop persist.traced_perf.enable 1      # 一次性,开启 traced_perf
+PROFILE=1 ADB=adb.exe quality/scripts/perf-loop.sh run 6 1
+python3 -m venv build/perfetto-venv && build/perfetto-venv/bin/pip install perfetto==0.59.1
+build/perfetto-venv/bin/python quality/scripts/perfetto_analyze.py \
+    build/benchmark-results/perf-round-1.txt build/benchmark-results/perf-round-1.pftrace \
+    --mapping app/build/outputs/mapping/release/mapping.txt
+```
+
+安全约束(手机是真人在用的):
+
+- **每次点击前比对聊天标题栏**(`perf_guard.py`):只看标题文字区域、统计明显变化的像素比例,同一标题 0%、换个聊天约 7%,阈值 0.2%;不是参考聊天就整轮中止。只保留标题栏这一条,整屏截图不落盘。
+- **关面板只按 Home**,不点面板(会误选候选)。
+- **云端模式下每次点击都会把当前聊天发给 AI 服务**,和正常使用一样;要内容不出设备就切本地模式。
+- 先确认手机没人在用;脚本运行中若发现画面被别人改动,停下,不要继续点。
+
+这台手机(荣耀 ELP-AN00)上的限制:`traced_probes` 被厂商停用(`init.svc.traced_probes=stopped`),Perfetto 采不到调度、CPU 频率和 App 打点。所以 `perf-loop.sh` 同时用 atrace 录 App 的打点,`perfetto_analyze.py` 用两者共同的 boot 时钟(配置里 `PERF_CLOCK_BOOTTIME`)把采样归到阶段。
+
+### 用闭环发现并修掉的问题(2026-11-15,云端模式)
+
+| 问题 | 证据 | 修改 | 结果 |
+|---|---|---|---|
+| 切到聊天 App 时主线程被阻塞 **1037 ms** | 该时段主线程 0 个 CPU 样本,在等 `rootInActiveWindow`(由正在启动的微信主线程处理) | 前台判断移到专用 `a11y-foreground` 线程,主线程只过滤 + 投递,排队中的检查合并 | 主线程 `a11y.onEvent` P50 2.76→**0.06** ms,P95 4.36→**0.40** ms(15 次切换);检查本身(后台)P50 2.8 ms |
+| 记忆块比微基准慢 2.7 倍 | 记忆块 ≈ `embed.forward`(bge);34% 样本是 MNN 线程池 `sched_yield` 忙等,同时段厂商在暂停大核 | bge 改 4 线程 + `Power_High`(JNI 传入,不再写死) | 背靠背 A/B:P50 137/138→109/132 ms,P95 211/169→124/149 ms |
+
+未做:
+
+- **OCR 前裁剪**:只能少 ~14% 像素,估计省约 50 ms(一次点击的 2%),但识别坐标、比例区间、按像素判断发送者都要平移,且压线的消息会丢上半截,收益不抵风险。
+- **记忆块到 50 ms 预算**:配置已到头;再降需缩短查询(现取最近 12 行)或提前计算,会影响召回效果,属产品取舍。
+- 云端模式下,一次点击约 2.3 s 里 1.5–2 s 是云端生成,代码侧无可优化。生成期间「加载中」动画一直在画(约一个核的 17%),本地模式下会与推理抢 CPU,是否改为静态提示待定。
