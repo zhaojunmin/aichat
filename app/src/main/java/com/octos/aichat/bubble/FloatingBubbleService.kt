@@ -27,7 +27,6 @@ import androidx.core.view.isVisible
 import com.octos.aichat.AppBus
 import com.octos.aichat.R
 import com.octos.aichat.accessibility.BubbleBox
-import com.octos.aichat.accessibility.BubbleLocator
 import com.octos.aichat.ai.AiService
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.LocalModel
@@ -55,6 +54,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -100,6 +100,7 @@ class FloatingBubbleService : Service() {
         startForegroundNotice()
         addBubble()
         followThemeSetting()
+        followForegroundApp()
     }
 
     /** "System" theme follows the device's dark mode, so re-resolve when it flips. */
@@ -151,7 +152,13 @@ class FloatingBubbleService : Service() {
      * briefly steal the foreground don't make the bubble flicker — if we return
      * to a target app within [HIDE_DELAY_MS], the pending hide is cancelled.
      */
-    fun setBubbleVisible(visible: Boolean) {
+    private fun followForegroundApp() {
+        scope.launch {
+            AppBus.foreground.filterNotNull().collect { setBubbleVisible(it.isTarget) }
+        }
+    }
+
+    private fun setBubbleVisible(visible: Boolean) {
         if (!::bubble.isInitialized) return
         uiHandler.removeCallbacks(hideRunnable)
         if (visible) {
@@ -331,12 +338,12 @@ class FloatingBubbleService : Service() {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
         if (!useOcr) {
             // Parse now, on tap: what's on screen this moment, no stale or post-restart-empty state.
-            val conv = DiagLog.timed(TimedOp.PARSE) { AppBus.accessibilityService?.readConversation(pkg) } ?: return null
+            val conv = DiagLog.timed(TimedOp.PARSE) { AppBus.chatWindowReader?.readConversation(pkg) } ?: return null
             AppBus.updateConversation(conv) // let the in-app debug viewer show it too
             return conv
         }
 
-        val svc = AppBus.accessibilityService ?: return null
+        val reader = AppBus.chatWindowReader ?: return null
         val boxes: List<BubbleBox>
         val bmp: Bitmap?
         // Hide our own bubble so it isn't part of the captured image; always bring
@@ -346,12 +353,8 @@ class FloatingBubbleService : Service() {
             delay(80)
             // Grab bubble geometry from the node tree at the same moment we capture,
             // so rects and pixels line up. Empty for apps with no geometry (WeChat).
-            // A full tree walk (one IPC per node), so not on the main thread.
-            val width = resources.displayMetrics.widthPixels
-            boxes = if (BubbleLocator.hasRule(pkg)) {
-                withContext(Dispatchers.IO) { BubbleLocator.locate(svc.rootInActiveWindow, width, pkg) }
-            } else emptyList()
-            bmp = svc.captureScreenshot(pkg)
+            boxes = reader.locateBubbles(pkg)
+            bmp = reader.captureScreenshot(pkg)
         } finally {
             if (::bubble.isInitialized) bubble.visibility = View.VISIBLE
         }
@@ -361,7 +364,7 @@ class FloatingBubbleService : Service() {
         val h = resources.displayMetrics.heightPixels
         // When the soft keyboard is up, its letters get OCR'd as chat text. Crop
         // the screenshot to just above the IME window before the whole-screen read.
-        val imeTop = svc.imeBounds()?.top ?: -1
+        val imeTop = reader.imeBounds()?.top ?: -1
         val conv = withContext(Dispatchers.Default) {
             Tracing.asyncSection(Tracing.BUBBLE_OCR) { DiagLog.timed(TimedOp.OCR) {
                 // Geometry-guided OCR when we have bubble rects (Momo); otherwise the
@@ -407,9 +410,10 @@ class FloatingBubbleService : Service() {
         val autoPaste = SettingsRepository.get(this).current().autoPaste
         if (!autoPaste) { toast(getString(R.string.svc_copied)); return }
         scope.launch {
-            val svc = AppBus.accessibilityService
-            val pasted = svc != null && svc.pasteText(reply)
-            if (svc == null) DiagLog.record(ErrorCode.A11Y_305, pkg = AppBus.foregroundPackage)
+            val pkg = AppBus.foregroundPackage
+            val filler = AppBus.replyFiller
+            val pasted = filler != null && filler.fill(reply, pkg)
+            if (filler == null) DiagLog.record(ErrorCode.A11Y_305, pkg = pkg)
             toast(if (pasted) getString(R.string.svc_filled) else getString(R.string.svc_copied))
         }
     }
