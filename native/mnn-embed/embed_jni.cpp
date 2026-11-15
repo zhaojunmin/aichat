@@ -23,7 +23,7 @@ extern "C" {
 
 JNIEXPORT jlong JNICALL
 Java_com_octos_aichat_ai_embedding_Encoder_nativeEmbedLoad(
-        JNIEnv* env, jobject, jstring jPath) {
+        JNIEnv* env, jobject, jstring jPath, jint numThread, jint power) {
     const char* p = env->GetStringUTFChars(jPath, nullptr);
     std::string path(p ? p : "");
     env->ReleaseStringUTFChars(jPath, p);
@@ -31,9 +31,13 @@ Java_com_octos_aichat_ai_embedding_Encoder_nativeEmbedLoad(
     Interpreter* net = Interpreter::createFromFile(path.c_str());
     if (!net) { LOG("createFromFile failed: %s", path.c_str()); return 0; }
 
+    // Threads and power mode come from Encoder.kt so they can be tuned without a native rebuild.
+    BackendConfig backend;
+    backend.power = static_cast<BackendConfig::PowerMode>(power);
     ScheduleConfig cfg;
     cfg.type = MNN_FORWARD_CPU;
-    cfg.numThread = 4;
+    cfg.numThread = numThread;
+    cfg.backendConfig = &backend;
     Session* s = net->createSession(cfg);
     if (!s) { LOG("createSession failed"); Interpreter::destroy(net); return 0; }
 
