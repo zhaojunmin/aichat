@@ -34,6 +34,7 @@ enum class ErrorCode(val id: String, val level: Level, val zh: String, val en: S
     A11Y_303("A11Y-303", Level.WARN, "点击时找不到聊天窗口", "Chat window not found on tap"),
     A11Y_304("A11Y-304", Level.ERROR, "截图失败", "Screenshot failed"),
     A11Y_305("A11Y-305", Level.WARN, "自动填入失败,已改为复制", "Auto-fill failed; copied instead"),
+    A11Y_306("A11Y-306", Level.WARN, "读取键盘区域失败", "Reading the keyboard bounds failed"),
 
     // OCR — screenshot text recognition.
     OCR_401("OCR-401", Level.ERROR, "文字识别失败", "Text recognition failed"),

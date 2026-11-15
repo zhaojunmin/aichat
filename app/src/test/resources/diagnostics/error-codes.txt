@@ -19,6 +19,7 @@ A11Y-302	ERROR	点击时解析聊天失败
 A11Y-303	WARN	点击时找不到聊天窗口
 A11Y-304	ERROR	截图失败
 A11Y-305	WARN	自动填入失败,已改为复制
+A11Y-306	WARN	读取键盘区域失败
 OCR-401	ERROR	文字识别失败
 OCR-402	WARN	识别成功但没读出消息
 BUB-501	ERROR	启动前台服务失败
