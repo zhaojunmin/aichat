@@ -3,6 +3,7 @@ package com.octos.aichat.ai
 import com.octos.aichat.data.AiBackend
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.BackendConfig
+import com.octos.aichat.data.memory.MemoryLearner
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.DiagnosticsRecorder
 import com.octos.aichat.diagnostics.DiagnosticsStore
@@ -55,7 +56,7 @@ class AiDiagnosticsTest {
     )
 
     @Test fun learningFailuresAreRecorded() = runBlocking {
-        val failing = AiService {
+        val failing = MemoryLearner(clientFor = {
             object : AiClient {
                 override suspend fun complete(
                     settings: AppSettings,
@@ -63,16 +64,16 @@ class AiDiagnosticsTest {
                     user: String,
                 ): String = throw AiException(AiException.Kind.SERVER, 503)
             }
-        }
-        assertNull(failing.learnMemory(settings, emptyList(), listOf("x")))
+        })
+        assertNull(failing.learn(settings, emptyList(), listOf("x")))
 
-        val garbage = AiService {
+        val garbage = MemoryLearner(clientFor = {
             object : AiClient {
                 override suspend fun complete(settings: AppSettings, system: String, user: String) =
                     "抱歉,我无法完成"
             }
-        }
-        assertNull(garbage.learnMemory(settings, emptyList(), listOf("x")))
+        })
+        assertNull(garbage.learn(settings, emptyList(), listOf("x")))
 
         assertEquals(
             listOf(ErrorCode.AI_106, ErrorCode.MEM_602),

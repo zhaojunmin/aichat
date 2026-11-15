@@ -2,7 +2,6 @@ package com.octos.aichat.data.memory
 
 import android.content.Context
 import androidx.room.withTransaction
-import com.octos.aichat.ai.AiService
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.localModel
 import com.octos.aichat.data.AppSettings
@@ -48,6 +47,7 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
     private val settingsRepo = SettingsRepository.get(appContext)
     private val replyLog = ReplyLog(appContext, db.learningStateDao())
     private val embedder = MemoryEmbedder(appContext, dao)
+    private val learner = MemoryLearner()
     private val learningPass = MemoryLearningPass(
         replyLog,
         dao,
@@ -151,7 +151,7 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
             }
             val started = System.nanoTime()
             val learned = learningPass.run { existing, replies ->
-                AiService.instance.learnMemory(settings, existing, replies)
+                learner.learn(settings, existing, replies)
             } ?: return
             DiagLog.recordDuration(TimedOp.LEARN, (System.nanoTime() - started) / 1_000_000)
             _stats.value = _stats.value.copy(learnedReplies = learned)

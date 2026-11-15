@@ -15,7 +15,7 @@
 ## 1. 总体架构与数据流
 
 ```
-写入期(learnMemory 落库时,每条记忆一次):
+写入期(MemoryLearner.learn 落库时,每条记忆一次):
   content(+keywords) ──WordPiece──> ids ──MNN(bge encoder)──> 512维向量 ──存入 MemoryEntity.embedding
 
 检索期(每次生成回复一次):

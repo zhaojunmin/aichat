@@ -115,3 +115,14 @@ class AiException(
         }
     }
 }
+
+private val cloudClient: AiClient by lazy { CloudClient() }
+private val localClient: AiClient by lazy { LocalClient() }
+
+/**
+ * The client for the inference mode [settings] selects. Local never falls back to the
+ * cloud — that would ship the user's chat off-device; an unloaded model surfaces from
+ * [LocalClient] as [AiException.Kind.LOCAL_NOT_READY] instead.
+ */
+fun aiClientFor(settings: AppSettings): AiClient =
+    if (settings.useLocal) localClient else cloudClient

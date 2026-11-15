@@ -13,8 +13,8 @@ import org.junit.Test
  * `"diagnostics.."` includes its subpackages. Single types allowed across a
  * boundary are listed by name, each with the reason it is an exception.
  *
- * Konsist's layer DSL isn't used because it rejects cycles, and `ai` ⇄ `data.memory`
- * is a known one (see [aiOnlyUsesSettingsAndDiagnostics]).
+ * The rules are written out per package rather than with Konsist's layer DSL, so each
+ * can carry the reason for its exceptions.
  */
 class PackageDependencyRulesTest {
 
@@ -39,23 +39,12 @@ class PackageDependencyRulesTest {
     )
 
     /**
-     * The AI layer works on settings and conversations.
-     *
-     * Known cycle: it also parses learning results into `data.memory` types, while
-     * `data.memory` calls back into `ai` to learn. Moving those result types out of
-     * `data.memory` would break the cycle; until then they're listed here so the
-     * cycle can't grow.
+     * The AI layer talks to models: settings and conversations in, text out. It knows
+     * nothing of memory — learning (`data.memory.MemoryLearner`) calls into it, never the
+     * other way round.
      */
-    @Test fun aiOnlyUsesSettingsAndDiagnostics() = assertPackage(
-        "ai..",
-        allowed = setOf("data", "diagnostics.."),
-        allowedTypes = setOf(
-            "data.memory.MemoryDraft",
-            "data.memory.MemoryEdit",
-            "data.memory.MemoryEntity",
-            "data.memory.MemoryLearnResult",
-        ),
-    )
+    @Test fun aiOnlyUsesSettingsAndDiagnostics() =
+        assertPackage("ai..", allowed = setOf("data", "diagnostics.."))
 
     /** Settings, conversation and secrets are plain data: no AI, no memory, no UI. */
     @Test fun dataRootOnlyUsesDiagnostics() = assertPackage(

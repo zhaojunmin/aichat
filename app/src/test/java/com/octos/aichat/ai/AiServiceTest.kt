@@ -7,14 +7,11 @@ import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.InferenceMode
 import com.octos.aichat.data.Speaker
-import com.octos.aichat.data.memory.MemoryEntity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -106,58 +103,6 @@ class AiServiceTest {
         assertEquals(listOf("第 1 条", "第 2 条", "第 3 条"), out)
     }
 
-    // ---- parseLearnResult -------------------------------------------------
-
-    @Test fun parseLearn_fullObject() {
-        val raw = """
-            ```json
-            {"additions":[{"category":"事实","content":"在北京做程序员",
-                           "keywords":"北京, 程序员、工作","importance":8}],
-             "updates":[{"id":12,"category":"偏好","content":"现在改喝拿铁",
-                         "keywords":"拿铁","importance":5}],
-             "deletions":[7]}
-            ```
-        """.trimIndent()
-        val r = service.parseLearnResult(raw)
-        assertNotNull(r)
-        r!!
-        assertEquals(1, r.additions.size)
-        assertEquals("北京 程序员 工作", r.additions[0].keywords)
-        assertEquals(8, r.additions[0].importance)
-        assertEquals(12L, r.updates.single().id)
-        assertEquals(listOf(7L), r.deletions)
-    }
-
-    @Test fun parseLearn_normalisesCategoryAndImportance() {
-        val raw = """{"additions":[{"category":"瞎编","content":"c","importance":99},
-                                   {"category":"风格","content":"d","importance":-3}]}"""
-        val a = service.parseLearnResult(raw)!!.additions
-        assertEquals("事实", a[0].category)
-        assertEquals(10, a[0].importance)
-        assertEquals("风格", a[1].category)
-        assertEquals(1, a[1].importance)
-    }
-
-    @Test fun parseLearn_skipsInvalidRows() {
-        val raw = """{"additions":[{"content":"  "}],
-                      "updates":[{"content":"no id"},{"id":3,"content":""}],
-                      "deletions":[-1, 4]}"""
-        val r = service.parseLearnResult(raw)!!
-        assertTrue(r.additions.isEmpty())
-        assertTrue(r.updates.isEmpty())
-        assertEquals(listOf(4L), r.deletions)
-    }
-
-    @Test fun parseLearn_capsKeywordsAtEight() {
-        val raw = """{"additions":[{"content":"c","keywords":"a b c d e f g h i j"}]}"""
-        assertEquals(8, service.parseLearnResult(raw)!!.additions[0].keywords.split(" ").size)
-    }
-
-    @Test fun parseLearn_garbageReturnsNull() {
-        assertNull(service.parseLearnResult("抱歉,我无法完成"))
-        assertNull(service.parseLearnResult("{not json}"))
-    }
-
     // ---- generateReplies --------------------------------------------------
 
     private fun conv(vararg lines: Pair<Speaker, String>) =
@@ -246,39 +191,6 @@ class AiServiceTest {
             // A typed failure, so diagnostics file it as LLM-205 rather than "other".
             assertEquals(AiException.Kind.LOCAL_NOT_READY, e.kind)
         }
-    }
-
-    // ---- learnMemory ------------------------------------------------------
-
-    @Test fun learn_listsExistingMemoriesWithIds() = runTest {
-        val fake = FakeClient("""{"additions":[],"updates":[],"deletions":[]}""")
-        val svc = AiService { fake }
-        val existing = listOf(MemoryEntity(id = 42, category = "事实", content = "养猫", updatedAt = 0))
-
-        val r = svc.learnMemory(cloudSettings, existing, listOf("今天猫又拆家了"))
-
-        assertNotNull(r)
-        assertTrue(fake.user!!.contains("#42 【事实】养猫"))
-        assertTrue(fake.user!!.contains("- 今天猫又拆家了"))
-    }
-
-    @Test fun learn_clientFailureReturnsNull() = runTest {
-        val svc = AiService {
-            object : AiClient {
-                override suspend fun complete(
-                    settings: AppSettings,
-                    system: String,
-                    user: String,
-                ): String = throw AiException(AiException.Kind.SERVER, 500, "boom")
-            }
-        }
-        assertNull(svc.learnMemory(cloudSettings, emptyList(), listOf("x")))
-    }
-
-    @Test fun learn_noRepliesSkipsCall() = runTest {
-        val fake = FakeClient("{}")
-        assertNull(AiService { fake }.learnMemory(cloudSettings, emptyList(), emptyList()))
-        assertEquals(0, fake.calls)
     }
 
     // ---- reply time budget -------------------------------------------------

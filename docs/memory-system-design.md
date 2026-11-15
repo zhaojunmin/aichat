@@ -30,7 +30,7 @@
 |---|---|---|
 | 存储 | Room/SQLite 单表 `memory(id, category, content, updatedAt)`,category ∈ 画像/事实/偏好/风格 | `MemoryEntity.kt` |
 | 记录 | 我发出的每条回复 append 到 `my_replies.txt`,bounded set 去重 | `MemoryRepository.recordReply` / `appendReply` |
-| 抽取-更新 | pending 达阈值后调 `AiRepository.learnMemory(existing, newReplies)` → 返回 additions + updates;只增量添加 + 覆盖 LLM 标记冲突的行,不自动删除 | `MemoryRepository.runLearning` |
+| 抽取-更新 | pending 达阈值后调 `MemoryLearner.learn(existing, newReplies)` → 返回 additions + updates;只增量添加 + 覆盖 LLM 标记冲突的行,不自动删除 | `MemoryRepository.runLearning` |
 | 注入 | 按 `updatedAt` 降序取最近 N 条,按 category 分组拼进 system prompt | `MemoryRepository.memoryBlock` (line 157-170) |
 | 人工管理 | 逐条编辑/删除/清空 | `MemoryDao` + 设置界面 |
 
@@ -50,7 +50,7 @@
 
 长期记忆按 `construction → management → retrieval → usage` 组织:
 
-- **construction**(抽取)= 从多轮对话抽取/提炼 → 对应现有 `learnMemory`
+- **construction**(抽取)= 从多轮对话抽取/提炼 → 对应现有 `MemoryLearner.learn`
 - **management**(更新)= 去重/合并/冲突消解 → 现有部分覆盖
 - **retrieval**(召回)= SQL / 模糊 / 相似度 → **现有缺失**
 - **usage**(注入)= 作为上下文注入 → 现有 `memoryBlock`(但跳过了 retrieval)
@@ -113,7 +113,7 @@ embedding 由 `原始内容 + 关键词 + 标签 + 描述` 拼接后编码。
 - **A-MEM 记忆演化**:写入新记忆时动态链接相似历史记忆,并可**触发对旧记忆上下文/关键词/标签的更新** —— 记忆网络持续自我精炼,而非 append-only。
 
 > 对标现状:现有 `runLearning` 已有 extraction + ADD/UPDATE,**缺 DELETE/NOOP 和显式去重**。
-> 升级方向:让 `learnMemory` 的 prompt 显式对每条候选输出 ADD/UPDATE/DELETE/NOOP 决策。
+> 升级方向:让 `MemoryLearner.learn` 的 prompt 显式对每条候选输出 ADD/UPDATE/DELETE/NOOP 决策。
 >
 > ⚠️ **风险**:ADD/UPDATE/DELETE 都由 LLM 判定;端侧若用小模型,误删/错更新风险更高。
 > **保留可审计编辑日志** —— 本 App 已有的「逐条编辑/删除」界面正好做人工兜底。
@@ -200,12 +200,12 @@ LLM 周期性把零散观察合成为更抽象的高层记忆(树状结构)。�
 
 1. ✅ `MemoryEntity` 加列:`keywords`(String)、`importance`(Int)。(embedding BLOB 留给向量升级,本阶段不加。)
 2. ✅ Room 迁移 `v1→v2`(`MIGRATION_1_2`,旧行给安全默认值)。
-3. ✅ `learnMemory` prompt 升级:一次 LLM 调用同时产出 content + keywords + importance(1-10),写入时持久化。
+3. ✅ `MemoryLearner.learn` prompt 升级:一次 LLM 调用同时产出 content + keywords + importance(1-10),写入时持久化。
 4. ✅ `MemoryRetrieval.retrieve(...)`:recency(按日指数衰减)+ importance + 本地词法 relevance,三项 min-max 归一后加权取 top-k。
 5. ✅ `memoryBlock(conv)` 接收当前对话,调用 `retrieve`;`conv` 为空时回退 recency。调用方 `FloatingBubbleService` 已传入 `conv`。
 
 ### Phase 2 — 冲突消解与演化(部分已实现)
-6. ✅ `learnMemory` prompt 升级为显式 ADD/UPDATE/**DELETE**/NOOP(NOOP 隐式=不提及);DELETE 走**软删除**(`deletedAt`/`deletedBy`)+ 回收站,接入管理界面人工兜底(恢复 / 彻底删除)。迁移 `v2→v3`。
+6. ✅ `MemoryLearner.learn` prompt 升级为显式 ADD/UPDATE/**DELETE**/NOOP(NOOP 隐式=不提及);DELETE 走**软删除**(`deletedAt`/`deletedBy`)+ 回收站,接入管理界面人工兜底(恢复 / 彻底删除)。迁移 `v2→v3`。
 7. ⏸ 写入期动态链接相似历史记忆(A-MEM 演化)—— 暂不做。学习器的 UPDATE 已覆盖「新信息修正旧记忆」的实质;显式链接图对本 App 偏重且证据为 self-serving,留作后续。
 8. ⏸ 多粒度回查(TriMem)—— 暂不做。原始片段已在 `my_replies.txt`;按预算回查缺强证据(见 §4.4),留作后续实验。
 
