@@ -21,15 +21,52 @@ class PackageDependencyRulesTest {
     /** Diagnostics is the leaf everyone reports into; it can't know about any feature. */
     @Test fun diagnosticsDependsOnNothing() = assertPackage("diagnostics..", allowed = emptySet())
 
-    /** Developer-tool state (last read, raw tree dump) holds plain data and nothing else. */
-    @Test fun debugOnlyUsesData() = assertPackage("debug..", allowed = setOf("data"))
+    /**
+     * Developer-tool state (last read, raw tree dump) lives in `capture` next to the read
+     * it records, but holds plain data and nothing else.
+     */
+    @Test fun debugCaptureOnlyUsesData() {
+        val file = appFiles().singleOrNull {
+            it.appPackage() == "capture" &&
+                it.name == "DebugCapture"
+        }
+        checkNotNull(file) { "capture/DebugCapture.kt not found — rule is stale" }
+        val violations = file.appReferences()
+            .map { it.removePrefix("$ROOT.") }
+            .filter { packageOf(it).isNotEmpty() && packageOf(it) != "data" }
+        assertTrue("DebugCapture may only use data: $violations", violations.isEmpty())
+    }
+
+    /**
+     * Only the reader (feeds the raw-tree dump), the capture flow (records what it read)
+     * and the settings screens (show both) touch the developer-tool state; the overlay
+     * may use `capture` for reading, but not this.
+     */
+    @Test fun onlyReaderCaptureAndUiUseDebugCapture() {
+        val users = setOf("accessibility", "capture", "ui")
+        val violations = appFiles()
+            .filter { it.appPackage().substringBefore('.') !in users }
+            .filter { file -> file.appReferences().any { it == "$ROOT.capture.DebugCapture" } }
+            .map { "  ${it.appPackage()}/${it.name}.kt" }
+        assertTrue(
+            "only $users may use DebugCapture:\n" + violations.joinToString("\n"),
+            violations.isEmpty(),
+        )
+    }
 
     /**
      * The screen reader only reads and fills; it never reaches up into AI, OCR or UI.
      * It may feed the raw-tree dump to the developer tools.
+     *
+     * Known cycle: `capture` depends on this package (the `ScreenAccess` port), and this
+     * package writes the raw-tree dump into `capture.DebugCapture`. Only that one type is
+     * allowed, so the cycle can't grow.
      */
-    @Test fun accessibilityOnlyUsesSettingsDiagnosticsAndDebug() =
-        assertPackage("accessibility..", allowed = setOf("data", "debug", "diagnostics.."))
+    @Test fun accessibilityOnlyUsesSettingsDiagnosticsAndDebugCapture() = assertPackage(
+        "accessibility..",
+        allowed = setOf("data", "diagnostics.."),
+        allowedTypes = setOf("capture.DebugCapture"),
+    )
 
     /** OCR only needs the message geometry type from the reader, not the reader itself. */
     @Test fun ocrOnlyUsesMessageGeometryFromAccessibility() = assertPackage(
@@ -80,13 +117,10 @@ class PackageDependencyRulesTest {
     @Test fun memoryUsesSettingsAiAndDiagnostics() =
         assertPackage("data.memory..", allowed = setOf("data", "ai..", "diagnostics.."))
 
-    /**
-     * Reading the chat for a tap: the screen port (never the concrete reader), OCR,
-     * and the developer-tool record of what was read.
-     */
-    @Test fun captureUsesScreenPortOcrAndDebug() = assertPackage(
+    /** Reading the chat for a tap: the screen port (never the concrete reader) and OCR. */
+    @Test fun captureUsesScreenPortAndOcr() = assertPackage(
         "capture..",
-        allowed = setOf("data", "debug", "diagnostics..", "ocr.."),
+        allowed = setOf("data", "diagnostics..", "ocr.."),
         allowedTypes = setOf("accessibility.ScreenAccess", "accessibility.MessageBounds"),
     )
 
@@ -109,10 +143,11 @@ class PackageDependencyRulesTest {
     /** Settings screens never parse the screen; they only check the reader is enabled / connected. */
     @Test fun uiNeverUsesOcrAndOnlyNamesTheAccessibilityService() = assertPackage(
         "ui..",
-        allowed = setOf("ai..", "bubble..", "data..", "debug", "diagnostics.."),
+        allowed = setOf("ai..", "bubble..", "data..", "diagnostics.."),
         allowedTypes = setOf(
             "accessibility.ChatAccessibilityService",
             "accessibility.AccessibilityBridge",
+            "capture.DebugCapture",
         ),
     )
 

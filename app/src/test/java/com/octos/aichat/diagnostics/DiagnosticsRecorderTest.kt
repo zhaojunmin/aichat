@@ -145,6 +145,28 @@ class DiagnosticsRecorderTest {
         assertEquals(emptyList<DiagEvent>(), r.recent(10))
     }
 
+    /**
+     * "Clear" with recording on: the system still holds its history of past exits, and
+     * every start reads it again. Those cleared exits must not come back — not in this
+     * process, nor after a restart — while a newer exit still does.
+     */
+    @Test fun clearedExitsDoNotComeBack_evenAfterARestart() {
+        val history = listOf(ExitRecord("CRASH", 3_000))
+        val r = recorder()
+        r.recordExits(history, sinceMs = 0)
+        r.flush()
+
+        now = 10_000
+        r.wipe()
+        assertEquals(emptyMap<ErrorCode, Int>(), r.countsSnapshot())
+        r.recordExits(history, sinceMs = 0)
+        assertEquals(emptyList<DiagEvent>(), r.recent(10))
+
+        val restarted = recorder().apply { load() }
+        restarted.recordExits(history + ExitRecord("ANR", 12_000), sinceMs = 0)
+        assertEquals(listOf("ANR"), restarted.recent(10).map { it.exit })
+    }
+
     @Test fun durationsAreBucketedPersistedAndWiped() {
         val r = recorder()
         r.recordDuration(TimedOp.TAP_TO_RESULT, 1_800)

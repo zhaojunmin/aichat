@@ -1,4 +1,4 @@
-package com.octos.aichat.debug
+package com.octos.aichat.capture
 
 import com.octos.aichat.data.Conversation
 

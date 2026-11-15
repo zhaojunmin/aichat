@@ -84,6 +84,7 @@
     <string name="adv_diag_export">Export diagnostics</string>
     <string name="adv_diag_clear">Clear diagnostics</string>
     <string name="adv_diag_clear_confirm">Delete all recorded diagnostics? Recording continues as before.</string>
+    <string name="adv_diag_cleared">Diagnostics cleared</string>
     <string name="action_cancel">Cancel</string>
     <string name="diag_title">Diagnostics</string>
     <string name="diag_preview_hint">This is everything that would be shared — no chat content, no keys. It only leaves this phone if you tap Share or Copy.</string>

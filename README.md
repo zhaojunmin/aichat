@@ -54,7 +54,7 @@ FloatingBubbleService(FloatingBubble 悬浮球 + BubblePanel 建议面板)
 | 对外能力与连接发布 | `accessibility/ScreenAccess.kt`(连接期间可用的读屏 / 截图 / 回填接口)、`AccessibilityBridge.kt`(用 StateFlow 发布当前连接与前台 App) |
 | 前台判断 / 读聊天 / 自动填入 / 调试抓树 | `accessibility/ForegroundTracker.kt`、`ChatWindowReader.kt`、`ReplyFiller.kt`、`RawTreeDumper.kt` |
 | 点击时读取流程(控件树 / 截图 OCR 分流) | `capture/ChatCapture.kt`(只依赖 `ScreenAccess`,可在 JVM 上测) |
-| 调试数据(上次读取的会话、原始控件树) | `debug/DebugCapture.kt` |
+| 调试数据(上次读取的会话、原始控件树) | `capture/DebugCapture.kt` |
 | 支持哪些 App、各自怎么读 | `data/SupportedApps.kt`(注册表:控件树规则 / 截图 OCR,加 App 只改这里) |
 | 聊天解析(控件树,按水平位置分「我/对方」) | `accessibility/ChatParser.kt`、`MessageBoundsLocator.kt` |
 | 截图 OCR(ML Kit 中文) | `ocr/OcrReader.kt`、`MessageLineMerger.kt`、`SenderNameFilter.kt` |

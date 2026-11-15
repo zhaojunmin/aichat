@@ -84,6 +84,7 @@
     <string name="adv_diag_export">导出诊断信息</string>
     <string name="adv_diag_clear">清空诊断信息</string>
     <string name="adv_diag_clear_confirm">删除已记录的全部诊断信息?之后照常继续记录。</string>
+    <string name="adv_diag_cleared">已清空诊断信息</string>
     <string name="action_cancel">取消</string>
     <string name="diag_title">诊断信息</string>
     <string name="diag_preview_hint">下面就是要分享的全部内容,不含聊天内容和密钥。只有你点「分享」或「复制」,它才会离开这台手机。</string>
