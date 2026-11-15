@@ -113,7 +113,7 @@
 | 3 | API Key 明文存在 SharedPreferences | `data/SettingsRepository.kt` | root 或备份后会泄露 | EncryptedSharedPreferences |
 | 4 | `captureTree` 在生产环境对每个目标 App 事件都会跑(1.5 s 节流),并且在静态变量里持有聊天原文 | `accessibility/ChatAccessibilityService.kt` | 主线程开销,原文常驻内存 | 只在调试开关打开时运行 |
 | 5 | 解析在无障碍主线程上同步执行,且没有异常保护 | 同上 `onAccessibilityEvent` | 聊天 App 可能掉帧;一旦抛异常,服务会被系统禁用 | 防抖、移到后台线程、最外层 try/catch |
-| 6 | 结果面板展示的「对方最后一句」读的是 `AppBus.conversation`,不是本次解析出来的 `conv` | `bubble/FloatingBubbleService.kt:239` | OCR 路径和异步时序下可能对不上 | 改用局部变量 `conv` |
+| 6 | 结果面板展示的「对方最后一句」读的是 `AppBus.conversation`,不是本次解析出来的 `conv` | `bubble/FloatingBubbleService.kt:239` | OCR 路径和异步时序下可能对不上 | 改用局部变量 `conv`(已修;`AppBus` 本身已在 #45/#46 拆除,见 §4.4) |
 | 7 | 异常被静默吞掉 | `MemoryRepository`、`ChatAccessibilityService` 等多处 | 出问题时无从定位 | 统一日志门面 + 错误码 |
 | 8 | Android 12 及以下没有回收 `AccessibilityNodeInfo` | `findEditable`、`captureTree` | 老设备上内存泄漏 | 在 `use {}` 风格的扩展函数里统一回收 |
 | 9 | 端侧推理没有超时,也不能取消 | `ai/local/LlmEngine.kt` `chat` | 模型卡住时 mutex 一直不释放,后续请求全部阻塞 | `withTimeout`,并在 native 层加 abort 标志 |
