@@ -1,5 +1,6 @@
 package com.octos.aichat.bubble
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
 import android.view.Gravity
@@ -56,8 +57,11 @@ internal class BubblePanel(
             if (otherLine != null) context.getString(R.string.bubble_other_preview, otherLine.take(40))
             else context.getString(R.string.bubble_suggestions_title)
         ))
-        val scroll = ScrollView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (320 * dp).toInt())
+        // As tall as the candidates need, capped so a long list scrolls instead of
+        // covering the whole chat.
+        val maxListHeight = minOf((320 * dp).toInt(), context.resources.displayMetrics.heightPixels / 2)
+        val scroll = MaxHeightScrollView(context, maxListHeight).apply {
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         }
         val list = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         replies.forEachIndexed { i, reply -> list.addView(replyCard(i + 1, reply)) }
@@ -123,5 +127,13 @@ internal class BubblePanel(
         ).apply { topMargin = (8 * dp).toInt() }
         isClickable = true
         setOnClickListener { onReplyChosen(reply) }
+    }
+}
+
+/** A [ScrollView] that wraps its content up to [maxHeight], then scrolls. Built in code only, never inflated. */
+@SuppressLint("ViewConstructor")
+private class MaxHeightScrollView(context: Context, private val maxHeight: Int) : ScrollView(context) {
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(maxHeight, MeasureSpec.AT_MOST))
     }
 }
