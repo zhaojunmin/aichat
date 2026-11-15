@@ -112,6 +112,31 @@ class DiagnosticsRecorderTest {
         assertEquals(emptyList<DiagEvent>(), r.recent(10))
     }
 
+    @Test fun durationsAreBucketedPersistedAndWiped() {
+        val r = recorder()
+        r.recordDuration(TimedOp.TAP_TO_RESULT, 1_800)
+        r.recordDuration(TimedOp.TAP_TO_RESULT, 2_400)
+        r.recordDuration(TimedOp.OCR, 40)
+        r.recordDuration(TimedOp.OCR, -1) // clock went backwards: ignored
+        assertEquals(2, r.durationsSnapshot()[TimedOp.TAP_TO_RESULT]!!.sum())
+        assertEquals(1, r.durationsSnapshot()[TimedOp.TAP_TO_RESULT]!![DurationBuckets.indexOf(1_800)])
+        assertEquals(1, r.durationsSnapshot()[TimedOp.OCR]!!.sum())
+        r.flush()
+
+        val restarted = recorder().apply { load() }
+        restarted.recordDuration(TimedOp.OCR, 60)
+        assertEquals(2, restarted.durationsSnapshot()[TimedOp.OCR]!!.sum())
+
+        restarted.wipe()
+        assertEquals(emptyMap<TimedOp, List<Int>>(), restarted.durationsSnapshot())
+    }
+
+    @Test fun durationsNotCountedWhenOff() {
+        val r = recorder(enabled = false)
+        r.recordDuration(TimedOp.LEARN, 500)
+        assertEquals(emptyMap<TimedOp, List<Int>>(), r.durationsSnapshot())
+    }
+
     @Test fun asksForAFlushOnceEnoughArePending() {
         val r = recorder()
         var asked = 0

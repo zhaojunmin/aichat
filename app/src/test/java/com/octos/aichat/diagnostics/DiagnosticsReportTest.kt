@@ -27,7 +27,7 @@ class DiagnosticsReportTest {
             "HONOR ELP-AN00 · Android 16 (API 36) · arm64-v8a · zh-CN", "inference CLOUD · ocr true",
             "overlay 是 · notifications 否", "== 上次进程退出原因", "== 错误计数", "== 最近事件")
             .forEach { assertTrue(it, it in text) }
-        assertEquals("three empty sections", 3, Regex("""\(无\)""").findAll(text).count())
+        assertEquals("four empty sections", 4, Regex("""\(无\)""").findAll(text).count())
     }
 
     @Test fun countsSortedByFrequencyWithFixedDescriptions() {
@@ -57,6 +57,15 @@ class DiagnosticsReportTest {
         val text = DiagnosticsReport.render(input(events = events), chinese = true, zone = utc)
         assertFalse("ms=50 " in text)
         assertTrue("ms=51 " in text && "ms=250 " in text)
+    }
+
+    @Test fun timingsShowSampleCountAndBucketedPercentiles() {
+        // 10 taps: 8 within 2 s, 1 within 3 s, 1 within 5 s.
+        val buckets = List(DurationBuckets.SIZE) { 0 }.toMutableList().apply { this[3] = 8; this[4] = 1; this[5] = 1 }
+        val text = DiagnosticsReport.render(
+            input().copy(durations = mapOf(TimedOp.TAP_TO_RESULT to buckets)), chinese = true, zone = utc,
+        )
+        assertTrue(text, "点击到出结果  n=10  P50 ≤ 2s  P95 ≤ 5s" in text)
     }
 
     @Test fun nonIdentifierSettingValuesAreDropped() {

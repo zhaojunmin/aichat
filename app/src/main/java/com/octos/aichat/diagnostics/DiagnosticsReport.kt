@@ -28,6 +28,8 @@ data class ReportInput(
     val counts: Map<ErrorCode, Int>,
     /** Stored events, oldest first. */
     val events: List<DiagEvent>,
+    /** Duration bucket counts per operation ([DurationBuckets]). */
+    val durations: Map<TimedOp, List<Int>> = emptyMap(),
 )
 
 /**
@@ -76,6 +78,15 @@ object DiagnosticsReport {
             if (counts.isEmpty()) appendLine(t.none)
             counts.forEach { (code, n) -> appendLine("${code.id.padEnd(9)} ${n.toString().padStart(5)}  ${code.text()}") }
 
+            appendLine().appendLine("== ${t.timings} ==")
+            val timed = TimedOp.entries.mapNotNull { op -> input.durations[op]?.takeIf { it.sum() > 0 }?.let { op to it } }
+            if (timed.isEmpty()) appendLine(t.none)
+            timed.forEach { (op, buckets) ->
+                val p50 = DurationBuckets.quantileBucket(buckets, 0.50)!!
+                val p95 = DurationBuckets.quantileBucket(buckets, 0.95)!!
+                appendLine("${if (chinese) op.zh else op.en}  n=${buckets.sum()}  P50 ${DurationBuckets.label(p50)}  P95 ${DurationBuckets.label(p95)}")
+            }
+
             appendLine().appendLine("== ${t.recent} ==")
             val recent = input.events.takeLast(RECENT_EVENTS)
             if (recent.isEmpty()) appendLine(t.none)
@@ -90,21 +101,21 @@ object DiagnosticsReport {
 
     private class Labels(
         val title: String, val generated: String, val device: String, val settings: String,
-        val permissions: String, val exits: String, val counts: String, val recent: String,
+        val permissions: String, val exits: String, val counts: String, val timings: String, val recent: String,
         val none: String, val yes: String, val no: String,
     )
 
     private val ZH = Labels(
         title = "聊天助手 诊断信息", generated = "生成时间", device = "设备    ", settings = "设置",
         permissions = "权限", exits = "上次进程退出原因(最近 $RECENT_EXITS 次)",
-        counts = "错误计数(自开启记录以来)", recent = "最近事件(最多 $RECENT_EVENTS 条)",
+        counts = "错误计数(自开启记录以来)", timings = "耗时(自开启记录以来)", recent = "最近事件(最多 $RECENT_EVENTS 条)",
         none = "(无)", yes = "是", no = "否",
     )
 
     private val EN = Labels(
         title = "Chat Assistant diagnostics", generated = "Generated", device = "Device   ", settings = "Settings",
         permissions = "Permissions", exits = "How earlier processes exited (last $RECENT_EXITS)",
-        counts = "Error counts (since recording started)", recent = "Recent events (up to $RECENT_EVENTS)",
+        counts = "Error counts (since recording started)", timings = "Timings (since recording started)", recent = "Recent events (up to $RECENT_EVENTS)",
         none = "(none)", yes = "yes", no = "no",
     )
 }

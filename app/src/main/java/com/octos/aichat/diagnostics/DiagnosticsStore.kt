@@ -2,8 +2,15 @@ package com.octos.aichat.diagnostics
 
 import java.io.File
 
-/** Persisted counters: how often each code happened, and the newest exit already recorded. */
-data class DiagSummary(val counts: Map<ErrorCode, Int> = emptyMap(), val exitSeenAt: Long = 0L)
+/**
+ * Persisted counters: how often each code happened, the newest exit already recorded,
+ * and per-operation duration bucket counts ([DurationBuckets]).
+ */
+data class DiagSummary(
+    val counts: Map<ErrorCode, Int> = emptyMap(),
+    val exitSeenAt: Long = 0L,
+    val durations: Map<TimedOp, List<Int>> = emptyMap(),
+)
 
 /**
  * The files under `files/diagnostics/`: an append-only event log rotated by size
@@ -37,16 +44,23 @@ class DiagnosticsStore(private val dir: File, private val maxBytes: Long = 256L 
         if (!summary.exists()) return DiagSummary()
         var exitSeenAt = 0L
         val counts = HashMap<ErrorCode, Int>()
+        val durations = HashMap<TimedOp, List<Int>>()
         for (line in summary.readLines()) {
             val (key, value) = line.split('\t').takeIf { it.size == 2 } ?: continue
-            if (key == EXIT_SEEN_KEY) {
-                exitSeenAt = value.toLongOrNull() ?: 0L
-            } else {
-                val code = ErrorCode.of(key) ?: continue
-                counts[code] = value.toIntOrNull() ?: continue
+            when {
+                key == EXIT_SEEN_KEY -> exitSeenAt = value.toLongOrNull() ?: 0L
+                key.startsWith(DURATION_PREFIX) -> {
+                    val op = TimedOp.entries.firstOrNull { it.name == key.removePrefix(DURATION_PREFIX) } ?: continue
+                    val buckets = value.split(',').map { it.toIntOrNull() ?: return@map null }
+                    if (buckets.size == DurationBuckets.SIZE && buckets.all { it != null }) durations[op] = buckets.filterNotNull()
+                }
+                else -> {
+                    val code = ErrorCode.of(key) ?: continue
+                    counts[code] = value.toIntOrNull() ?: continue
+                }
             }
         }
-        return DiagSummary(counts, exitSeenAt)
+        return DiagSummary(counts, exitSeenAt, durations)
     }
 
     @Synchronized
@@ -55,6 +69,9 @@ class DiagnosticsStore(private val dir: File, private val maxBytes: Long = 256L 
         val text = buildString {
             append(EXIT_SEEN_KEY).append('\t').append(s.exitSeenAt).append('\n')
             s.counts.filterValues { it > 0 }.forEach { (code, n) -> append(code.id).append('\t').append(n).append('\n') }
+            s.durations.filterValues { it.any { c -> c > 0 } }.forEach { (op, buckets) ->
+                append(DURATION_PREFIX).append(op.name).append('\t').append(buckets.joinToString(",")).append('\n')
+            }
         }
         // Write-then-rename so a crash mid-write can't leave a half summary behind.
         val tmp = File(dir, "summary.tmp")
@@ -73,5 +90,6 @@ class DiagnosticsStore(private val dir: File, private val maxBytes: Long = 256L 
 
     private companion object {
         const val EXIT_SEEN_KEY = "exitSeenAt"
+        const val DURATION_PREFIX = "T:"
     }
 }

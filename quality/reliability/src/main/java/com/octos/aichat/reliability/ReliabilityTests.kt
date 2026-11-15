@@ -44,9 +44,14 @@ class ReliabilityTests {
 
     private var inducedCrash = false
 
-    /** The process dies unexpectedly: the system must bring both services back on its own. */
+    /**
+     * The process dies unexpectedly: the system must bring both services back on its
+     * own, and the app's diagnostics must have recorded it — APP-901 written by the
+     * crash handler as it died, APP-902 (exit=CRASH) read from the system on restart.
+     */
     @Test fun processCrash_servicesComeBack() {
         inducedCrash = true
+        val diagBefore = Phone.diagnosticsExport()
         val before = Phone.pid()
         sh("am crash $PKG")
         Phone.waitUntil("process gone", 5_000) { Phone.pid() != before }
@@ -56,7 +61,27 @@ class ReliabilityTests {
         val bubbleMs = Phone.waitUntil("bubble service restarted after crash", 60_000) { Phone.bubbleRunning() }
         assertTrue("crash must not disable the accessibility service", Phone.accessibilityEnabled())
         Phone.report("crash recovery: accessibility ${a11yMs}ms, bubble ${bubbleMs}ms")
+
+        if (diagBefore == null) {
+            Phone.report("diagnostics switched off: crash record not checked")
+            return
+        }
+        val diagAfter = Phone.diagnosticsExport() ?: throw AssertionError("diagnostics switched off during the test")
+        assertEquals("APP-901 recorded once", count(diagBefore, "APP-901") + 1, count(diagAfter, "APP-901"))
+        assertTrue("APP-902 recorded on restart", count(diagAfter, "APP-902") > count(diagBefore, "APP-902"))
+        val newestExit = exitsOf(diagAfter).firstOrNull()
+        assertTrue("newest exit should be CRASH, was $newestExit", newestExit?.endsWith("CRASH") == true)
+        Phone.report("diagnostics: APP-901 + APP-902 exit=CRASH recorded")
     }
+
+    /** "APP-901    3  …" in the counts section; 0 when the code isn't listed. */
+    private fun count(report: String, id: String): Int =
+        Regex("""(?m)^${Regex.escape(id)}\s+(\d+)\s""").find(report)?.groupValues?.get(1)?.toInt() ?: 0
+
+    /** Lines of the exit-reasons section, newest first ("<time>  CRASH"). */
+    private fun exitsOf(report: String): List<String> =
+        report.lines().dropWhile { !(it.startsWith("== ") && ("退出原因" in it || "exited" in it)) }.drop(1)
+            .takeWhile { it.isNotBlank() }
 
     /** Memory pressure, foreground and background: no crash, services stay up in the same process. */
     @Test fun memoryPressure_noCrash() {

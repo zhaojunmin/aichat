@@ -17,7 +17,12 @@ import java.util.concurrent.atomic.AtomicBoolean
  * when enough events pile up.
  */
 /** Diagnostics kept at one moment: whether recording is on, the counters, and the stored events (oldest first). */
-data class DiagSnapshot(val enabled: Boolean, val counts: Map<ErrorCode, Int>, val events: List<DiagEvent>)
+data class DiagSnapshot(
+    val enabled: Boolean,
+    val counts: Map<ErrorCode, Int>,
+    val events: List<DiagEvent>,
+    val durations: Map<TimedOp, List<Int>> = emptyMap(),
+)
 
 object DiagLog {
 
@@ -56,6 +61,22 @@ object DiagLog {
         echo?.invoke("${code.id} ${cause?.javaClass?.simpleName.orEmpty()} ms=$ms http=$http platform=$platform pkg=$pkg")
     }
 
+    /** Count one completed [op] that took [ms] (design §5.4: tap path and learning only). */
+    fun recordDuration(op: TimedOp, ms: Long) {
+        recorder?.recordDuration(op, ms)
+    }
+
+    /**
+     * Run [block] and count its duration under [op] if it completes normally — a
+     * failure is already recorded as an error code, and would skew the timings.
+     */
+    inline fun <T> timed(op: TimedOp, block: () -> T): T {
+        val start = System.nanoTime()
+        val result = block()
+        recordDuration(op, (System.nanoTime() - start) / 1_000_000)
+        return result
+    }
+
     /** From the uncaught-exception handler: written synchronously before the process dies. */
     fun recordCrash(cause: Throwable, thread: Thread) {
         recorder?.recordCrash(cause, thread)
@@ -83,7 +104,9 @@ object DiagLog {
     /** What is kept right now, for the export. File IO: call off the main thread. Null before [install]. */
     fun snapshot(): DiagSnapshot? {
         val r = recorder ?: return null
-        return DiagSnapshot(r.enabled, r.countsSnapshot(), if (r.enabled) r.recent(MAX_EVENTS) else emptyList())
+        return DiagSnapshot(
+            r.enabled, r.countsSnapshot(), if (r.enabled) r.recent(MAX_EVENTS) else emptyList(), r.durationsSnapshot(),
+        )
     }
 
     private fun flushQuietly() {
