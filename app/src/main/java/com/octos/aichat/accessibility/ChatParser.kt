@@ -3,14 +3,16 @@ package com.octos.aichat.accessibility
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
 import com.octos.aichat.data.ChatMessage
+import com.octos.aichat.data.ChatReading
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.Speaker
+import com.octos.aichat.data.SupportedApps
 
 /**
  * Turns the on-screen accessibility node tree of a chat app into a [Conversation].
  *
  * Two strategies:
- *  1. **Precise (per-app rule)** — when we know an app's message-bubble id, we
+ *  1. **Precise (per-app rule, from [SupportedApps])** — when we know an app's message id, we
  *     collect only those text nodes (excluding profile cards, suggested openers,
  *     menus…). The author is read from the row's avatar position, which is
  *     pinned to the left (other) or right (me) regardless of message length —
@@ -20,42 +22,6 @@ import com.octos.aichat.data.Speaker
  *     vertical middle band and guess the author from the bubble's position.
  */
 object ChatParser {
-
-    /**
-     * Per-app parsing rule. Two shapes, matched by view-id *name* (the part after
-     * ':id/', so a differing resource package doesn't matter):
-     *  - [selfId]/[othersId]: the message text node's own id tells the author
-     *    (e.g. Hertz: tv_chat_content_self / tv_chat_content_others).
-     *  - [messageId]+[avatarId]: a single message id; the author is read from the
-     *    row's avatar position (e.g. Soul).
-     */
-    private data class AppRule(
-        val selfId: String? = null,
-        val othersId: String? = null,
-        val messageId: String? = null,
-        val avatarId: String? = null,
-    )
-
-    private val APP_RULES: Map<String, AppRule> = mapOf(
-        "cn.soulapp.android" to AppRule(
-            messageId = "content_text",
-            avatarId = "chat_avatar",
-        ),
-        // Hertz: the text node's id distinguishes speaker directly.
-        "com.immomo.vchat" to AppRule(
-            selfId = "tv_chat_content_self",
-            othersId = "tv_chat_content_others",
-        ),
-        // QQ. All chat-bubble text nodes share one view-id; profile-card and
-        // header texts use different ids, so this id alone selects messages. The
-        // id is R8-obfuscated, so it changes between QQ versions — if QQ updates
-        // and this stops matching, parse() falls back to the generic path rather
-        // than returning nothing. No stable avatar id, so the author is read from
-        // bubble position (me = right, other = left), which QQ lays out reliably.
-        "com.tencent.mobileqq" to AppRule(
-            messageId = "mjn",
-        ),
-    )
 
     private data class Raw(val rect: Rect, val text: String, val speaker: Speaker?)
 
@@ -73,7 +39,7 @@ object ChatParser {
     ): Conversation {
         if (root == null || screenWidth <= 0) return Conversation(pkg, emptyList())
 
-        val rule = APP_RULES[pkg]
+        val rule = SupportedApps.nodeTreeRule(pkg)
         val raws = ArrayList<Raw>()
 
         if (rule != null) {
@@ -108,7 +74,7 @@ object ChatParser {
 
     private fun collectByRule(
         node: AccessibilityNodeInfo?,
-        rule: AppRule,
+        rule: ChatReading.NodeTree,
         screenWidth: Int,
         out: MutableList<Raw>,
     ) {

@@ -3,6 +3,7 @@ package com.octos.aichat.accessibility
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
 import com.octos.aichat.data.Speaker
+import com.octos.aichat.data.SupportedApps
 
 /** A chat message's on-screen bounds (its bubble) and who sent it. */
 data class MessageBounds(val rect: Rect, val speaker: Speaker)
@@ -16,12 +17,7 @@ data class MessageBounds(val rect: Rect, val speaker: Speaker)
  */
 object MessageBoundsLocator {
 
-    /** package → the view-id *name* of the message-text node. */
-    private val MESSAGE_TEXT_ID: Map<String, String> = mapOf(
-        "com.immomo.momo" to "message_tv_layouttextview",
-    )
-
-    fun hasRule(pkg: String): Boolean = pkg in MESSAGE_TEXT_ID
+    fun hasRule(pkg: String): Boolean = SupportedApps.messageBoundsId(pkg) != null
 
     /**
      * Collect message bounds for [pkg]. Author is taken from the bubble's own
@@ -29,7 +25,7 @@ object MessageBoundsLocator {
      * because the node is sized tightly to the bubble, not the full row width.
      */
     fun locate(root: AccessibilityNodeInfo?, screenWidth: Int, pkg: String): List<MessageBounds> {
-        val idName = MESSAGE_TEXT_ID[pkg] ?: return emptyList()
+        val idName = SupportedApps.messageBoundsId(pkg) ?: return emptyList()
         if (root == null || screenWidth <= 0) return emptyList()
         val out = ArrayList<MessageBounds>()
         fun walk(n: AccessibilityNodeInfo?) {

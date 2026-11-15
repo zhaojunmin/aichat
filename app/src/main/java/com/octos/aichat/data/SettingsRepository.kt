@@ -76,7 +76,7 @@ class SettingsRepository private constructor(
     private fun loadOcrPackages(): String =
         prefs.getString(KEY_OCR_PKGS, AppSettings.DEFAULT_OCR_PACKAGES)!!
             .split(",").map { it.trim() }
-            .filter { it.isNotEmpty() && it != "com.immomo.vchat" }
+            .filter { it.isNotEmpty() && it != SupportedApps.HERTZ }
             .joinToString(",")
 
     private fun loadBackendConfigs(): Map<AiBackend, BackendConfig> =
