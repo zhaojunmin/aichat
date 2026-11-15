@@ -21,9 +21,15 @@ class PackageDependencyRulesTest {
     /** Diagnostics is the leaf everyone reports into; it can't know about any feature. */
     @Test fun diagnosticsDependsOnNothing() = assertPackage("diagnostics..", allowed = emptySet())
 
-    /** The screen reader only reads and fills; it never reaches up into AI, OCR or UI. */
-    @Test fun accessibilityOnlyUsesSettingsAndDiagnostics() =
-        assertPackage("accessibility..", allowed = setOf("data", "diagnostics.."))
+    /** Developer-tool state (last read, raw tree dump) holds plain data and nothing else. */
+    @Test fun debugOnlyUsesData() = assertPackage("debug..", allowed = setOf("data"))
+
+    /**
+     * The screen reader only reads and fills; it never reaches up into AI, OCR or UI.
+     * It may feed the raw-tree dump to the developer tools.
+     */
+    @Test fun accessibilityOnlyUsesSettingsDiagnosticsAndDebug() =
+        assertPackage("accessibility..", allowed = setOf("data", "debug", "diagnostics.."))
 
     /** OCR only needs the message geometry type from the reader, not the reader itself. */
     @Test fun ocrOnlyUsesMessageGeometryFromAccessibility() = assertPackage(
@@ -70,6 +76,7 @@ class PackageDependencyRulesTest {
             "accessibility..",
             "ai..",
             "data..",
+            "debug",
             "diagnostics..",
             "ocr..",
             "ui.theme..",
@@ -80,7 +87,7 @@ class PackageDependencyRulesTest {
     /** Settings screens never parse the screen; they only check the reader is enabled. */
     @Test fun uiNeverUsesOcrAndOnlyNamesTheAccessibilityService() = assertPackage(
         "ui..",
-        allowed = setOf("ai..", "bubble..", "data..", "diagnostics.."),
+        allowed = setOf("ai..", "bubble..", "data..", "debug", "diagnostics.."),
         allowedTypes = setOf("accessibility.ChatAccessibilityService"),
     )
 

@@ -43,7 +43,7 @@
 | S1 | 用户选了**本地模式** | 聊天内容 **0 字节**发往网络 | 已实现:`AiService.defaultClientFor` 本地未就绪时直接报错,不回退云端。**补一条单测锁住这个不变式。** |
 | S2 | 手机做了云备份或换机迁移 | 记忆库、回复日志、API Key **不进备份** | `allowBackup=false`,或加 `dataExtractionRules` 排除 `databases/` 和 `shared_prefs/` |
 | S3 | 设备被 root 或数据被导出 | API Key 不以明文存在 | `EncryptedSharedPreferences`,或用 Android Keystore 包一层 AES-GCM |
-| S4 | 聊天 App 打开时无障碍事件持续触发 | 只在需要时把聊天文本留在内存里 | `captureTree` 改成仅在开启调试开关时运行;`AppBus.lastRawDump` 不在 release 版持有聊天原文 |
+| S4 | 聊天 App 打开时无障碍事件持续触发 | 只在需要时把聊天文本留在内存里 | `captureTree` 改成仅在开启调试开关时运行;`DebugCapture.lastRawDump` 不在 release 版持有聊天原文 |
 | S5 | 云端请求 | 只发 HTTPS;日志里不出现 Key 或聊天内容 | `network_security_config` 禁止明文流量;用统一日志门面做脱敏(见 §2.7) |
 | S6 | 对方消息里夹带 prompt 注入(比如「忽略之前的指令」) | 回复只展示给用户,由用户手选;学习**只用「我」的消息** | 已基本满足(`recordMyMessages` 只取 `Speaker.ME`);如果把「我/对方」分错,对方的话会被写进记忆,所以靠 R1 的解析正确性兜底 |
 
@@ -181,7 +181,7 @@ prompt 和人设会频繁调整,需要一个离线评测集:
 - **detekt**(带 formatting 规则):**暂缓**。detekt 1.x 基于 Kotlin 2.0,与 AGP 9 内置的 Kotlin 2.2 冲突;等 detekt 2.0 正式版支持 K2 后再接,同样用 baseline 接纳存量。
 - 第一步不必追求清零告警,先做到**不新增**。
 - **架构与命名规则(Konsist)**:`quality/architecture` 模块把约定写成单测,读 `app` 源码检查,CI 的 style 任务里运行(`./gradlew :quality:architecture:test`)。
-  - 包依赖白名单(`PackageDependencyRulesTest`):`diagnostics` 不依赖任何包;`accessibility` 只用 `data`/`diagnostics`;`ocr` 只取 `MessageBounds`;`bubble` 只从 `ui` 取主题、`MainActivity`、错误文案;`ui` 不碰 `ocr`;只有 `accessibility`/`bubble`/`ui` 用 `AppBus`。
+  - 包依赖白名单(`PackageDependencyRulesTest`):`diagnostics` 不依赖任何包;`debug`(开发者工具状态)只用 `data`;`accessibility` 只用 `data`/`diagnostics`/`debug`;`ocr` 只取 `MessageBounds`;`bubble` 只从 `ui` 取主题、`MainActivity`、错误文案;`ui` 不碰 `ocr`;只有 `accessibility`/`bubble`/`ui` 用 `AppBus`。
   - 已知循环 `ai` ⇄ `data.memory`:`ai` 解析学习结果用到 `MemoryDraft` 等 4 个类型,以白名单形式冻结,不许再扩大;把这些结果类型移出 `data.memory` 即可消除。
   - 命名(`NamingRulesTest`):Bubble 只指悬浮球;`*ViewModel` 在 `ui` 且继承 androidx `ViewModel`,每个 `*Screen` 有对应 ViewModel;`*Repository` 只在 `data` 且实现同名 `*Store`;`AiClient` 实现叫 `*Client`;禁用 `Impl`/`Manager`/`Helper`/`Util(s)` 后缀;只有 `ChatAssistantApp` 可用 `android.util.Log`;`@Composable` 只在 `ui`。
 - 「依赖有新版本」类检查(`GradleDependency`、`NewerVersionAvailable`、`AndroidGradlePluginVersion`)已关闭:它们的结果随联网和日期变化,与代码无关,会让 CI 结果漂移。依赖升级单独跟踪。

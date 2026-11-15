@@ -37,6 +37,7 @@ import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.memory.MemoryRepository
+import com.octos.aichat.debug.DebugCapture
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 import com.octos.aichat.diagnostics.TimedOp
@@ -94,7 +95,6 @@ class FloatingBubbleService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        AppBus.bubbleService = this
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         palette = resolvePalette()
         panel = BubblePanel(this, wm, palette, ::onReplyChosen)
@@ -146,7 +146,6 @@ class FloatingBubbleService : Service() {
         if (::panel.isInitialized) panel.remove()
         runCatching { if (::bubble.isInitialized) wm.removeView(bubble) }
             .onFailure { DiagLog.record(ErrorCode.BUB_502, cause = it) }
-        if (AppBus.bubbleService === this) AppBus.bubbleService = null
     }
 
     /**
@@ -373,7 +372,7 @@ class FloatingBubbleService : Service() {
         val conv =
             DiagLog.timed(TimedOp.PARSE) { AppBus.chatWindowReader?.readConversation(pkg) }
                 ?: return null
-        AppBus.updateConversation(conv) // let the in-app debug viewer show it too
+        DebugCapture.recordConversation(conv) // let the in-app debug viewer show it too
         return conv
     }
 
@@ -428,7 +427,7 @@ class FloatingBubbleService : Service() {
         }
         bmp.recycle()
         if (conv.isEmpty) DiagLog.record(ErrorCode.OCR_402, pkg = pkg)
-        AppBus.updateConversation(conv) // let the in-app debug viewer show it too
+        DebugCapture.recordConversation(conv) // let the in-app debug viewer show it too
         return conv
     }
 
