@@ -32,8 +32,8 @@ data class MemoryStats(
 
 /**
  * Coordinates the long-term memory feature, delegating the real work to focused
- * collaborators: [ReplyLog] (raw reply record), [AiService] (the learner),
- * [MemoryDao] (persistence), [MemoryEmbedder] (vectors) and [MemoryInjector]
+ * collaborators: [ReplyLog] (raw reply record), [MemoryLearner] (the learner),
+ * [MemoryDao] (persistence), [MemoryEmbedder] (vectors) and [MemoryPromptBuilder]
  * (prompt block). Owns only the orchestration + the UI-facing state flows.
  *
  * Singleton, mirroring [SettingsRepository] — background services and the UI all
@@ -172,7 +172,7 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
 
     /** Formatted memory for injection into the reply-generation system prompt. */
     override fun memoryBlock(conv: Conversation?): String =
-        MemoryInjector.block(_memories.value, settingsRepo.current(), conv)
+        MemoryPromptBuilder.build(_memories.value, settingsRepo.current(), conv)
 
     // ---- manual edits ---------------------------------------------------
 
