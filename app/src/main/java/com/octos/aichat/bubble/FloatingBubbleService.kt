@@ -22,7 +22,6 @@ import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.LocalModel
 import com.octos.aichat.ai.local.ModelStore
 import com.octos.aichat.ai.local.localModel
-import com.octos.aichat.ai.recordAiFailure
 import com.octos.aichat.capture.CaptureResult
 import com.octos.aichat.capture.ChatCapture
 import com.octos.aichat.capture.ReadPath
@@ -47,7 +46,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * Foreground service that paints a draggable bubble over other apps. Tapping it
@@ -211,27 +209,11 @@ class FloatingBubbleService : Service() {
         }
         // Local mode: make sure the on-device model is loaded before generating.
         if (settings.useLocal && !ensureLocalReady(settings.localModel)) return
-        // Log my on-screen replies into global memory, and let what's already
-        // been learned personalise the suggestions.
-        val memory = MemoryRepository.get(this@FloatingBubbleService)
-        memory.recordMyMessages(conv)
-        // Off the main thread: with semantic memory on, this runs a bge query embedding.
-        val memoryBlock = withContext(Dispatchers.Default) {
-            Tracing.section(Tracing.BUBBLE_MEMORY_BLOCK) { memory.memoryBlock(conv) }
-        }
         val result = runCatching {
-            Tracing.asyncSection(Tracing.BUBBLE_GENERATE) {
-                DiagLog.timed(
-                    if (settings.useLocal) TimedOp.GENERATE_LOCAL else TimedOp.GENERATE_CLOUD,
-                ) {
-                    suggestions.generate(settings, conv, memoryBlock)
-                }
-            }
+            suggestions.suggestFor(settings, conv, MemoryRepository.get(this@FloatingBubbleService))
         }
         // Superseded by a newer tap: don't paint an error over the new request.
-        result.exceptionOrNull()?.let {
-            if (it is CancellationException) throw it else DiagLog.recordAiFailure(it)
-        }
+        result.exceptionOrNull()?.let { if (it is CancellationException) throw it }
         result.onSuccess {
             panel.showSuggestions(it, conv.lastFromOther())
             DiagLog.recordDuration(TimedOp.TAP_TO_RESULT, SystemClock.elapsedRealtime() - tappedAt)

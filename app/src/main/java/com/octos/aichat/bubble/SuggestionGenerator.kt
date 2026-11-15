@@ -3,8 +3,14 @@ package com.octos.aichat.bubble
 import com.octos.aichat.ai.AiClient
 import com.octos.aichat.ai.AiException
 import com.octos.aichat.ai.aiClientFor
+import com.octos.aichat.ai.recordAiFailure
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
+import com.octos.aichat.data.memory.MemoryStore
+import com.octos.aichat.diagnostics.DiagLog
+import com.octos.aichat.diagnostics.TimedOp
+import com.octos.aichat.diagnostics.Tracing
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -25,6 +31,34 @@ class SuggestionGenerator(
     // Last, so callers can pass it as a trailing lambda.
     private val clientFor: (AppSettings) -> AiClient = ::aiClientFor,
 ) {
+
+    /**
+     * One tap's suggestions for [conv]: log my on-screen messages into [memory], add what it
+     * has learned about me to the prompt, then [generate] — traced and timed. A failure is
+     * recorded for diagnostics and rethrown; cancellation (a newer tap) passes through.
+     */
+    suspend fun suggestFor(
+        settings: AppSettings,
+        conv: Conversation,
+        memory: MemoryStore,
+    ): List<String> {
+        memory.recordMyMessages(conv)
+        // Off the main thread: with semantic memory on, this runs a bge query embedding.
+        val memoryBlock = withContext(Dispatchers.Default) {
+            Tracing.section(Tracing.BUBBLE_MEMORY_BLOCK) { memory.memoryBlock(conv) }
+        }
+        val op = if (settings.useLocal) TimedOp.GENERATE_LOCAL else TimedOp.GENERATE_CLOUD
+        return try {
+            Tracing.asyncSection(Tracing.BUBBLE_GENERATE) {
+                DiagLog.timed(op) { generate(settings, conv, memoryBlock) }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            DiagLog.recordAiFailure(e)
+            throw e
+        }
+    }
 
     suspend fun generate(
         settings: AppSettings,
