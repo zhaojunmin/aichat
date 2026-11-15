@@ -5,6 +5,7 @@ import android.view.accessibility.AccessibilityEvent
 import com.octos.aichat.AppBus
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.SettingsStore
+import com.octos.aichat.debug.DebugCapture
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 import com.octos.aichat.diagnostics.Tracing
@@ -24,7 +25,7 @@ class ChatAccessibilityService : AccessibilityService() {
     private val isTarget: (String) -> Boolean = { it in settings.current().targetPackageSet }
 
     private val foreground =
-        ForegroundTracker(isTarget, { AppBus.captureRawTree }, AppBus::onForeground)
+        ForegroundTracker(isTarget, { DebugCapture.captureRawTree }, AppBus::onForeground)
     private val treeDumper = RawTreeDumper({ rootInActiveWindow }, isTarget)
     private val reader = ChatWindowReader(this)
     private val replyFiller = ReplyFiller { rootInActiveWindow }

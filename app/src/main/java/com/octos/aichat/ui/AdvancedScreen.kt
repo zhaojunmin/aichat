@@ -49,12 +49,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.octos.aichat.AppBus
 import com.octos.aichat.R
 import com.octos.aichat.ai.embedding.Encoder
 import com.octos.aichat.bubble.FloatingBubbleService
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.Speaker
+import com.octos.aichat.debug.DebugCapture
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.ui.theme.ThemeVariant
 
@@ -91,8 +91,8 @@ internal fun AdvancedScreen(
             },
         )
     }
-    // Mirrors the process-wide (non-persisted) debug flag in AppBus.
-    var captureRawTree by remember { mutableStateOf(AppBus.captureRawTree) }
+    // Mirrors the process-wide (non-persisted) debug flag in DebugCapture.
+    var captureRawTree by remember { mutableStateOf(DebugCapture.captureRawTree) }
 
     BackHandler(onBack = onBack)
 
@@ -399,7 +399,7 @@ internal fun AdvancedScreen(
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(
-                    onClick = { preview = AppBus.conversation },
+                    onClick = { preview = DebugCapture.lastConversation },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.adv_debug_view_chat)) }
                 Spacer(Modifier.height(8.dp))
@@ -414,7 +414,7 @@ internal fun AdvancedScreen(
                     Switch(
                         checked = captureRawTree,
                         onCheckedChange = { c ->
-                            AppBus.captureRawTree = c
+                            DebugCapture.captureRawTree = c
                             captureRawTree = c
                         },
                     )
@@ -428,7 +428,7 @@ internal fun AdvancedScreen(
                     },
                 )
                 OutlinedButton(
-                    onClick = { rawDump = AppBus.lastRawDump ?: treeEmpty },
+                    onClick = { rawDump = DebugCapture.lastRawDump ?: treeEmpty },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.adv_debug_view_tree)) }
             }

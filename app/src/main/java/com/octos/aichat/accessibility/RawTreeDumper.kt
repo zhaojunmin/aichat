@@ -5,15 +5,15 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityNodeInfo
-import com.octos.aichat.AppBus
+import com.octos.aichat.debug.DebugCapture
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 
 /**
  * Debug only: dumps the active window's node tree (id / class / bounds / text) into
- * [AppBus.lastRawDump] for the in-app viewer — how per-app parse rules are designed
+ * [DebugCapture.lastRawDump] for the in-app viewer — how per-app parse rules are designed
  * without logcat / uiautomator, both blocked on some devices. Runs only while
- * [AppBus.captureRawTree] is on; its worker thread starts on first use.
+ * [DebugCapture.captureRawTree] is on; its worker thread starts on first use.
  */
 class RawTreeDumper(
     private val activeRoot: () -> AccessibilityNodeInfo?,
@@ -33,7 +33,7 @@ class RawTreeDumper(
     // Only touched on the worker thread.
     private var lastDumpAt = 0L
 
-    val enabled: Boolean get() = AppBus.captureRawTree
+    val enabled: Boolean get() = DebugCapture.captureRawTree
 
     /**
      * Main thread: schedule a dump. Bursts coalesce — a queued dump reads the window when it runs.
@@ -69,7 +69,7 @@ class RawTreeDumper(
         val now = SystemClock.uptimeMillis()
         if (now - lastDumpAt < MIN_INTERVAL_MS) return
         lastDumpAt = now
-        AppBus.lastRawDump = render(root, pkg)
+        DebugCapture.lastRawDump = render(root, pkg)
     }
 
     private fun render(root: AccessibilityNodeInfo, pkg: String): String {
