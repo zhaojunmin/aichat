@@ -141,7 +141,7 @@ internal class BubblePanel(
     }
 
     private fun replyCard(index: Int, reply: String): View = TextView(context).apply {
-        text = "$index.  $reply"
+        text = context.getString(R.string.panel_reply_item, index, reply)
         setTextColor(palette.onCard)
         textSize = 15f
         val p = (14 * dp).toInt()

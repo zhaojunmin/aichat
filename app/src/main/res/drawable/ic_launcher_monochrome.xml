@@ -1,0 +1,12 @@
+<!-- Themed (monochrome) launcher icon: the foreground's speech bubble with the eyes cut
+     out, since a themed icon is tinted from alpha only and the eyes would otherwise vanish. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M34,34h40a6,6 0 0 1 6,6v20a6,6 0 0 1 -6,6H52l-12,10v-10h-6a6,6 0 0 1 -6,-6V40a6,6 0 0 1 6,-6z M45,50 L49,50 L49,54 L45,54 z M59,50 L63,50 L63,54 L59,54 z" />
+</vector>

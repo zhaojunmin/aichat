@@ -23,6 +23,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.core.view.isVisible
 import com.octos.aichat.AppBus
 import com.octos.aichat.R
@@ -209,7 +210,7 @@ class FloatingBubbleService : Service() {
         val size = (56 * dp).toInt()
         bubbleSize = size
         bubble = TextView(this).apply {
-            text = "AI"
+            text = getString(R.string.bubble_label)
             textSize = 16f
             gravity = Gravity.CENTER
             paintBall(palette)
@@ -358,18 +359,27 @@ class FloatingBubbleService : Service() {
         val pkg = AppBus.foregroundPackage ?: ""
         // Apps in the OCR list are always read via screenshot (the node tree is
         // blocked or too noisy); the global toggle is no longer required.
-        val useOcr = pkg in settings.ocrPackageSet &&
+        return if (pkg in settings.ocrPackageSet &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-        if (!useOcr) {
-            // Parse now, on tap: what's on screen this moment, no stale or post-restart-empty
-            // state.
-            val conv =
-                DiagLog.timed(TimedOp.PARSE) { AppBus.chatWindowReader?.readConversation(pkg) }
-                    ?: return null
-            AppBus.updateConversation(conv) // let the in-app debug viewer show it too
-            return conv
+        ) {
+            readViaOcr(pkg)
+        } else {
+            readFromNodeTree(pkg)
         }
+    }
 
+    /** Parse now, on tap: what's on screen this moment, no stale or post-restart-empty state. */
+    private suspend fun readFromNodeTree(pkg: String): Conversation? {
+        val conv =
+            DiagLog.timed(TimedOp.PARSE) { AppBus.chatWindowReader?.readConversation(pkg) }
+                ?: return null
+        AppBus.updateConversation(conv) // let the in-app debug viewer show it too
+        return conv
+    }
+
+    /** Screenshot + OCR, guided by message geometry when the app exposes it. */
+    @RequiresApi(Build.VERSION_CODES.R)
+    private suspend fun readViaOcr(pkg: String): Conversation? {
         val reader = AppBus.chatWindowReader ?: return null
         val messageBounds: List<MessageBounds>
         val bmp: Bitmap?
@@ -468,15 +478,13 @@ class FloatingBubbleService : Service() {
     private fun startForegroundNotice() {
         val channelId = "overlay"
         val nm = getSystemService(NotificationManager::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            nm.createNotificationChannel(
-                NotificationChannel(
-                    channelId,
-                    getString(R.string.svc_bubble_name),
-                    NotificationManager.IMPORTANCE_LOW,
-                ),
-            )
-        }
+        nm.createNotificationChannel(
+            NotificationChannel(
+                channelId,
+                getString(R.string.svc_bubble_name),
+                NotificationManager.IMPORTANCE_LOW,
+            ),
+        )
         val contentIntent = PendingIntent.getActivity(
             this,
             0,
@@ -492,7 +500,9 @@ class FloatingBubbleService : Service() {
             .setOngoing(true) // persistent: not swipe-dismissable while running
             .build()
         runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // A service type is required from API 34 (where specialUse was added); below
+            // that the manifest type is enough.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 startForeground(
                     NOTIF_ID,
                     notification,
