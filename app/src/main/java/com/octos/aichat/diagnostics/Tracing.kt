@@ -14,9 +14,11 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 object Tracing {
 
-    // Accessibility. onEvent: main thread, every event (budget P4 ≤ 8 ms);
-    // parse: the on-demand tree walk when the bubble is tapped (IO thread).
+    // Accessibility. onEvent: main thread, every event (budget P4 ≤ 8 ms) — only the filter
+    // and the hand-off; foregroundCheck: the active-window lookup it hands off, on the
+    // foreground thread; parse: the on-demand tree walk when the bubble is tapped (IO thread).
     const val A11Y_EVENT = "a11y.onEvent"
+    const val A11Y_FOREGROUND_CHECK = "a11y.foregroundCheck"
     const val A11Y_PARSE = "a11y.parse"
 
     // Bubble tap → suggestions shown (budget P1) and its stages.
@@ -28,6 +30,10 @@ object Tracing {
 
     // On-device LLM: one blocking native inference turn.
     const val LLM_CHAT = "llm.chat"
+
+    // bge embedding: tokenize + one native forward pass, inside the encoder's lock (so a
+    // wait for the lock shows as the gap before it).
+    const val EMBED_FORWARD = "embed.forward"
 
     private val cookies = AtomicInteger()
 

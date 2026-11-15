@@ -2,6 +2,7 @@ package com.octos.aichat.ai.embedding
 
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
+import com.octos.aichat.diagnostics.Tracing
 
 /**
  * On-device sentence embedding (bge-small-zh-v1.5, MNN fp16) via the shared MNN
@@ -85,12 +86,14 @@ object Encoder {
     fun embed(text: String): FloatArray? = synchronized(lock) {
         if (!isReady) return null
         val tk = tokenizer ?: return null
-        val (ids, mask) = tk.encode(text, MAX_TOKENS)
-        runCatching { nativeEmbed(handle, ids, mask) }
-            .getOrElse {
-                failed(ErrorCode.EMB_704, it)
-                null
-            }
+        Tracing.section(Tracing.EMBED_FORWARD) {
+            val (ids, mask) = tk.encode(text, MAX_TOKENS)
+            runCatching { nativeEmbed(handle, ids, mask) }
+                .getOrElse {
+                    failed(ErrorCode.EMB_704, it)
+                    null
+                }
+        }
     }
 
     fun release() = synchronized(lock) {

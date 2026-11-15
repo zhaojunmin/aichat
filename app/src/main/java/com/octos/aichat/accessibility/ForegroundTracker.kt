@@ -7,8 +7,10 @@ import android.view.accessibility.AccessibilityNodeInfo
 data class ForegroundApp(val pkg: String, val isTarget: Boolean)
 
 /**
- * Works out which app is in the foreground from accessibility events, cheaply
- * enough to run on the main thread for every event. Owns the last known
+ * Works out which app is in the foreground from accessibility events. [canSkip] runs on
+ * the main thread for every event and must stay cheap; [track] does the cross-process
+ * active-window lookup and runs on a background thread (it can block for as long as the
+ * chat app's UI thread is busy — over a second while it starts). Owns the last known
  * foreground; each change goes to [publish] (which shows/hides the bubble).
  */
 class ForegroundTracker(
@@ -16,7 +18,8 @@ class ForegroundTracker(
     private val dumpingRawTree: () -> Boolean,
     private val publish: (ForegroundApp) -> Unit,
 ) {
-    private var current: ForegroundApp? = null
+    // Written by track (background), read by canSkip (main).
+    @Volatile private var current: ForegroundApp? = null
 
     /** True when the event can't change the foreground, so [track] can be skipped. */
     fun canSkip(event: AccessibilityEvent): Boolean = isRoutineUpdateOfForegroundApp(

@@ -36,7 +36,8 @@ class RawTreeDumper(
     val enabled: Boolean get() = DebugCapture.captureRawTree
 
     /**
-     * Main thread: schedule a dump. Bursts coalesce — a queued dump reads the window when it runs.
+     * From the service's foreground thread (one caller thread): schedule a dump. Bursts
+     * coalesce — a queued dump reads the window when it runs.
      */
     fun request() {
         if (!enabled) return
