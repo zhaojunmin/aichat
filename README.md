@@ -22,9 +22,10 @@
         │ 屏幕内容
         ▼
 ChatAccessibilityService(只做回调分发)
-        │ 每个事件:ForegroundTracker 判断前台 App ──► AppBus.foreground ──► 悬浮球显示 / 隐藏
+        │ 每个事件:ForegroundTracker 判断前台 App ──► AccessibilityBridge.foreground ──► 悬浮球显示 / 隐藏
+        │ 连接期间:经 AccessibilityBridge.screen 发布 ScreenAccess(读聊天 / 截图 / 键盘区域 / 回填)
         │
-        │ 点悬浮球时:ChatWindowReader
+        │ 点悬浮球时:ChatCapture(只依赖 ScreenAccess 接口)
         ├─► ChatParser(控件树)──────┐
         └─► 截图 + OcrReader(OCR)──┴──► Conversation ──► AiService ─────┬─► 云端(DeepSeek/豆包,OpenAI 兼容)
                                                          ▲                └─► 本地(MNN + Qwen2.5,隐私)
@@ -36,7 +37,7 @@ ChatAccessibilityService(只做回调分发)
 FloatingBubbleService(悬浮球 + 建议面板)
         │ 选中一条
         ├─► 复制到剪贴板
-        └─►(可选)ReplyFiller 用无障碍 ACTION_SET_TEXT 填入输入框
+        └─►(可选)ScreenAccess.fill(ReplyFiller,无障碍 ACTION_SET_TEXT)填入输入框
 ```
 
 ## 核心模块
@@ -44,7 +45,10 @@ FloatingBubbleService(悬浮球 + 建议面板)
 | 模块 | 文件 |
 |---|---|
 | 读屏服务(只做回调分发与装配) | `accessibility/ChatAccessibilityService.kt` |
+| 对外能力与连接发布 | `accessibility/ScreenAccess.kt`(连接期间可用的读屏 / 截图 / 回填接口)、`AccessibilityBridge.kt`(用 StateFlow 发布当前连接与前台 App) |
 | 前台判断 / 读聊天 / 自动填入 / 调试抓树 | `accessibility/ForegroundTracker.kt`、`ChatWindowReader.kt`、`ReplyFiller.kt`、`RawTreeDumper.kt` |
+| 点击时读取流程(控件树 / 截图 OCR 分流) | `capture/ChatCapture.kt`(只依赖 `ScreenAccess`,可在 JVM 上测) |
+| 调试数据(上次读取的会话、原始控件树) | `debug/DebugCapture.kt` |
 | 聊天解析(控件树,按水平位置分「我/对方」) | `accessibility/ChatParser.kt`、`MessageBoundsLocator.kt` |
 | 截图 OCR(ML Kit 中文) | `ocr/OcrReader.kt`、`MessageLineMerger.kt`、`SenderNameFilter.kt` |
 | 悬浮球 + 面板 | `bubble/FloatingBubbleService.kt`、`BubblePanel.kt`、`BubbleStyle.kt`、`BubblePalette.kt`(主题色 → View 颜色) |
