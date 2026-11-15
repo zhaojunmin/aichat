@@ -121,11 +121,13 @@ data class AppSettings(
     // Lazily cached per snapshot: the foreground check reads this on every
     // accessibility event, so don't re-split the string each time.
     val targetPackageSet: Set<String> by lazy {
-        BUILTIN_TARGETS + targetPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        SupportedApps.PACKAGES +
+            targetPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
     }
 
     val ocrPackageSet: Set<String> by lazy {
-        BUILTIN_OCR + ocrPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        SupportedApps.OCR_PACKAGES +
+            ocrPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
     }
 
     /** Config of the given backend, falling back to that backend's defaults. */
@@ -158,24 +160,8 @@ data class AppSettings(
          */
         const val DEFAULT_LOCAL_MODEL_ID = "qwen1_5b"
 
-        // WeChat + QQ + Soul + Hertz + Momo out of the box.
-        const val DEFAULT_TARGET_PACKAGES =
-            "com.tencent.mm,com.tencent.mobileqq,cn.soulapp.android," +
-                "com.immomo.vchat,com.immomo.momo"
-
-        // Screenshot-OCR apps: WeChat (whole-screen) and Momo (bubble-geometry
-        // guided). QQ/Soul/Hertz are read straight from the node tree's text.
-        const val DEFAULT_OCR_PACKAGES = "com.tencent.mm,com.immomo.momo"
-
-        // Always-supported apps, merged with the user's list.
-        val BUILTIN_TARGETS =
-            setOf(
-                "com.tencent.mm",
-                "com.tencent.mobileqq",
-                "cn.soulapp.android",
-                "com.immomo.vchat",
-                "com.immomo.momo",
-            )
-        val BUILTIN_OCR = setOf("com.tencent.mm", "com.immomo.momo")
+        /** What the editable package lists show on a fresh install: the built-in apps. */
+        val DEFAULT_TARGET_PACKAGES: String = SupportedApps.PACKAGES.joinToString(",")
+        val DEFAULT_OCR_PACKAGES: String = SupportedApps.OCR_PACKAGES.joinToString(",")
     }
 }
