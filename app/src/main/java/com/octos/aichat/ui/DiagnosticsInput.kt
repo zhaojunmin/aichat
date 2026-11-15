@@ -4,7 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
-import com.octos.aichat.AppBus
+import com.octos.aichat.accessibility.AccessibilityBridge
 import com.octos.aichat.accessibility.ChatAccessibilityService
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.diagnostics.DeviceInfo
@@ -31,7 +31,7 @@ fun diagnosticsSettings(s: AppSettings): List<Pair<String, String>> = listOf(
 /** Permission state as the user sees it, plus whether the system has actually bound the reader. */
 fun diagnosticsPermissions(context: Context): List<Pair<String, Boolean>> = listOf(
     "accessibilityEnabled" to isAccessibilityEnabled(context),
-    "accessibilityBound" to AppBus.isAccessibilityConnected,
+    "accessibilityBound" to AccessibilityBridge.isConnected,
     "overlay" to Settings.canDrawOverlays(context),
     "notifications" to NotificationManagerCompat.from(context).areNotificationsEnabled(),
 )
