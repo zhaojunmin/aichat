@@ -39,8 +39,10 @@ import com.octos.aichat.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun MemoryScreen(onBack: () -> Unit) {
-    val vm: MemoryViewModel = viewModel(factory = MemoryViewModel.factory(LocalContext.current))
+internal fun MemoryScreen(
+    onBack: () -> Unit,
+    vm: MemoryViewModel = viewModel(factory = MemoryViewModel.factory(LocalContext.current)),
+) {
     val memories by vm.memories.collectAsStateWithLifecycle()
     val deleted by vm.deleted.collectAsStateWithLifecycle()
 

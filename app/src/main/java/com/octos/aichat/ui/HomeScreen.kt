@@ -77,9 +77,12 @@ private fun rememberResumeTick(): Int {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-internal fun HomeScreen(onOpenAdvanced: () -> Unit, onOpenMemory: () -> Unit) {
+internal fun HomeScreen(
+    onOpenAdvanced: () -> Unit,
+    onOpenMemory: () -> Unit,
+    vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(LocalContext.current)),
+) {
     val context = LocalContext.current
-    val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(context))
     val settings by vm.settingsState.collectAsStateWithLifecycle()
     val tick = rememberResumeTick()
 

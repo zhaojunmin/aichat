@@ -92,6 +92,9 @@ android {
         // "A newer version is available" checks depend on the network and the date,
         // not on our code — they'd make CI results drift. Track upgrades separately.
         disable += setOf("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion")
+        // Same reason: "targetSdk isn't the latest" depends on the lint version, not on the
+        // code. Raising targetSdk is tracked separately (and needs a newer SDK platform).
+        disable += "OldTargetApi"
         // ARM-only on purpose (see abiFilters below): the native libs ship for ARM, and x86_64
         // ChromeOS devices aren't a target.
         disable += "ChromeOsAbiSupport"
@@ -141,6 +144,9 @@ dependencies {
 
     // On-device Chinese OCR, bundled model (no Google Play services needed — works on Huawei).
     implementation(libs.mlkit.text.recognition.chinese)
+
+    // Compose-specific Android Lint checks (Slack compose-lints), run by :app:lintDebug.
+    lintChecks(libs.compose.lint.checks)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

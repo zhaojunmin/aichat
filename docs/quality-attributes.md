@@ -186,6 +186,10 @@ prompt 和人设会频繁调整,需要一个离线评测集:
   - 命名(`NamingRulesTest`):Bubble 只指悬浮球;`*ViewModel` 在 `ui` 且继承 androidx `ViewModel`,每个 `*Screen` 有对应 ViewModel;`*Repository` 只在 `data` 且实现同名 `*Store`;`AiClient` 实现叫 `*Client`;禁用 `Impl`/`Manager`/`Helper`/`Util(s)` 后缀;只有 `ChatAssistantApp` 可用 `android.util.Log`;`@Composable` 只在 `ui`。
 - 「依赖有新版本」类检查(`GradleDependency`、`NewerVersionAvailable`、`AndroidGradlePluginVersion`)已关闭:它们的结果随联网和日期变化,与代码无关,会让 CI 结果漂移。依赖升级单独跟踪。
 - baseline 里有一条 `NewApi` 错误(`captureScreenshot` 需要 API 30),实际调用处已有 `SDK_INT >= R` 判断,是 Lint 跟不进条件分支导致的误报。
+- **Compose 检查(compose-lints)**:Slack 的 `compose-lint-checks` 以 `lintChecks` 挂在 `:app:lintDebug` 上,规则全开、无 baseline,和其他 Lint 问题一样会让构建失败。
+  - 它基于较新的 Kotlin 分析 API,AGP 9.0 自带的 Lint 会以「references invalid APIs」把它整体跳过。`gradle.properties` 用 `android.experimental.lint.version=9.5.0` 只把 Lint 引擎换成 AGP 9.5 的,构建仍用 AGP 9.0;升级 AGP 到 9.5+ 后删掉这行。
+  - 新引擎会报 `OldTargetApi`(结果随 Lint 版本变化,与代码无关),和上面的版本类检查一样关闭;targetSdk 升级单独跟踪。
+  - 接入时修掉的存量:4 个界面在函数体里 `viewModel()`(`ComposeViewModelInjection`),改为参数默认值 `vm: XViewModel = viewModel(...)`,依赖显式可见,预览和测试可以直接传入。
 
 ### 4.5 CI(GitHub Actions)
 
