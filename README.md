@@ -21,24 +21,32 @@
 第三方聊天 App(微信 / QQ / Soul)
         │ 屏幕内容
         ▼
-AccessibilityService ──► ChatParser(控件树)┐
-        │                                   ├──► Conversation ──► AiService ─────┬─► 云端(DeepSeek/豆包,OpenAI 兼容)
-        │                 截图 OCR(OcrReader)┘            ▲                      └─► 本地(MNN + Qwen2.5,隐私)
-        │ 前台包名变化切换悬浮球                            │
-        ▼                                      MemoryRepository(三因子召回:
-FloatingBubbleService(悬浮球 + 建议面板)        recency + importance + relevance)
-        │ 选中一条                                    relevance = 本地词法 / bge 语义向量
+ChatAccessibilityService(只做回调分发)
+        │ 每个事件:ForegroundTracker 判断前台 App ──► AppBus.foreground ──► 悬浮球显示 / 隐藏
+        │
+        │ 点悬浮球时:ChatWindowReader
+        ├─► ChatParser(控件树)──────┐
+        └─► 截图 + OcrReader(OCR)──┴──► Conversation ──► AiService ─────┬─► 云端(DeepSeek/豆包,OpenAI 兼容)
+                                                         ▲                └─► 本地(MNN + Qwen2.5,隐私)
+                                                         │
+                                       MemoryRepository(三因子召回:
+                                       recency + importance + relevance)
+                                       relevance = 本地词法 / bge 语义向量
+        ▼
+FloatingBubbleService(悬浮球 + 建议面板)
+        │ 选中一条
         ├─► 复制到剪贴板
-        └─►(可选)无障碍 ACTION_SET_TEXT 自动填入输入框
+        └─►(可选)ReplyFiller 用无障碍 ACTION_SET_TEXT 填入输入框
 ```
 
 ## 核心模块
 
 | 模块 | 文件 |
 |---|---|
-| 读屏服务 | `accessibility/ChatAccessibilityService.kt` |
+| 读屏服务(只做回调分发与装配) | `accessibility/ChatAccessibilityService.kt` |
+| 前台判断 / 读聊天 / 自动填入 / 调试抓树 | `accessibility/ForegroundTracker.kt`、`ChatWindowReader.kt`、`ReplyFiller.kt`、`RawTreeDumper.kt` |
 | 聊天解析(控件树,按水平位置分「我/对方」) | `accessibility/ChatParser.kt`、`MessageBoundsLocator.kt` |
-| 截图 OCR(ML Kit 中文) | `ocr/OcrReader.kt` |
+| 截图 OCR(ML Kit 中文) | `ocr/OcrReader.kt`、`MessageLineMerger.kt`、`SenderNameFilter.kt` |
 | 悬浮球 + 面板 | `bubble/FloatingBubbleService.kt`、`BubblePanel.kt`、`BubbleStyle.kt`、`BubblePalette.kt`(主题色 → View 颜色) |
 | AI 接口抽象 | `ai/AiClient.kt`、`ai/CloudClient.kt`、`ai/LocalClient.kt`、`ai/AiService.kt` |
 | 本地推理(MNN Qwen2.5) | `ai/local/LlmEngine.kt`、`LocalModel.kt`、`ModelStore.kt` |
@@ -48,7 +56,8 @@ FloatingBubbleService(悬浮球 + 建议面板)        recency + importance + re
 | 界面 / 主题 | `ui/`(每屏一个 ViewModel)、`ui/theme/Theme.kt`(`ThemeVariant` 六套配色) |
 | 诊断 | `diagnostics/`(错误码、本地记录、导出) |
 | 原生 | `native/mnn-llm/`(本地 LLM JNI)、`native/mnn-embed/`(bge encoder JNI) |
-| 设计文档 | `docs/`(记忆系统 / embedding 选型基准 / LLM 引擎 A/B / 集成设计) |
+| 质量工程 | `quality/architecture/`(Konsist 架构与命名规则)、`quality/macrobenchmark/`(性能)、`quality/reliability/`(真机可靠性)、`quality/scripts/`(一键脚本) |
+| 设计文档 | `docs/`(记忆系统 / embedding 选型基准 / LLM 引擎 A/B / 集成设计 / 质量属性 / 可观测性 / 性能与可靠性测试) |
 
 ## 构建
 
@@ -62,14 +71,17 @@ export ANDROID_HOME=$HOME/Android/Sdk
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 # 质量检查(与 CI 一致)
-./gradlew spotlessCheck :app:testDebugUnitTest :app:lintDebug
+./gradlew spotlessCheck :quality:architecture:test          # 规范 + 架构规则(CI style 任务)
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug   # 单测 + Lint + 构建(CI build 任务)
 # Kotlin 规范自动修复(换行、import 排序、空白等)
 ./gradlew spotlessApply
 ```
 
-> - CI(`.github/workflows/ci.yml`)在每个 PR 和 main 上跑 Kotlin 规范检查 + 单测 + Lint + debug 构建;不拉 LFS。
+> - CI(`.github/workflows/ci.yml`)在每个 PR 和 main 上跑两个任务,不拉 LFS:**style**(Kotlin 规范 + Konsist 架构规则,约 1 分钟)和 **build**(单测 + Lint + debug 构建 + 编译基准模块)。
 > - Kotlin 规范 = [Android Kotlin 风格指南](https://developer.android.com/kotlin/style-guide?hl=zh-cn),由 ktlint(`android_studio` 风格)经 Spotless 执行,规则在 `.editorconfig`。`spotlessApply` 修不了的(命名、超 100 列的长行)需手改。纯格式化提交记入 `.git-blame-ignore-revs`(本地 `git config blame.ignoreRevsFile .git-blame-ignore-revs`)。
 > - Lint 不设基线,存量已清零;`warningsAsErrors` 打开,任何新 warning 都会让构建失败。确属误报的,在出问题的位置用 `tools:ignore` / `@SuppressLint` 并写明理由。
+> - Compose 检查用 Slack 的 [compose-lints](https://slackhq.github.io/compose-lints/),随 `:app:lintDebug` 一起跑。它需要较新的 Lint 引擎,`gradle.properties` 里的 `android.experimental.lint.version=9.5.0` 只换 Lint、不换 AGP;AGP 升到 9.5+ 后删掉。
+> - 架构与命名规则用 [Konsist](https://docs.konsist.lemonappdev.com/) 写成单测(`quality/architecture/`):各包允许依赖的白名单(如 `accessibility` 不碰 `ai`/`ui`、`diagnostics` 不依赖任何包),以及命名约定(Bubble 只指悬浮球、每个界面一个 ViewModel、`*Repository` 实现同名 `*Store` 等)。违规时报出具体的文件和 import。规则清单见 `docs/quality-attributes.md` §4.4。
 > - 质量属性与工程方法见 `docs/quality-attributes.md`。
 > - 性能测试(微基准 / 宏基准,真机)见 `docs/performance-testing.md`,一键运行:`ADB=adb.exe quality/scripts/run-benchmarks.sh`。
 
@@ -84,7 +96,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 3. 选一个 **回复风格**(恋爱/破冰/商务)或自定义。
 4. 点 **测试连接** 验证接口。
 5. (可选)在 **高级设置 → 外观** 选主题,悬浮球会跟着变色。
-6. 回到首页点 **启动悬浮球**。
+6. 悬浮球随 App 启动自动开启(可在 **高级设置 → 悬浮球** 关闭),只在目标聊天 App 前台时显示。
 7. 打开聊天界面 → 点悬浮球 → 选一条回复(自动复制;开了「自动填入」会直接写进输入框)。
 
 ## 专属记忆
@@ -98,5 +110,5 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 - **解析是启发式的**:控件树按水平位置分「我/对方」,复杂气泡(图片、引用、合并转发)可能不准;可按包名加专用解析器或用截图 OCR 兜底。
 - **本地 LLM / embedding 仅 arm64-v8a**:其他 ABI 自动回退云端 / 词法。
-- **自动填入** 依赖标准可编辑输入框;自绘输入框会失败,此时回退「已复制」。
+- **自动填入** 依赖控件树里能找到可编辑的输入框;**微信屏蔽控件树,自动填入不可用**(只会「已复制」,手动粘贴),自绘输入框同理。
 - 语义召回为实验特性(可在高级设置一键关闭);召回质量、tokenizer 与 HF 的对齐建议用真实语料继续回归。
