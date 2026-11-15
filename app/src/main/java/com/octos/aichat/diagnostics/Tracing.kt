@@ -29,6 +29,10 @@ object Tracing {
     // On-device LLM: one blocking native inference turn.
     const val LLM_CHAT = "llm.chat"
 
+    // bge embedding: tokenize + one native forward pass, inside the encoder's lock (so a
+    // wait for the lock shows as the gap before it).
+    const val EMBED_FORWARD = "embed.forward"
+
     private val cookies = AtomicInteger()
 
     /** Synchronous section: begins and ends on the calling thread. */
