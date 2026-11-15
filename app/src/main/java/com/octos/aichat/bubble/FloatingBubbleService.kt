@@ -26,7 +26,7 @@ import android.widget.Toast
 import androidx.core.view.isVisible
 import com.octos.aichat.AppBus
 import com.octos.aichat.R
-import com.octos.aichat.accessibility.BubbleBox
+import com.octos.aichat.accessibility.MessageBounds
 import com.octos.aichat.ai.AiService
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.LocalModel
@@ -344,16 +344,16 @@ class FloatingBubbleService : Service() {
         }
 
         val reader = AppBus.chatWindowReader ?: return null
-        val boxes: List<BubbleBox>
+        val messageBounds: List<MessageBounds>
         val bmp: Bitmap?
         // Hide our own bubble so it isn't part of the captured image; always bring
         // it back, even if this tap is cancelled mid-capture.
         if (::bubble.isInitialized) bubble.visibility = View.GONE
         try {
             delay(80)
-            // Grab bubble geometry from the node tree at the same moment we capture,
+            // Grab message geometry from the node tree at the same moment we capture,
             // so rects and pixels line up. Empty for apps with no geometry (WeChat).
-            boxes = reader.locateBubbles(pkg)
+            messageBounds = reader.locateMessageBounds(pkg)
             bmp = reader.captureScreenshot(pkg)
         } finally {
             if (::bubble.isInitialized) bubble.visibility = View.VISIBLE
@@ -367,10 +367,10 @@ class FloatingBubbleService : Service() {
         val imeTop = reader.imeBounds()?.top ?: -1
         val conv = withContext(Dispatchers.Default) {
             Tracing.asyncSection(Tracing.BUBBLE_OCR) { DiagLog.timed(TimedOp.OCR) {
-                // Geometry-guided OCR when we have bubble rects (Momo); otherwise the
+                // Geometry-guided OCR when we have message bounds (Momo); otherwise the
                 // whole-screen colour/region heuristic (WeChat).
                 when {
-                    boxes.isNotEmpty() -> OcrReader.readConversation(bmp, boxes, pkg)
+                    messageBounds.isNotEmpty() -> OcrReader.readConversation(bmp, messageBounds, pkg)
                     imeTop in 1 until bmp.height -> {
                         val cropped = Bitmap.createBitmap(bmp, 0, 0, bmp.width, imeTop)
                         val c = OcrReader.readConversation(cropped, w, imeTop, pkg)

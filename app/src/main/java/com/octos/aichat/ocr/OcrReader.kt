@@ -7,7 +7,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
-import com.octos.aichat.accessibility.BubbleBox
+import com.octos.aichat.accessibility.MessageBounds
 import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.Speaker
@@ -38,10 +38,10 @@ object OcrReader {
      */
     suspend fun readConversation(
         bitmap: Bitmap,
-        boxes: List<BubbleBox>,
+        messageBounds: List<MessageBounds>,
         pkg: String,
     ): Conversation {
-        if (boxes.isEmpty()) return Conversation(pkg, emptyList())
+        if (messageBounds.isEmpty()) return Conversation(pkg, emptyList())
         val text = recognize(bitmap, pkg) ?: return Conversation(pkg, emptyList())
 
         val blocks = text.textBlocks
@@ -49,17 +49,17 @@ object OcrReader {
             .filter { it.second.isNotEmpty() }
 
         // Each bubble collects the text blocks whose centre sits inside it.
-        val ordered = boxes.sortedBy { it.rect.top }
+        val ordered = messageBounds.sortedBy { it.rect.top }
         val messages = ArrayList<ChatMessage>()
         var last: String? = null
-        for (bubble in ordered) {
+        for (bounds in ordered) {
             val content = blocks
-                .filter { bubble.rect.contains(it.first.centerX(), it.first.centerY()) }
+                .filter { bounds.rect.contains(it.first.centerX(), it.first.centerY()) }
                 .sortedBy { it.first.top }
                 .joinToString(" ") { it.second }
                 .trim()
             if (content.isEmpty() || !OcrMessageFilter.looksLikeMessage(content) || content == last) continue
-            messages.add(ChatMessage(bubble.speaker, content))
+            messages.add(ChatMessage(bounds.speaker, content))
             last = content
         }
         return Conversation(pkg, messages)
@@ -83,7 +83,7 @@ object OcrReader {
             .mapNotNull { b ->
                 val r = b.boundingBox ?: return@mapNotNull null
                 val lines = b.lines.map { it.text }.ifEmpty { listOf(b.text) }
-                val joined = lines.reduce(BubbleLineMerger::joinLines).trim()
+                val joined = lines.reduce(MessageLineMerger::joinLines).trim()
                 OcrBlock(r.left, r.top, r.right, r.bottom, joined, lines.size)
             }
             .filter { it.text.isNotEmpty() }
@@ -106,7 +106,7 @@ object OcrReader {
             (h <= 0 || ((it.top + it.bottom) / 2).toFloat() in minY..maxY) && OcrMessageFilter.looksLikeMessage(it.text)
         }
         // One bubble's wrapped lines can come back as separate blocks; stitch them.
-        val merged = BubbleLineMerger.merge(candidates) { upper, lower -> gapIsBubble(bitmap, upper, lower) }
+        val merged = MessageLineMerger.merge(candidates) { upper, lower -> gapInsideMessage(bitmap, upper, lower) }
         // Group chats: drop the sender name printed above each bubble.
         val blocks = SenderNameFilter.drop(merged) { name, below ->
             val a = paddingColor(bitmap, name, name.lineHeight)
@@ -137,7 +137,7 @@ object OcrReader {
      * wallpaper in the gap; a group-chat sender name sits on the wallpaper while
      * the line below it sits in a bubble, so their references differ.
      */
-    private fun gapIsBubble(bitmap: Bitmap, upper: OcrBlock, lower: OcrBlock): Boolean {
+    private fun gapInsideMessage(bitmap: Bitmap, upper: OcrBlock, lower: OcrBlock): Boolean {
         val line = minOf(upper.lineHeight, lower.lineHeight)
         val inset = insetFor(line)
         val upperRef = paddingColor(bitmap, upper, line) ?: return false

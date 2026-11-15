@@ -13,7 +13,7 @@ package com.octos.aichat.ocr
  *   wallpaper while the line below sits inside a bubble.
  *
  * Any doubt keeps the block, so a miss only leaves a name in, as before.
- * Run after [BubbleLineMerger], so "the block below" is a whole bubble.
+ * Run after [MessageLineMerger], so "the block below" is a whole bubble.
  * Android-free so it's JVM-testable.
  */
 internal object SenderNameFilter {
@@ -23,7 +23,7 @@ internal object SenderNameFilter {
     // Measured on a real device: names 39–42 px tall, single message lines 48–52 px.
     private const val MAX_SIZE_RATIO = 0.92f
 
-    /** @param blocks top to bottom (as [BubbleLineMerger.merge] returns them). */
+    /** @param blocks top to bottom (as [MessageLineMerger.merge] returns them). */
     fun drop(blocks: List<OcrBlock>, sameBackground: (name: OcrBlock, below: OcrBlock) -> Boolean): List<OcrBlock> =
         blocks.filterIndexed { i, b ->
             val below = blocks.getOrNull(i + 1)
