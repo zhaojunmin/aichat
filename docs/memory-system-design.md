@@ -29,7 +29,7 @@
 | 环节 | 现有实现 | 位置 |
 |---|---|---|
 | 存储 | Room/SQLite 单表 `memory(id, category, content, updatedAt)`,category ∈ 画像/事实/偏好/风格 | `MemoryEntity.kt` |
-| 记录 | 我发出的每条回复 append 到 `my_replies.txt`,bounded set 去重 | `MemoryRepository.recordReply` / `appendReply` |
+| 记录 | 每次点悬浮球,识别到的我在当前聊天里的最后一句 append 到 `my_replies.txt`,bounded set 去重;选中的 AI 建议不记录 | `MemoryRepository.recordMyLastMessage` / `ReplyLog.append` |
 | 抽取-更新 | pending 达阈值后调 `MemoryLearner.learn(existing, newReplies)` → 返回 additions + updates;只增量添加 + 覆盖 LLM 标记冲突的行,不自动删除 | `MemoryRepository.runLearning` |
 | 注入 | 按 `updatedAt` 降序取最近 N 条,按 category 分组拼进 system prompt | `MemoryRepository.memoryBlock` (line 157-170) |
 | 人工管理 | 逐条编辑/删除/清空 | `MemoryDao` + 设置界面 |

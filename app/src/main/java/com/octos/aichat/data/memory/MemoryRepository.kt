@@ -7,7 +7,6 @@ import com.octos.aichat.ai.local.localModel
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
-import com.octos.aichat.data.Speaker
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 import com.octos.aichat.diagnostics.TimedOp
@@ -82,22 +81,12 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
     // ---- recording ------------------------------------------------------
 
     /** Record every message I authored in [conv] (skips the other party). */
-    override fun recordMyMessages(conv: Conversation) {
+    override fun recordMyLastMessage(conv: Conversation) {
         if (!settingsRepo.current().memoryEnabled) return
-        val mine = conv.messages.filter { it.speaker == Speaker.ME }.map { it.text }
-        if (mine.isEmpty()) return
+        val last = conv.lastFromMe() ?: return
         scope.launch {
-            val added = mine.count { replyLog.append(it) }
-            if (added > 0) bumpTotal(added)
-            learnAfterRecordIfCloud()
-        }
-    }
-
-    /** Record a single reply I chose/sent through the assistant. */
-    override fun recordReply(text: String) {
-        if (!settingsRepo.current().memoryEnabled) return
-        scope.launch {
-            if (replyLog.append(text)) bumpTotal(1)
+            // The log dedupes: tapping again on the same screen doesn't count it twice.
+            if (replyLog.append(last)) bumpTotal(1)
             learnAfterRecordIfCloud()
         }
     }

@@ -45,7 +45,7 @@
 | S3 | 设备被 root 或数据被导出 | API Key 不以明文存在 | `EncryptedSharedPreferences`,或用 Android Keystore 包一层 AES-GCM |
 | S4 | 聊天 App 打开时无障碍事件持续触发 | 只在需要时把聊天文本留在内存里 | `captureTree` 改成仅在开启调试开关时运行;`DebugCapture.lastRawDump` 不在 release 版持有聊天原文 |
 | S5 | 云端请求 | 只发 HTTPS;日志里不出现 Key 或聊天内容 | `network_security_config` 禁止明文流量;用统一日志门面做脱敏(见 §2.7) |
-| S6 | 对方消息里夹带 prompt 注入(比如「忽略之前的指令」) | 回复只展示给用户,由用户手选;学习**只用「我」的消息** | 已基本满足(`recordMyMessages` 只取 `Speaker.ME`);如果把「我/对方」分错,对方的话会被写进记忆,所以靠 R1 的解析正确性兜底 |
+| S6 | 对方消息里夹带 prompt 注入(比如「忽略之前的指令」) | 回复只展示给用户,由用户手选;学习**只用「我」的消息** | 已基本满足(`recordMyLastMessage` 只取「我」的最后一句,选中的 AI 建议不记录);如果把「我/对方」分错,对方的话会被写进记忆,所以靠 R1 的解析正确性兜底 |
 
 ### 2.2 可靠性 / 正确性
 

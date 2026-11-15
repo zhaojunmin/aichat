@@ -11,6 +11,23 @@ class ConversationTest {
     private fun conv(vararg lines: Pair<Speaker, String>) =
         Conversation("pkg", lines.map { ChatMessage(it.first, it.second) })
 
+    @Test fun lastFromMe_picksMyLatestLine_evenIfTheyRepliedAfter() {
+        val c = Conversation(
+            "p",
+            listOf(
+                ChatMessage(Speaker.ME, "早"),
+                ChatMessage(Speaker.OTHER, "早呀"),
+                ChatMessage(Speaker.ME, "今天去爬山吗"),
+                ChatMessage(Speaker.OTHER, "好啊"),
+            ),
+        )
+        assertEquals("今天去爬山吗", c.lastFromMe())
+    }
+
+    @Test fun lastFromMe_nullWhenIHaveNotSpoken() {
+        assertEquals(null, Conversation("p", listOf(ChatMessage(Speaker.OTHER, "在吗"))).lastFromMe())
+    }
+
     @Test fun lastFromOther_picksLatestOtherLine() {
         val c = conv(
             Speaker.OTHER to "a",

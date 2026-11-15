@@ -12,8 +12,11 @@ interface MemoryStore {
     val deleted: StateFlow<List<MemoryEntity>>
     val stats: StateFlow<MemoryStats>
 
-    fun recordMyMessages(conv: Conversation)
-    fun recordReply(text: String)
+    /**
+     * Log my last message in [conv] — the newest thing I actually said in this chat —
+     * into the reply log memory learns from. Suggestions I pick are not logged.
+     */
+    fun recordMyLastMessage(conv: Conversation)
 
     /**
      * Run a learning pass if enough replies are pending. Called when the user leaves
