@@ -205,10 +205,11 @@ class SuggestionGeneratorTest {
         val local = cloudSettings.copy(inferenceMode = InferenceMode.LOCAL)
         try {
             SuggestionGenerator().generate(local, conv(Speaker.OTHER to "hi"))
-            fail("expected local-not-ready error")
+            fail("expected a local-model error")
         } catch (e: AiException) {
-            // A typed failure, so diagnostics file it as LLM-205 rather than "other".
-            assertEquals(AiException.Kind.LOCAL_NOT_READY, e.kind)
+            // No native engine on the JVM: the local client says so, typed, and the cloud
+            // client is never tried.
+            assertEquals(AiException.Kind.LOCAL_UNSUPPORTED, e.kind)
         }
     }
 

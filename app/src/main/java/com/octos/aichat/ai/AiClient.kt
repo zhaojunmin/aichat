@@ -59,10 +59,16 @@ class AiException(
         LOCAL_TIMEOUT,
 
         /**
-         * Local mode is selected but the on-device model isn't loaded. Never answered by
-         * falling back to the cloud: that would ship the chat off the device.
+         * Local mode is selected but the on-device model isn't downloaded yet. Never
+         * answered by falling back to the cloud: that would ship the chat off the device.
          */
         LOCAL_NOT_READY,
+
+        /** This device can't run the on-device engine (e.g. not arm64). */
+        LOCAL_UNSUPPORTED,
+
+        /** The on-device model's files are there, but the engine failed to load them. */
+        LOCAL_LOAD_FAILED,
 
         /** DNS / connect / TLS failure: no usable network path. */
         NETWORK,
@@ -121,8 +127,8 @@ private val localClient: AiClient by lazy { LocalClient() }
 
 /**
  * The client for the inference mode [settings] selects. Local never falls back to the
- * cloud — that would ship the user's chat off-device; an unloaded model surfaces from
- * [LocalClient] as [AiException.Kind.LOCAL_NOT_READY] instead.
+ * cloud — that would ship the user's chat off-device; when the on-device model can't run,
+ * [LocalClient] says why with an [AiException] instead.
  */
 fun aiClientFor(settings: AppSettings): AiClient =
     if (settings.useLocal) localClient else cloudClient

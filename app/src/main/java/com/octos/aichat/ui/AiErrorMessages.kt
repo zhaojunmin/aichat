@@ -33,6 +33,10 @@ fun Throwable.toUserMessage(context: Context): String {
 
         Kind.LOCAL_NOT_READY -> context.getString(R.string.ai_err_local_not_ready)
 
+        Kind.LOCAL_UNSUPPORTED -> context.getString(R.string.home_local_unsupported)
+
+        Kind.LOCAL_LOAD_FAILED -> context.getString(R.string.error_local_load_failed)
+
         Kind.NETWORK -> context.getString(R.string.ai_err_network)
 
         Kind.BAD_RESPONSE -> context.getString(R.string.ai_err_bad_response)

@@ -2,6 +2,7 @@ package com.octos.aichat.ai.local
 
 import android.content.Context
 import android.os.SystemClock
+import com.octos.aichat.data.AppSettings
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 import com.octos.aichat.diagnostics.Tracing
@@ -87,6 +88,29 @@ object LlmEngine {
     suspend fun ensureLoaded(ctx: Context, model: LocalModel): Boolean {
         if (!available || !ModelStore.isReady(ctx, model)) return false
         return ensureLoaded(ModelStore.configPath(ctx, model), ModelStore.tmpDir(ctx))
+    }
+
+    /**
+     * Get the on-device model [settings] selects ready to generate, checking in the order a
+     * failure needs explaining: supported device → downloaded → loaded. Used by
+     * [com.octos.aichat.ai.LocalClient], which turns a failure into an AiException.
+     * Idempotent when the same model is already loaded; reloads on a size switch.
+     */
+    internal suspend fun prepare(settings: AppSettings): LocalReadiness {
+        if (!settings.useLocal) return LocalReadiness.Ready
+        val model = settings.localModel
+        if (!isSupported) return LocalReadiness.Unsupported
+        if (!ModelStore.isReady(model)) return LocalReadiness.NotDownloaded(model.displayName)
+        val (configPath, tmpDir) = ModelStore.loadPaths(model) ?: return LocalReadiness.LoadFailed
+        return if (ensureLoaded(
+                configPath,
+                tmpDir,
+            )
+        ) {
+            LocalReadiness.Ready
+        } else {
+            LocalReadiness.LoadFailed
+        }
     }
 
     /**

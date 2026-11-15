@@ -163,8 +163,6 @@
     <string name="svc_need_api_key">Please enter your API Key in the app first</string>
     <string name="svc_ocr_no_content">Screenshot OCR found no chat content (Accessibility must be on)</string>
     <string name="svc_no_content">No chat content read — open a chat and enable the accessibility service</string>
-    <string name="svc_local_not_downloaded">Local model (%1$s) not downloaded — download it in app settings first</string>
-    <string name="svc_loading_local">Loading local model…</string>
     <string name="svc_filled">Filled into the input box</string>
     <string name="svc_copied">Copied — paste to send</string>
     <string name="svc_bubble_name">Floating assistant</string>

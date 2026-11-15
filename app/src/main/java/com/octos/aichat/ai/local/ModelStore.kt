@@ -35,20 +35,46 @@ object ModelStore {
         .readTimeout(120, TimeUnit.SECONDS)
         .build()
 
-    fun dir(ctx: Context, model: LocalModel): File = File(ctx.filesDir, "llm/${model.id}")
-    fun configPath(ctx: Context, model: LocalModel): String =
-        File(dir(ctx, model), "config.json").absolutePath
-    fun tmpDir(ctx: Context): String = File(ctx.cacheDir, "llm-tmp").apply { mkdirs() }.absolutePath
+    // The app's files and cache dirs, remembered once at startup ([init]) so the engine can
+    // find a model without a Context being passed through the AI layer. Paths only.
+    @Volatile private var filesRoot: File? = null
+
+    @Volatile private var cacheRoot: File? = null
+
+    /** Remember where the app keeps its files. Keeps the paths only, never [ctx]. */
+    fun init(ctx: Context) {
+        filesRoot = ctx.filesDir
+        cacheRoot = ctx.cacheDir
+    }
+
+    fun dir(ctx: Context, model: LocalModel): File = dirIn(ctx.filesDir, model)
+    fun configPath(ctx: Context, model: LocalModel): String = configIn(ctx.filesDir, model)
+    fun tmpDir(ctx: Context): String = tmpIn(ctx.cacheDir)
 
     /**
      * Ready when the config and the weight file are present. Weights are streamed
      * to a `.part` file and renamed only on completion, so a final weight file
      * existing means the download finished.
      */
-    fun isReady(ctx: Context, model: LocalModel): Boolean {
-        val d = dir(ctx, model)
-        return File(d, "config.json").exists() && File(d, "llm.mnn.weight").exists()
+    fun isReady(ctx: Context, model: LocalModel): Boolean = isComplete(dirIn(ctx.filesDir, model))
+
+    /** [isReady] against the remembered dirs; false before [init]. */
+    internal fun isReady(model: LocalModel): Boolean =
+        filesRoot?.let { isComplete(dirIn(it, model)) } == true
+
+    /** Config path and engine scratch dir from the remembered dirs; null before [init]. */
+    internal fun loadPaths(model: LocalModel): Pair<String, String>? {
+        val files = filesRoot ?: return null
+        val cache = cacheRoot ?: return null
+        return configIn(files, model) to tmpIn(cache)
     }
+
+    private fun dirIn(filesRoot: File, model: LocalModel) = File(filesRoot, "llm/${model.id}")
+    private fun configIn(filesRoot: File, model: LocalModel) =
+        File(dirIn(filesRoot, model), "config.json").absolutePath
+    private fun tmpIn(cacheRoot: File) = File(cacheRoot, "llm-tmp").apply { mkdirs() }.absolutePath
+    private fun isComplete(d: File) =
+        File(d, "config.json").exists() && File(d, "llm.mnn.weight").exists()
 
     data class Progress(
         val file: String,
