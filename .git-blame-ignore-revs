@@ -1,0 +1,6 @@
+# Pure formatting commits; skip in blame with:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# (GitHub picks this file up automatically.)
+
+# Whole-repo Kotlin style fix (auto-format + line wraps, renames)
+416c03faf4c2cb200fe5c536eb2fd2cc48745414
