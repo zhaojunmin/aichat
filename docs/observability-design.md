@@ -119,9 +119,9 @@
 | `LLM-203` | WARN | 原生推理库不可用(非 arm64) | `LlmEngine` 初始化 |
 | `LLM-204` | ERROR | 模型下载失败 | `ModelStore.download` |
 | `A11Y-301` | WARN | 处理无障碍事件时出异常(已兜底) | `ChatAccessibilityService.guarded` / `RawTreeDumper` |
-| `A11Y-302` | ERROR | 点击时解析聊天失败 | `readConversation` |
-| `A11Y-303` | WARN | 点击时找不到聊天窗口 | `windowRoot` 返回 null |
-| `A11Y-304` | ERROR | 截图失败(带平台错误码) | `captureScreenshot` |
+| `A11Y-302` | ERROR | 点击时解析聊天失败 | `ChatWindowReader.readConversation` |
+| `A11Y-303` | WARN | 点击时找不到聊天窗口 | `ChatWindowReader.windowRoot` 返回 null |
+| `A11Y-304` | ERROR | 截图失败(带平台错误码) | `ChatWindowReader.captureScreenshot` |
 | `A11Y-305` | WARN | 自动填入失败,已改为复制 | `ReplyFiller.fill` 填不进(找不到输入框 / 动作被拒 / 异常),或无障碍未连接 |
 | `A11Y-306` | WARN | 读取键盘区域失败 | `ChatWindowReader.imeBounds` 抛异常(OCR 截图不裁键盘) |
 | `OCR-401` | ERROR | 文字识别失败 | `OcrReader.recognize` |
@@ -300,7 +300,7 @@ A11Y-304 截图失败            3
 | `BubblePanel` `removeView` | 吞掉 | 记 `BUB-502` |
 | `LlmEngine` 载入原生库 | `available=false` | 记 `LLM-203` |
 | `ModelAssets.copyAssetIfMissing` | 返回 false | 记 `EMB-702` |
-| `ChatAccessibilityService.guarded` / `RawTreeDumper` / `readConversation` 的 `Log.w` | logcat | 记 `A11Y-301` / `A11Y-302` |
+| `ChatAccessibilityService.guarded` / `readConversation` 的 `Log.w` | logcat | 记 `A11Y-301` / `A11Y-302` |
 | `ChatAccessibilityService` 截图 2 处 | 返回 null | 记 `A11Y-304`(带平台错误码) |
 | `ChatAccessibilityService.imeBounds` | 返回 null | 保持(拿不到键盘位置就不裁剪) |
 | `Encoder` 5 处 | 写 `status` 字符串 | 记 `EMB-701` / `703` / `704`;`release` 保持 |

@@ -45,7 +45,11 @@ object AppBus {
     @Volatile
     var lastRawDump: String? = null
 
-    /** Set while the accessibility service is connected. */
+    /**
+     * Set while the accessibility service is connected. Both wrap the service, so
+     * they're cleared in [detachAccessibility] from its onDestroy — no leak.
+     */
+    @SuppressLint("StaticFieldLeak")
     var chatWindowReader: ChatWindowReader? = null
         private set
     var replyFiller: ReplyFiller? = null
