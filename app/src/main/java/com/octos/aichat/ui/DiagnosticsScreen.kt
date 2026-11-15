@@ -30,6 +30,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +57,9 @@ internal fun DiagnosticsScreen(
 ) {
     val context = LocalContext.current
     val report by vm.report.collectAsStateWithLifecycle()
+
+    // Every visit, not just the first: what's kept may have changed (cleared, new events).
+    LaunchedEffect(vm) { vm.refresh() }
 
     BackHandler(onBack = onBack)
 
