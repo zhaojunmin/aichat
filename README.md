@@ -37,7 +37,7 @@ FloatingBubbleService(悬浮球 + 建议面板)        recency + importance + re
 | 模块 | 文件 |
 |---|---|
 | 读屏服务 | `accessibility/ChatAccessibilityService.kt` |
-| 聊天解析(控件树,按水平位置分「我/对方」) | `accessibility/ChatParser.kt`、`BubbleLocator.kt` |
+| 聊天解析(控件树,按水平位置分「我/对方」) | `accessibility/ChatParser.kt`、`MessageBoundsLocator.kt` |
 | 截图 OCR(ML Kit 中文) | `ocr/OcrReader.kt` |
 | 悬浮球 + 面板 | `bubble/FloatingBubbleService.kt`、`BubblePanel.kt`、`BubbleStyle.kt`、`BubblePalette.kt`(主题色 → View 颜色) |
 | AI 接口抽象 | `ai/AiClient.kt`、`ai/CloudClient.kt`、`ai/LocalClient.kt`、`ai/AiService.kt` |

@@ -29,18 +29,18 @@ internal data class OcrBlock(
  *   one, with roughly the same left edge (bubble text is left-aligned). Gaps
  *   between two bubbles are much larger, and centred items (timestamps) don't
  *   share the edge;
- * - [sameBubble]: the caller's pixel check that both lines and the gap between
+ * - [sameMessage]: the caller's pixel check that both lines and the gap between
  *   them share one bubble background — so two tight bubbles, or a group sender's
  *   name above its bubble, never merge.
  */
-internal object BubbleLineMerger {
+internal object MessageLineMerger {
 
     /** @param blocks in any order; returned top to bottom. */
-    fun merge(blocks: List<OcrBlock>, sameBubble: (upper: OcrBlock, lower: OcrBlock) -> Boolean): List<OcrBlock> {
+    fun merge(blocks: List<OcrBlock>, sameMessage: (upper: OcrBlock, lower: OcrBlock) -> Boolean): List<OcrBlock> {
         val out = ArrayList<OcrBlock>()
         for (b in blocks.sortedBy { it.top }) {
             val prev = out.lastOrNull()
-            if (prev != null && adjacentLines(prev, b) && sameBubble(prev, b)) {
+            if (prev != null && adjacentLines(prev, b) && sameMessage(prev, b)) {
                 out[out.size - 1] = OcrBlock(
                     left = minOf(prev.left, b.left),
                     top = prev.top,
