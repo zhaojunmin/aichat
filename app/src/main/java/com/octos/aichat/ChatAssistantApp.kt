@@ -8,6 +8,7 @@ import android.util.Log
 import com.octos.aichat.accessibility.AccessibilityBridge
 import com.octos.aichat.ai.local.ModelStore
 import com.octos.aichat.bubble.FloatingBubbleService
+import com.octos.aichat.bubble.KeepLiveService
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.SettingsStore
 import com.octos.aichat.diagnostics.DiagLog
@@ -34,6 +35,7 @@ import kotlinx.coroutines.launch
  * Also owns the floating assistant ([FloatingBubbleService], one per process): it is
  * created while the accessibility service is connected, the bubble is switched on and
  * drawing over apps is allowed, and destroyed as soon as one of those stops holding.
+ * While it is up, [KeepLiveService] keeps the process alive.
  */
 class ChatAssistantApp : Application() {
 
@@ -102,9 +104,11 @@ class ChatAssistantApp : Application() {
         bubbleService = runCatching { FloatingBubbleService(this) }
             .onFailure { DiagLog.record(ErrorCode.BUB_503, cause = it) }
             .getOrNull()
+        if (bubbleService != null) KeepLiveService.start(this)
     }
 
     private fun destroyBubble() {
+        KeepLiveService.stop(this)
         bubbleService?.destroy()
         bubbleService = null
     }

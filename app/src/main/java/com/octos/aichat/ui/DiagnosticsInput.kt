@@ -3,6 +3,7 @@ package com.octos.aichat.ui
 import android.content.Context
 import android.os.Build
 import android.provider.Settings
+import androidx.core.app.NotificationManagerCompat
 import com.octos.aichat.accessibility.AccessibilityBridge
 import com.octos.aichat.accessibility.ChatAccessibilityService
 import com.octos.aichat.data.AppSettings
@@ -32,6 +33,7 @@ fun diagnosticsPermissions(context: Context): List<Pair<String, Boolean>> = list
     "accessibilityEnabled" to isAccessibilityEnabled(context),
     "accessibilityConnected" to AccessibilityBridge.isConnected,
     "overlay" to Settings.canDrawOverlays(context),
+    "notifications" to NotificationManagerCompat.from(context).areNotificationsEnabled(),
 )
 
 fun deviceInfo(context: Context): DeviceInfo {
