@@ -249,14 +249,13 @@ class SuggestionGeneratorTest {
         override val memories = MutableStateFlow(emptyList<MemoryEntity>())
         override val deleted = MutableStateFlow(emptyList<MemoryEntity>())
         override val stats = MutableStateFlow(MemoryStats())
-        override fun recordMyMessages(conv: Conversation) {
+        override fun recordMyLastMessage(conv: Conversation) {
             calls += "record"
         }
         override fun memoryBlock(conv: Conversation?): String {
             calls += "block"
             return block
         }
-        override fun recordReply(text: String) = Unit
         override fun learnIfDue() = Unit
         override suspend fun learnNow() = Unit
         override suspend fun deleteMemory(id: Long) = Unit
@@ -266,7 +265,7 @@ class SuggestionGeneratorTest {
         override suspend fun clearAll() = Unit
     }
 
-    @Test fun suggestFor_recordsMyMessagesThenPromptsWithWhatMemoryKnows() = runTest {
+    @Test fun suggestFor_recordsMyLastMessageThenPromptsWithWhatMemoryKnows() = runTest {
         val fake = FakeClient("""["好呀"]""")
         val memory = FakeMemory("【偏好】喜欢户外")
 
@@ -281,7 +280,7 @@ class SuggestionGeneratorTest {
         assertTrue(fake.system!!.contains("喜欢户外"))
     }
 
-    @Test fun suggestFor_failureIsRethrown_afterMyMessagesWereRecorded() = runTest {
+    @Test fun suggestFor_failureIsRethrown_afterMyLastMessageWasRecorded() = runTest {
         val memory = FakeMemory("")
         val failing = SuggestionGenerator {
             object : AiClient {
@@ -296,7 +295,7 @@ class SuggestionGeneratorTest {
             assertEquals(AiException.Kind.SERVER, e.kind)
         }
         assertEquals(
-            "my messages are kept even when generation fails",
+            "my last message is kept even when generation fails",
             "record",
             memory.calls.first(),
         )

@@ -33,8 +33,8 @@ class SuggestionGenerator(
 ) {
 
     /**
-     * One tap's suggestions for [conv]: log my on-screen messages into [memory], add what it
-     * has learned about me to the prompt, then [generate] — traced and timed. A failure is
+     * One tap's suggestions for [conv]: log my last message on screen into [memory], add
+     * what it has learned about me to the prompt, then [generate] — traced and timed. A failure is
      * recorded for diagnostics and rethrown; cancellation (a newer tap) passes through.
      */
     suspend fun suggestFor(
@@ -42,7 +42,7 @@ class SuggestionGenerator(
         conv: Conversation,
         memory: MemoryStore,
     ): List<String> {
-        memory.recordMyMessages(conv)
+        memory.recordMyLastMessage(conv)
         // Off the main thread: with semantic memory on, this runs a bge query embedding.
         val memoryBlock = withContext(Dispatchers.Default) {
             Tracing.section(Tracing.BUBBLE_MEMORY_BLOCK) { memory.memoryBlock(conv) }

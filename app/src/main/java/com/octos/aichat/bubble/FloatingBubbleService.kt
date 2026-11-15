@@ -222,8 +222,6 @@ class FloatingBubbleService : Service() {
         capture.read(AccessibilityBridge.foregroundPackage ?: "", settings.ocrPackageSet)
 
     private fun onSuggestionChosen(suggestion: String) {
-        // Once chosen, the suggestion is my reply: it goes into the reply log.
-        MemoryRepository.get(this).recordReply(suggestion)
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("ai_suggestion", suggestion))
 

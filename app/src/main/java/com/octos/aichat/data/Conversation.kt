@@ -11,6 +11,9 @@ data class Conversation(val packageName: String, val messages: List<ChatMessage>
     /** The most recent message from the other party, if any. */
     fun lastFromOther(): String? = messages.lastOrNull { it.speaker == Speaker.OTHER }?.text
 
+    /** My most recent message on screen, if any. */
+    fun lastFromMe(): String? = messages.lastOrNull { it.speaker == Speaker.ME }?.text
+
     /**
      * Drop trailing messages I authored. When generating suggestions we want the AI
      * to respond to the other party's latest line, not continue my own last

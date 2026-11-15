@@ -30,7 +30,7 @@ ChatAccessibilityService(只做回调分发)
         └─► 截图 + OcrReader(OCR)──┴──► Conversation
                                               │
                                               ▼
-                     SuggestionGenerator.suggestFor(记录我的消息 → 取记忆块 → 生成)
+                     SuggestionGenerator.suggestFor(记录我最后一句 → 取记忆块 → 生成)
                           │                      ▲
                           │        MemoryRepository / MemoryPromptBuilder(三因子召回:
                           │        recency + importance + relevance,relevance = 词法 / bge 向量)
@@ -113,7 +113,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## 专属记忆
 
-- 每条你发出的回复会被记录;累计到阈值后 LLM 蒸馏出稳定的个人信息(画像/事实/偏好/风格),写入时顺带产出关键词、重要度与语义向量。
+- 每次点悬浮球,识别到的你在当前聊天里的**最后一句话**会被记录(去重;选中的 AI 建议不记录);累计到阈值后 LLM 蒸馏出稳定的个人信息(画像/事实/偏好/风格),写入时顺带产出关键词、重要度与语义向量。
 - 生成回复时按 **三因子打分**(时效 + 重要度 + 与当前对话的相关性)挑选 top-N 注入 prompt。相关性优先用 **bge-small-zh 语义向量**,不可用时回退本地关键词匹配。
 - 学习时做 Mem0 式 **ADD/UPDATE/DELETE**;删除为 **软删除**(进「回收站」,可恢复),规避 LLM 误删。「管理记忆」界面可逐条编辑/删除/恢复。
 - 全部数据(回复记录、记忆、向量)只存在本机。
