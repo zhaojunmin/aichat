@@ -12,6 +12,8 @@
 - **语义召回**:记忆检索用端侧 bge-small-zh 向量做语义匹配(离线、隐私),不就绪时自动回退本地关键词匹配。
 - **人设/场景**:恋爱、破冰、商务、客服等预设,或自定义语气。
 - **自动填入**:选中的回复自动复制;可选无障碍 `ACTION_SET_TEXT` 直接写进输入框。
+- **主题外观**:纸 / 雾 / 月白(浅色)、蓝夜 / 墨 / 黛青(深色)或跟随系统;悬浮球与建议面板同步使用当前主题配色,切换主题或系统明暗时实时生效。
+- **诊断信息**:关键失败按错误码记录到本地,可在 App 内预览、复制、分享或清空,便于排查问题。
 
 ## 工作原理
 
@@ -20,7 +22,7 @@
         │ 屏幕内容
         ▼
 AccessibilityService ──► ChatParser(控件树)┐
-        │                                   ├──► Conversation ──► AiRepository ──┬─► 云端(DeepSeek/豆包,OpenAI 兼容)
+        │                                   ├──► Conversation ──► AiService ─────┬─► 云端(DeepSeek/豆包,OpenAI 兼容)
         │                 截图 OCR(OcrReader)┘            ▲                      └─► 本地(MNN + Qwen2.5,隐私)
         │ 前台包名变化切换悬浮球                            │
         ▼                                      MemoryRepository(三因子召回:
@@ -37,11 +39,14 @@ FloatingBubbleService(悬浮球 + 建议面板)        recency + importance + re
 | 读屏服务 | `accessibility/ChatAccessibilityService.kt` |
 | 聊天解析(控件树,按水平位置分「我/对方」) | `accessibility/ChatParser.kt`、`BubbleLocator.kt` |
 | 截图 OCR(ML Kit 中文) | `ocr/OcrReader.kt` |
-| 悬浮球 + 面板 | `overlay/FloatingBubbleService.kt` |
-| AI 接口抽象 | `ai/AiClient.kt`、`ai/HttpClients.kt`、`ai/AiRepository.kt` |
-| 本地推理(MNN Qwen2.5) | `data/local/LocalLlmEngine.kt`、`LocalModel.kt`、`LocalModelManager.kt` |
-| 专属记忆 | `data/memory/`(`MemoryRepository`、`MemoryRetrieval`、`EmbeddingEngine`、`WordPieceTokenizer` …) |
-| 设置 / 人设 / 存储 | `data/*`、`MainActivity.kt` |
+| 悬浮球 + 面板 | `bubble/FloatingBubbleService.kt`、`BubblePanel.kt`、`BubbleStyle.kt`、`BubblePalette.kt`(主题色 → View 颜色) |
+| AI 接口抽象 | `ai/AiClient.kt`、`ai/CloudClient.kt`、`ai/LocalClient.kt`、`ai/AiService.kt` |
+| 本地推理(MNN Qwen2.5) | `ai/local/LlmEngine.kt`、`LocalModel.kt`、`ModelStore.kt` |
+| 语义向量(bge-small-zh) | `ai/embedding/`(`Encoder`、`Embedder`、`WordPieceTokenizer` …) |
+| 专属记忆 | `data/memory/`(`MemoryRepository`、`MemoryRetrieval`、`MemoryLearningPass`、`ReplyLog` …) |
+| 设置 / 存储 | `data/`(`SettingsRepository`、`SecretCodec` Keystore 加密 API Key) |
+| 界面 / 主题 | `ui/`(每屏一个 ViewModel)、`ui/theme/Theme.kt`(`ThemeVariant` 六套配色) |
+| 诊断 | `diagnostics/`(错误码、本地记录、导出) |
 | 原生 | `native/mnn-llm/`(本地 LLM JNI)、`native/mnn-embed/`(bge encoder JNI) |
 | 设计文档 | `docs/`(记忆系统 / embedding 选型基准 / LLM 引擎 A/B / 集成设计) |
 
@@ -75,8 +80,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 2. **AI 服务**:选 **云端**(DeepSeek / 豆包,填 Base URL、模型、API Key)或 **本地(隐私)**(下载 Qwen2.5 0.5B/1.5B/3B 其一)。
 3. 选一个 **回复风格**(恋爱/破冰/商务)或自定义。
 4. 点 **测试连接** 验证接口。
-5. 回到首页点 **启动悬浮球**。
-6. 打开聊天界面 → 点悬浮球 → 选一条回复(自动复制;开了「自动填入」会直接写进输入框)。
+5. (可选)在 **高级设置 → 外观** 选主题,悬浮球会跟着变色。
+6. 回到首页点 **启动悬浮球**。
+7. 打开聊天界面 → 点悬浮球 → 选一条回复(自动复制;开了「自动填入」会直接写进输入框)。
 
 ## 专属记忆
 
@@ -90,5 +96,4 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - **解析是启发式的**:控件树按水平位置分「我/对方」,复杂气泡(图片、引用、合并转发)可能不准;可按包名加专用解析器或用截图 OCR 兜底。
 - **本地 LLM / embedding 仅 arm64-v8a**:其他 ABI 自动回退云端 / 词法。
 - **自动填入** 依赖标准可编辑输入框;自绘输入框会失败,此时回退「已复制」。
-- **API Key 明文存于 SharedPreferences**;生产建议改 EncryptedSharedPreferences / Keystore。
 - 语义召回为实验特性(可在高级设置一键关闭);召回质量、tokenizer 与 HF 的对齐建议用真实语料继续回归。
