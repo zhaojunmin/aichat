@@ -85,14 +85,16 @@ android {
         compose = true
     }
     lint {
-        // Fail the build on new lint errors; pre-existing issues are frozen in the
-        // baseline so only regressions are flagged. Regenerate with :app:updateLintBaseline.
+        // No baseline: the codebase is lint-clean, so any new warning fails the build.
         abortOnError = true
+        warningsAsErrors = true
         checkDependencies = false
-        baseline = file("lint-baseline.xml")
         // "A newer version is available" checks depend on the network and the date,
         // not on our code — they'd make CI results drift. Track upgrades separately.
         disable += setOf("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion")
+        // ARM-only on purpose (see abiFilters below): the native libs ship for ARM, and x86_64
+        // ChromeOS devices aren't a target.
+        disable += "ChromeOsAbiSupport"
         xmlReport = true
         htmlReport = true
     }
@@ -138,7 +140,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
 
     // On-device Chinese OCR, bundled model (no Google Play services needed — works on Huawei).
-    implementation("com.google.mlkit:text-recognition-chinese:16.0.1")
+    implementation(libs.mlkit.text.recognition.chinese)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

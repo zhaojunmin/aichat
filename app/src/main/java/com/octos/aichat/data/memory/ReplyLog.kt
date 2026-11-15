@@ -1,6 +1,7 @@
 package com.octos.aichat.data.memory
 
 import android.content.Context
+import androidx.core.content.edit
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 import java.io.File
@@ -83,7 +84,7 @@ class ReplyLog(context: Context, private val state: LearningStateDao) : ReplyLed
     private suspend fun learnedOffset(): Int =
         state.learnedReplies() ?: legacyPrefs.getInt(KEY_LEARNED, 0).also { legacy ->
             state.set(LearningState(learnedReplies = legacy))
-            legacyPrefs.edit().remove(KEY_LEARNED).apply()
+            legacyPrefs.edit { remove(KEY_LEARNED) }
         }
 
     private fun readLines(): List<String> =

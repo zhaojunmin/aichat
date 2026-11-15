@@ -2,6 +2,7 @@ package com.octos.aichat.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -128,36 +129,34 @@ class SettingsRepository private constructor(
     }
 
     private fun persist(s: AppSettings) {
-        prefs.edit()
-            .putString(KEY_BACKEND, s.backend.name)
-            .remove(KEY_API_KEY) // legacy plaintext single key; migrated in load()
-            .apply {
-                AiBackend.entries.forEach { b ->
-                    val c = s.configOf(b)
-                    putString(baseUrlPref(b), c.baseUrl)
-                    putString(modelPref(b), c.model)
-                    val key = encodeApiKey(b, c.apiKey)
-                    if (key != null) putString(apiKeyPref(b), key) else remove(apiKeyPref(b))
-                }
+        prefs.edit {
+            putString(KEY_BACKEND, s.backend.name)
+            remove(KEY_API_KEY) // legacy plaintext single key; migrated in load()
+            AiBackend.entries.forEach { b ->
+                val c = s.configOf(b)
+                putString(baseUrlPref(b), c.baseUrl)
+                putString(modelPref(b), c.model)
+                val key = encodeApiKey(b, c.apiKey)
+                if (key != null) putString(apiKeyPref(b), key) else remove(apiKeyPref(b))
             }
-            .putString(KEY_PERSONA_ID, s.personaId)
-            .putString(KEY_CUSTOM_PERSONA, s.customPersona)
-            .putInt(KEY_SUGGESTION_COUNT, s.suggestionCount)
-            .putBoolean(KEY_AUTO_PASTE, s.autoPaste)
-            .putBoolean(KEY_BUBBLE_AUTOSTART, s.bubbleAutoStart)
-            .putBoolean(KEY_USE_OCR, s.useScreenshotOcr)
-            .putString(KEY_OCR_PKGS, s.ocrPackages)
-            .putString(KEY_TARGETS, s.targetPackages)
-            .putBoolean(KEY_MEMORY_ENABLED, s.memoryEnabled)
-            .putInt(KEY_LEARN_THRESHOLD, s.learnThreshold)
-            .putInt(KEY_INJECT_LIMIT, s.memoryInjectLimit)
-            .putBoolean(KEY_EMBED_ENABLED, s.memoryEmbeddingEnabled)
-            .putString(KEY_INFER_MODE, s.inferenceMode.name)
-            .putString(KEY_LOCAL_MODEL, s.localModelId)
-            .putString(KEY_THEME, s.themeVariantId)
-            .putBoolean(KEY_DIAGNOSTICS, s.diagnosticsEnabled)
-            .putLong(KEY_DIAGNOSTICS_SINCE, s.diagnosticsEnabledAt)
-            .apply()
+            putString(KEY_PERSONA_ID, s.personaId)
+            putString(KEY_CUSTOM_PERSONA, s.customPersona)
+            putInt(KEY_SUGGESTION_COUNT, s.suggestionCount)
+            putBoolean(KEY_AUTO_PASTE, s.autoPaste)
+            putBoolean(KEY_BUBBLE_AUTOSTART, s.bubbleAutoStart)
+            putBoolean(KEY_USE_OCR, s.useScreenshotOcr)
+            putString(KEY_OCR_PKGS, s.ocrPackages)
+            putString(KEY_TARGETS, s.targetPackages)
+            putBoolean(KEY_MEMORY_ENABLED, s.memoryEnabled)
+            putInt(KEY_LEARN_THRESHOLD, s.learnThreshold)
+            putInt(KEY_INJECT_LIMIT, s.memoryInjectLimit)
+            putBoolean(KEY_EMBED_ENABLED, s.memoryEmbeddingEnabled)
+            putString(KEY_INFER_MODE, s.inferenceMode.name)
+            putString(KEY_LOCAL_MODEL, s.localModelId)
+            putString(KEY_THEME, s.themeVariantId)
+            putBoolean(KEY_DIAGNOSTICS, s.diagnosticsEnabled)
+            putLong(KEY_DIAGNOSTICS_SINCE, s.diagnosticsEnabledAt)
+        }
     }
 
     private fun baseUrlPref(b: AiBackend) = "${KEY_BASE_URL}_${b.name}"

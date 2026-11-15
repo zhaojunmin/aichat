@@ -38,7 +38,7 @@
     <string name="home_memory_title">Personal memory (learns you over time)</string>
     <string name="home_memory_switch_label">Remember my speaking style and habits</string>
     <string name="home_memory_desc">The assistant quietly learns from your replies so suggestions sound more like you. All records stay on this device.</string>
-    <string name="home_memory_stats">%1$d recorded · %2$d memories</string>
+    <string name="home_memory_stats">Recorded: %1$d · Memories: %2$d</string>
     <string name="home_learning">Learning…</string>
     <string name="home_learn_now">Learn now</string>
     <string name="home_manage_memory">Manage memory</string>
@@ -75,8 +75,8 @@
     <string name="adv_inject_limit">Injection cap: latest %1$d</string>
     <string name="adv_inject_limit_desc">Only the most recently updated items are brought into reply generation, to keep the prompt short</string>
     <string name="adv_semantic_title">Semantic recall (experimental)</string>
-    <string name="adv_semantic_desc">On-device vectors pick relevant memories by meaning · %1$d/%2$d embedded%3$s</string>
-    <string name="adv_memory_stats">%1$d recorded · %2$d pending</string>
+    <string name="adv_semantic_desc">On-device vectors pick relevant memories by meaning · Embedded: %1$d/%2$d%3$s</string>
+    <string name="adv_memory_stats">Recorded: %1$d · Pending: %2$d</string>
     <string name="adv_semantic_not_loaded">embedding model not loaded</string>
     <string name="adv_diag_title">Diagnostics</string>
     <string name="adv_diag_switch">Keep diagnostics</string>
@@ -99,7 +99,7 @@
     <string name="adv_debug_tree_empty">Nothing captured yet. Stay on a chat screen for a moment first.</string>
     <string name="adv_debug_view_tree">View the raw node tree (for adapting new apps)</string>
     <string name="adv_raw_tree_title">Raw node tree</string>
-    <string name="adv_read_result_title">Read result · %1$d messages</string>
+    <string name="adv_read_result_title">Read result · Messages: %1$d</string>
     <string name="adv_read_empty">No chat content read. Make sure the accessibility service is on, stay on a WeChat / Soul chat screen for a bit, then try again.</string>
     <string name="adv_read_source">Source: %1$s</string>
 

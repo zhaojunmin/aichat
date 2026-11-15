@@ -186,4 +186,8 @@
     <string name="persona_icebreak">社交破冰</string>
     <string name="persona_business">商务/正式</string>
     <string name="persona_support">客服/答疑</string>
+
+    <!-- Not translated: the overlay bubble's label and the numbering of a suggested reply. -->
+    <string name="bubble_label" translatable="false">AI</string>
+    <string name="panel_reply_item" translatable="false">"%1$d.  %2$s"</string>
 </resources>
