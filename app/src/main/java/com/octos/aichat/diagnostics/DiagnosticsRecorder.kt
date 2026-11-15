@@ -140,8 +140,13 @@ class DiagnosticsRecorder(
         pendingCount.set(0)
         for (i in 0 until counts.length()) counts.set(i, 0)
         for (i in 0 until durations.length()) durations.set(i, 0)
-        exitSeenAt = 0L
+        // Exits up to now are cleared too: the system keeps its own history of them, and
+        // without this mark the next start would import them all again.
+        exitSeenAt = clock()
         store.clear()
+        // Cleared while on: keep only that mark (no data) so it survives a restart. Switched
+        // off: nothing at all stays — re-enabling starts from a new "since" anyway.
+        if (enabled) store.writeSummary(DiagSummary(exitSeenAt = exitSeenAt))
     }
 
     fun countsSnapshot(): Map<ErrorCode, Int> =

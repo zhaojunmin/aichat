@@ -1,5 +1,6 @@
 package com.octos.aichat.ui
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -82,6 +83,7 @@ internal fun AdvancedScreen(
                 TextButton(onClick = {
                     DiagLog.clear()
                     confirmClearDiagnostics = false
+                    Toast.makeText(context, R.string.adv_diag_cleared, Toast.LENGTH_SHORT).show()
                 }) { Text(stringResource(R.string.adv_diag_clear)) }
             },
             dismissButton = {
