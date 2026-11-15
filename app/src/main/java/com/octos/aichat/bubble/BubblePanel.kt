@@ -18,15 +18,15 @@ import com.octos.aichat.diagnostics.ErrorCode
 /**
  * The floating result panel: builds and swaps the loading / error / results views
  * and owns its single overlay window. Pure UI — all business decisions (what to
- * generate, what happens on a reply tap) stay in [FloatingBubbleService] and arrive
- * via [onReplyChosen]. Single responsibility: paint the panel.
+ * generate, what happens on a suggestion tap) stay in [FloatingBubbleService] and arrive
+ * via [onSuggestionChosen]. Single responsibility: paint the panel.
  */
 internal class BubblePanel(
     private val context: Context,
     private val wm: WindowManager,
     /** Theme colours; a change takes effect from the next show (an open panel keeps its look). */
     var palette: BubblePalette,
-    private val onReplyChosen: (String) -> Unit,
+    private val onSuggestionChosen: (String) -> Unit,
 ) {
 
     private var view: View? = null
@@ -54,7 +54,7 @@ internal class BubblePanel(
         swap(c)
     }
 
-    fun showResults(replies: List<String>, otherLine: String?) {
+    fun showSuggestions(suggestions: List<String>, otherLine: String?) {
         val c = basePanel()
         c.addView(
             header(
@@ -81,7 +81,7 @@ internal class BubblePanel(
                 )
         }
         val list = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        replies.forEachIndexed { i, reply -> list.addView(replyCard(i + 1, reply)) }
+        suggestions.forEachIndexed { i, s -> list.addView(suggestionCard(i + 1, s)) }
         scroll.addView(list)
         c.addView(scroll)
         swap(c)
@@ -140,8 +140,8 @@ internal class BubblePanel(
         setPadding(0, (8 * dp).toInt(), 0, 0)
     }
 
-    private fun replyCard(index: Int, reply: String): View = TextView(context).apply {
-        text = context.getString(R.string.panel_reply_item, index, reply)
+    private fun suggestionCard(index: Int, suggestion: String): View = TextView(context).apply {
+        text = context.getString(R.string.panel_suggestion_item, index, suggestion)
         setTextColor(palette.onCard)
         textSize = 15f
         val p = (14 * dp).toInt()
@@ -152,7 +152,7 @@ internal class BubblePanel(
             ViewGroup.LayoutParams.WRAP_CONTENT,
         ).apply { topMargin = (8 * dp).toInt() }
         isClickable = true
-        setOnClickListener { onReplyChosen(reply) }
+        setOnClickListener { onSuggestionChosen(suggestion) }
     }
 }
 

@@ -22,7 +22,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * On-device microbenchmarks for the pure-compute pieces on the reply path
+ * On-device microbenchmarks for the pure-compute pieces on the suggestion path
  * (budget P5 in docs/quality-attributes.md: memory recall ≤ 50 ms).
  * Data sizes mirror real use: up to 500 memories, 512-dim bge vectors, and a
  * query built the way MemoryInjector does (last 12 transcript lines).
@@ -135,14 +135,14 @@ class HotPathBenchmarks {
 
     private val service = AiService()
     private val learner = MemoryLearner()
-    private val repliesRaw = "```json\n[\"周末一起去爬山吧\",\"好呀,几点出发?\",\"最近有点累,下次吧\"]\n```"
+    private val suggestionsRaw = "```json\n[\"周末一起去爬山吧\",\"好呀,几点出发?\",\"最近有点累,下次吧\"]\n```"
     private val learnRaw = """{"additions":[{"category":"事实","content":"在北京做程序员",
         "keywords":"北京 程序员 工作","importance":8}],
         "updates":[{"id":12,"category":"偏好","content":"现在改喝拿铁",
         "keywords":"拿铁 咖啡","importance":5}],"deletions":[7]}"""
 
-    @Test fun parseReplies() = benchmark.measureRepeated {
-        service.parseReplies(repliesRaw, 3)
+    @Test fun parseSuggestions() = benchmark.measureRepeated {
+        service.parseSuggestions(suggestionsRaw, 3)
     }
 
     @Test fun parseLearnResult() = benchmark.measureRepeated {

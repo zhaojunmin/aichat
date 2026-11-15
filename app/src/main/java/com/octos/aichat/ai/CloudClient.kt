@@ -25,7 +25,7 @@ private fun String.trimTrailingSlash() = trimEnd('/')
  * OpenAI-compatible Chat Completions API (/chat/completions). Both DeepSeek and
  * Doubao (Volcengine Ark) speak this shape, differing only in Base URL + model.
  *
- * Timeouts here are a backstop; the interactive budget for a reply is enforced by
+ * Timeouts here are a backstop; the interactive budget for suggestions is enforced by
  * [AiService]. Cancelling the calling coroutine cancels the HTTP call, so a
  * superseded request (user tapped again) stops using the network immediately.
  */
@@ -83,7 +83,7 @@ class CloudClient(private val http: OkHttpClient = defaultHttp) : AiClient {
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             // Whole-call ceiling. Generous because background memory learning
-            // produces longer output than an interactive reply.
+            // produces longer output than interactive suggestions.
             .callTimeout(90, TimeUnit.SECONDS)
             .build()
 

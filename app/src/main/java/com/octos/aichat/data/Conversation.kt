@@ -12,7 +12,7 @@ data class Conversation(val packageName: String, val messages: List<ChatMessage>
     fun lastFromOther(): String? = messages.lastOrNull { it.speaker == Speaker.OTHER }?.text
 
     /**
-     * Drop trailing messages I authored. When generating a reply we want the AI
+     * Drop trailing messages I authored. When generating suggestions we want the AI
      * to respond to the other party's latest line, not continue my own last
      * message — so my trailing turns are removed from the model input.
      */

@@ -17,7 +17,7 @@ import kotlinx.coroutines.withContext
  * dedicated thread (MNN calls are blocking and not re-entrant). Only arm64-v8a
  * ships the native libs, so [isSupported] is false elsewhere.
  *
- * This is the *engine*; [LocalClient] is the thin [AiClient] over it (so reply
+ * This is the *engine*; [LocalClient] is the thin [AiClient] over it (so suggestion
  * generation can run fully offline — chat content never leaves the phone).
  */
 object LlmEngine {
@@ -126,7 +126,7 @@ object LlmEngine {
         }
     }
 
-    /** Engine-side cap on one turn (prefill + decode). Same budget as a cloud reply. */
+    /** Engine-side cap on one turn (prefill + decode). Same budget as cloud suggestions. */
     const val GENERATION_TIMEOUT_MS = 30_000L
 
     private external fun nativeLoad(configPath: String, tmpDir: String, timeoutMs: Int): Long

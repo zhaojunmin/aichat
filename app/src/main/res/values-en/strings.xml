@@ -32,8 +32,8 @@
     <string name="home_download_model">Download %1$s</string>
     <string name="home_testing_local">Generating locally…</string>
     <string name="home_testing_cloud">Testing…</string>
-    <string name="home_reply_style_title">Reply style</string>
-    <string name="home_reply_style_desc">Pick a scenario, or customize the tone you want.</string>
+    <string name="home_suggestion_style_title">Reply style</string>
+    <string name="home_suggestion_style_desc">Pick a scenario, or customize the tone you want.</string>
     <string name="home_custom_persona_label">Custom style (overrides the scenario above)</string>
     <string name="home_memory_title">Personal memory (learns you over time)</string>
     <string name="home_memory_switch_label">Remember my speaking style and habits</string>
@@ -57,7 +57,7 @@
     <string name="adv_bubble_autostart">Auto-start with the app</string>
     <string name="adv_bubble_on_desc">Works once you open WeChat / QQ / Soul etc.; off means it won\'t auto-start</string>
     <string name="adv_bubble_off_desc">Grant the overlay permission on the home screen first</string>
-    <string name="adv_reply_pref_title">Reply preferences</string>
+    <string name="adv_suggestion_pref_title">Reply preferences</string>
     <string name="adv_suggestion_count">Suggestions per round: %1$d</string>
     <string name="adv_autopaste_title">Auto-fill the input box</string>
     <string name="adv_autopaste_desc">Fill the chosen reply straight into the chat input</string>

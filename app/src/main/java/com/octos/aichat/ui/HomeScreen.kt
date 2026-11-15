@@ -306,13 +306,13 @@ internal fun HomeScreen(
                 }
             }
 
-            // --- Reply style ---
+            // --- Suggestion style ---
             SectionCard(
-                stringResource(R.string.home_reply_style_title),
+                stringResource(R.string.home_suggestion_style_title),
                 icon = Icons.Outlined.Chat,
             ) {
                 Text(
-                    stringResource(R.string.home_reply_style_desc),
+                    stringResource(R.string.home_suggestion_style_desc),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(8.dp))
@@ -406,7 +406,7 @@ internal fun HomeScreen(
         }
     }
 
-    testOutput?.let { replies ->
+    testOutput?.let { suggestions ->
         AlertDialog(
             onDismissRequest = { vm.dismissTest() },
             confirmButton = {
@@ -417,7 +417,7 @@ internal fun HomeScreen(
             title = { Text(stringResource(R.string.home_test_result_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    replies.forEachIndexed { i, r -> Text("${i + 1}. $r") }
+                    suggestions.forEachIndexed { i, s -> Text("${i + 1}. $s") }
                 }
             },
         )

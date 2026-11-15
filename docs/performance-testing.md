@@ -39,7 +39,7 @@ ADB=adb.exe quality/scripts/run-benchmarks.sh          # all;也可 micro / macr
 | 基准 | 耗时 | 每次分配 | 对照预算 |
 |---|---|---|---|
 | `vectorDecode_512` | 1.5 µs | 4 | |
-| `parseReplies` | 1.2 µs | 15 | |
+| `parseSuggestions` | 1.2 µs | 15 | |
 | `parseLearnResult` | 42 µs | 116 | |
 | `tokenize_query`(12 行聊天) | 0.05 ms | 1,318 | |
 | `recall_lexical_500`(500 条记忆) | 2.1 ms | 35,501 | P5 召回 ≤ 50 ms ✅ |

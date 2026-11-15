@@ -10,7 +10,7 @@ package com.octos.aichat.diagnostics
  * The descriptions are fixed text shown in the export; they never carry runtime data.
  */
 enum class ErrorCode(val id: String, val level: Level, val zh: String, val en: String) {
-    // AI — reply generation (cloud request, result parsing). Mirrors AiException.Kind.
+    // AI — suggestion generation (cloud request, result parsing). Mirrors AiException.Kind.
     AI_101("AI-101", Level.ERROR, "Key 无效或无权限", "Key invalid or not permitted"),
     AI_102("AI-102", Level.ERROR, "余额不足或欠费", "Out of credit / account in arrears"),
     AI_103("AI-103", Level.ERROR, "被限流", "Rate limited"),

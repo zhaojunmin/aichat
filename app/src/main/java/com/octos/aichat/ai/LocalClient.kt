@@ -34,7 +34,7 @@ class LocalClient(
     }
 
     companion object {
-        // A few short replies as JSON fit well under this; capping avoids a rambling
+        // A few short suggestions as JSON fit well under this; capping avoids a rambling
         // model dragging out latency on slower on-device inference.
         const val MAX_TOKENS = 180
     }

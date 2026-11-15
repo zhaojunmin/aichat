@@ -5,7 +5,7 @@ import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 
 /**
- * Turns the stored memories into the compact block injected into the reply-generation
+ * Turns the stored memories into the compact block injected into the suggestion-generation
  * prompt: ranks by the three-factor score (recency + importance + relevance-to-this-chat),
  * takes the top-N, and formats them grouped by category. Relevance uses on-device
  * semantic embeddings when enabled + ready, else local lexical matching.

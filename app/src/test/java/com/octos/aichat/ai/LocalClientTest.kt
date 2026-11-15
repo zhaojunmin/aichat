@@ -83,12 +83,12 @@ class LocalClientTest {
      * Through AiService: the local timeout reaches the caller as-is, not rewrapped as a cloud
      * TIMEOUT.
      */
-    @Test fun localTimeoutSurfacesFromGenerateReplies() = runTest {
+    @Test fun localTimeoutSurfacesFromGenerateSuggestions() = runTest {
         val local = LocalClient(ready) { _, _, _ -> LlmEngine.Output("", timedOut = true) }
         val svc = AiService { local }
         val settings = AppSettings(inferenceMode = InferenceMode.LOCAL)
         try {
-            svc.generateReplies(
+            svc.generateSuggestions(
                 settings,
                 Conversation("pkg", listOf(ChatMessage(Speaker.OTHER, "hi"))),
             )
