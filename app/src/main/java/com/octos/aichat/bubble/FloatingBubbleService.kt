@@ -11,7 +11,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
-import android.graphics.Bitmap
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -23,26 +22,25 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
 import android.widget.Toast
-import androidx.annotation.RequiresApi
 import androidx.core.view.isVisible
 import com.octos.aichat.R
 import com.octos.aichat.accessibility.AccessibilityBridge
-import com.octos.aichat.accessibility.MessageBounds
 import com.octos.aichat.ai.AiService
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.LocalModel
 import com.octos.aichat.ai.local.ModelStore
 import com.octos.aichat.ai.recordAiFailure
+import com.octos.aichat.capture.CaptureOverlay
+import com.octos.aichat.capture.ChatCapture
+import com.octos.aichat.capture.ScreenSize
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.memory.MemoryRepository
-import com.octos.aichat.debug.DebugCapture
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 import com.octos.aichat.diagnostics.TimedOp
 import com.octos.aichat.diagnostics.Tracing
-import com.octos.aichat.ocr.OcrReader
 import com.octos.aichat.ui.MainActivity
 import com.octos.aichat.ui.theme.ThemeVariant
 import com.octos.aichat.ui.toUserMessage
@@ -79,6 +77,26 @@ class FloatingBubbleService : Service() {
     private var generating: Job? = null
 
     private val uiHandler = Handler(Looper.getMainLooper())
+
+    private val capture = ChatCapture(
+        screen = { AccessibilityBridge.screen.value },
+        overlay = object : CaptureOverlay {
+            // Hide our own bubble so it isn't part of the captured image; always bring
+            // it back, even if this tap is cancelled mid-capture.
+            override suspend fun <T> hiddenDuring(block: suspend () -> T): T {
+                if (::bubble.isInitialized) bubble.visibility = View.GONE
+                try {
+                    delay(HIDE_SETTLE_MS) // let the hide reach the screen first
+                    return block()
+                } finally {
+                    if (::bubble.isInitialized) bubble.visibility = View.VISIBLE
+                }
+            }
+        },
+        screenSize = {
+            resources.displayMetrics.let { ScreenSize(it.widthPixels, it.heightPixels) }
+        },
+    )
     private val hideRunnable = Runnable {
         if (::bubble.isInitialized && bubble.isVisible) {
             bubble.visibility = View.GONE
@@ -349,87 +367,9 @@ class FloatingBubbleService : Service() {
             .onFailure { panel.showError(it.toUserMessage(this@FloatingBubbleService)) }
     }
 
-    /**
-     * Node tree by default. Only when OCR is enabled AND the current foreground
-     * app is in the OCR list (WeChat by default) do we screenshot + OCR — so
-     * Soul and others keep their precise node-tree parsing untouched.
-     */
-    private suspend fun resolveConversation(settings: AppSettings): Conversation? {
-        val pkg = AccessibilityBridge.foregroundPackage ?: ""
-        // Apps in the OCR list are always read via screenshot (the node tree is
-        // blocked or too noisy); the global toggle is no longer required.
-        return if (pkg in settings.ocrPackageSet &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
-        ) {
-            readViaOcr(pkg)
-        } else {
-            readFromNodeTree(pkg)
-        }
-    }
-
-    /** Parse now, on tap: what's on screen this moment, no stale or post-restart-empty state. */
-    private suspend fun readFromNodeTree(pkg: String): Conversation? {
-        val conv =
-            DiagLog.timed(TimedOp.PARSE) { AccessibilityBridge.screen.value?.readConversation(pkg) }
-                ?: return null
-        DebugCapture.recordConversation(conv) // let the in-app debug viewer show it too
-        return conv
-    }
-
-    /** Screenshot + OCR, guided by message geometry when the app exposes it. */
-    @RequiresApi(Build.VERSION_CODES.R)
-    private suspend fun readViaOcr(pkg: String): Conversation? {
-        val screen = AccessibilityBridge.screen.value ?: return null
-        val messageBounds: List<MessageBounds>
-        val bmp: Bitmap?
-        // Hide our own bubble so it isn't part of the captured image; always bring
-        // it back, even if this tap is cancelled mid-capture.
-        if (::bubble.isInitialized) bubble.visibility = View.GONE
-        try {
-            delay(80)
-            // Grab message geometry from the node tree at the same moment we capture,
-            // so rects and pixels line up. Empty for apps with no geometry (WeChat).
-            messageBounds = screen.locateMessageBounds(pkg)
-            bmp = screen.captureScreenshot(pkg)
-        } finally {
-            if (::bubble.isInitialized) bubble.visibility = View.VISIBLE
-        }
-        bmp ?: return null
-
-        val w = resources.displayMetrics.widthPixels
-        val h = resources.displayMetrics.heightPixels
-        // When the soft keyboard is up, its letters get OCR'd as chat text. Crop
-        // the screenshot to just above the IME window before the whole-screen read.
-        val imeTop = screen.imeBounds()?.top ?: -1
-        val conv = withContext(Dispatchers.Default) {
-            Tracing.asyncSection(Tracing.BUBBLE_OCR) {
-                DiagLog.timed(TimedOp.OCR) {
-                    // Geometry-guided OCR when we have message bounds (Momo); otherwise the
-                    // whole-screen colour/region heuristic (WeChat).
-                    when {
-                        messageBounds.isNotEmpty() -> OcrReader.readConversation(
-                            bmp,
-                            messageBounds,
-                            pkg,
-                        )
-
-                        imeTop in 1 until bmp.height -> {
-                            val cropped = Bitmap.createBitmap(bmp, 0, 0, bmp.width, imeTop)
-                            val c = OcrReader.readConversation(cropped, w, imeTop, pkg)
-                            cropped.recycle()
-                            c
-                        }
-
-                        else -> OcrReader.readConversation(bmp, w, h, pkg)
-                    }
-                }
-            }
-        }
-        bmp.recycle()
-        if (conv.isEmpty) DiagLog.record(ErrorCode.OCR_402, pkg = pkg)
-        DebugCapture.recordConversation(conv) // let the in-app debug viewer show it too
-        return conv
-    }
+    /** What's on screen this moment, via the node tree or (OCR-list apps) a screenshot. */
+    private suspend fun resolveConversation(settings: AppSettings): Conversation? =
+        capture.read(AccessibilityBridge.foregroundPackage ?: "", settings.ocrPackageSet)
 
     /** Ensure the on-device model is loaded; shows an error panel and returns false if not. */
     private suspend fun ensureLocalReady(model: LocalModel): Boolean {
@@ -520,6 +460,7 @@ class FloatingBubbleService : Service() {
     companion object {
         private const val NOTIF_ID = 1001
         private const val HIDE_DELAY_MS = 1000L
+        private const val HIDE_SETTLE_MS = 80L
 
         // Resting transparency of the floating ball so it doesn't block content behind it.
         private const val BUBBLE_IDLE_ALPHA = 0.45f

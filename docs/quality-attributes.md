@@ -181,7 +181,7 @@ prompt 和人设会频繁调整,需要一个离线评测集:
 - **detekt**(带 formatting 规则):**暂缓**。detekt 1.x 基于 Kotlin 2.0,与 AGP 9 内置的 Kotlin 2.2 冲突;等 detekt 2.0 正式版支持 K2 后再接,同样用 baseline 接纳存量。
 - 第一步不必追求清零告警,先做到**不新增**。
 - **架构与命名规则(Konsist)**:`quality/architecture` 模块把约定写成单测,读 `app` 源码检查,CI 的 style 任务里运行(`./gradlew :quality:architecture:test`)。
-  - 包依赖白名单(`PackageDependencyRulesTest`):`diagnostics` 不依赖任何包;`debug`(开发者工具状态)只用 `data`;`accessibility` 只用 `data`/`diagnostics`/`debug`;`ocr` 只取 `MessageBounds`;`bubble` 只经 `ScreenAccess`/`AccessibilityBridge` 访问读屏,只从 `ui` 取主题、`MainActivity`、错误文案;`ui` 不碰 `ocr`;根包只放 `ChatAssistantApp`。
+  - 包依赖白名单(`PackageDependencyRulesTest`):`diagnostics` 不依赖任何包;`debug`(开发者工具状态)只用 `data`;`accessibility` 只用 `data`/`diagnostics`/`debug`;`ocr` 只取 `MessageBounds`;`capture`(点击时读取会话)只经 `ScreenAccess` 访问读屏;`bubble` 经 `capture` 读屏、只从读屏取 `AccessibilityBridge`,只从 `ui` 取主题、`MainActivity`、错误文案;`ui` 不碰 `ocr`;根包只放 `ChatAssistantApp`。
   - 已知循环 `ai` ⇄ `data.memory`:`ai` 解析学习结果用到 `MemoryDraft` 等 4 个类型,以白名单形式冻结,不许再扩大;把这些结果类型移出 `data.memory` 即可消除。
   - 命名(`NamingRulesTest`):Bubble 只指悬浮球;`*ViewModel` 在 `ui` 且继承 androidx `ViewModel`,每个 `*Screen` 有对应 ViewModel;`*Repository` 只在 `data` 且实现同名 `*Store`;`AiClient` 实现叫 `*Client`;禁用 `Impl`/`Manager`/`Helper`/`Util(s)` 后缀;只有 `ChatAssistantApp` 可用 `android.util.Log`;`@Composable` 只在 `ui`。
 - 「依赖有新版本」类检查(`GradleDependency`、`NewerVersionAvailable`、`AndroidGradlePluginVersion`)已关闭:它们的结果随联网和日期变化,与代码无关,会让 CI 结果漂移。依赖升级单独跟踪。

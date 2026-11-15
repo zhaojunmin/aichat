@@ -67,25 +67,26 @@ class PackageDependencyRulesTest {
         assertPackage("data.memory..", allowed = setOf("data", "ai..", "diagnostics.."))
 
     /**
-     * The overlay orchestrates everything below it. It reaches the screen reader only
-     * through its published port ([ScreenAccess] via the bridge), never the concrete
-     * reader or filler. From `ui` it may only take the theme, the activity a
-     * notification opens, and the shared error wording.
+     * Reading the chat for a tap: the screen port (never the concrete reader), OCR,
+     * and the developer-tool record of what was read.
      */
-    @Test fun bubbleUsesScreenPortAndUiOnlyForThemeNotificationAndErrorText() = assertPackage(
+    @Test fun captureUsesScreenPortOcrAndDebug() = assertPackage(
+        "capture..",
+        allowed = setOf("data", "debug", "diagnostics..", "ocr.."),
+        allowedTypes = setOf("accessibility.ScreenAccess", "accessibility.MessageBounds"),
+    )
+
+    /**
+     * The overlay: window, panel and the tap → suggestions flow. It reads the screen
+     * through [capture] and only takes the bridge (connection, foreground app) from
+     * the reader. From `ui` it may only take the theme, the activity a notification
+     * opens, and the shared error wording.
+     */
+    @Test fun bubbleReadsViaCaptureAndUsesUiOnlyForThemeNotificationAndErrorText() = assertPackage(
         "bubble..",
-        allowed = setOf(
-            "ai..",
-            "data..",
-            "debug",
-            "diagnostics..",
-            "ocr..",
-            "ui.theme..",
-        ),
+        allowed = setOf("ai..", "capture", "data..", "diagnostics..", "ui.theme.."),
         allowedTypes = setOf(
             "accessibility.AccessibilityBridge",
-            "accessibility.ScreenAccess",
-            "accessibility.MessageBounds",
             "ui.MainActivity",
             "ui.toUserMessage",
         ),
