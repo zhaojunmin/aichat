@@ -5,15 +5,15 @@ import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.Conversation
 
 /**
- * Turns the stored memories into the compact block injected into the suggestion-generation
- * prompt: ranks by the three-factor score (recency + importance + relevance-to-this-chat),
- * takes the top-N, and formats them grouped by category. Relevance uses on-device
+ * Builds the memory part of the suggestion prompt from the stored memories: ranks by
+ * the three-factor score (recency + importance + relevance-to-this-chat), takes the
+ * top-N, and formats them grouped by category. Relevance uses on-device
  * semantic embeddings when enabled + ready, else local lexical matching.
  * Single responsibility: memory → prompt text.
  */
-object MemoryInjector {
+object MemoryPromptBuilder {
 
-    fun block(
+    fun build(
         items: List<MemoryEntity>,
         settings: AppSettings,
         conv: Conversation?,

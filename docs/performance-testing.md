@@ -4,7 +4,7 @@
 
 | 类型 | 位置 | 测什么 | 被测构建 |
 |---|---|---|---|
-| 微基准 | `app/src/androidTest/.../benchmark/HotPathBenchmarks.kt` | 回复路径上的纯计算:记忆召回、bge 查询向量、分词、向量解码、模型输出解析(查询按 `MemoryInjector` 的做法取最近 12 行聊天) | `benchmark` 构建类型(release 配置、不混淆、不可调试) |
+| 微基准 | `app/src/androidTest/.../benchmark/HotPathBenchmarks.kt` | 回复路径上的纯计算:记忆召回、bge 查询向量、分词、向量解码、模型输出解析(查询按 `MemoryPromptBuilder` 的做法取最近 12 行聊天) | `benchmark` 构建类型(release 配置、不混淆、不可调试) |
 | 宏基准 | `quality/macrobenchmark/` | 冷/热启动耗时、首页滚动帧时间 | release(R8 混淆后的正式包) |
 | 读屏/悬浮球端到端 | 见下文「端到端」 | 无障碍事件处理、点悬浮球到出结果 | release |
 

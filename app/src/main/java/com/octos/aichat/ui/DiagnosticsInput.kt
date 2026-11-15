@@ -31,7 +31,7 @@ fun diagnosticsSettings(s: AppSettings): List<Pair<String, String>> = listOf(
 /** Permission state as the user sees it, plus whether the system has actually bound the reader. */
 fun diagnosticsPermissions(context: Context): List<Pair<String, Boolean>> = listOf(
     "accessibilityEnabled" to isAccessibilityEnabled(context),
-    "accessibilityBound" to AccessibilityBridge.isConnected,
+    "accessibilityConnected" to AccessibilityBridge.isConnected,
     "overlay" to Settings.canDrawOverlays(context),
     "notifications" to NotificationManagerCompat.from(context).areNotificationsEnabled(),
 )

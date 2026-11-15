@@ -25,7 +25,7 @@ import org.junit.runner.RunWith
  * On-device microbenchmarks for the pure-compute pieces on the suggestion path
  * (budget P5 in docs/quality-attributes.md: memory recall ≤ 50 ms).
  * Data sizes mirror real use: up to 500 memories, 512-dim bge vectors, and a
- * query built the way MemoryInjector does (last 12 transcript lines).
+ * query built the way MemoryPromptBuilder does (last 12 transcript lines).
  */
 @RunWith(AndroidJUnit4::class)
 class HotPathBenchmarks {
@@ -62,7 +62,7 @@ class HotPathBenchmarks {
             )
         }
 
-        /** Query = last 12 transcript lines — MemoryInjector uses toTranscript(maxLines = 12). */
+        /** Query = last 12 transcript lines — MemoryPromptBuilder uses toTranscript(maxLines = 12). */
         val query: String = (1..12).joinToString("\n") {
             (if (it % 2 == 0) "我: " else "对方: ") + sentence(4)
         }
