@@ -74,9 +74,10 @@ data class AppSettings(
     val autoPaste: Boolean = true,
     /** Auto-start the floating bubble on app launch (when overlay permission is granted). */
     val bubbleAutoStart: Boolean = true,
-    /** Read chat via screenshot + OCR instead of the accessibility node tree. */
-    val useScreenshotOcr: Boolean = false,
-    /** Only these packages use OCR; everything else keeps node-tree parsing. */
+    /**
+     * Apps read via screenshot + OCR (on top of the built-in ones); everything else keeps
+     * node-tree parsing. This list alone decides the path — there is no separate switch.
+     */
     val ocrPackages: String = DEFAULT_OCR_PACKAGES,
     /** Comma-separated package names we offer suggestions inside. */
     val targetPackages: String = DEFAULT_TARGET_PACKAGES,
@@ -93,9 +94,9 @@ data class AppSettings(
     val memoryEmbeddingEnabled: Boolean = true,
     /** Cloud API vs on-device model. Local keeps chat content on the phone. */
     val inferenceMode: InferenceMode = InferenceMode.CLOUD,
-    /** Which on-device model is selected (id of a [com.octos.aichat.ai.local.LocalModel]). */
-    val localModelId: String = com.octos.aichat.ai.local.LocalModel.DEFAULT.id,
-    /** Appearance variant id ("system", or a [com.octos.aichat.ui.theme.ThemeVariant] id). */
+    /** Which on-device model is selected: an `ai.local.LocalModel` id. */
+    val localModelId: String = DEFAULT_LOCAL_MODEL_ID,
+    /** Appearance variant id ("system", or a `ui.theme.ThemeVariant` id). */
     val themeVariantId: String = "system",
     /**
      * Keep local diagnostics (error codes, timings — never chat text). Off deletes what was
@@ -114,8 +115,6 @@ data class AppSettings(
      */
     fun isInferenceConfigured(localModelReady: Boolean): Boolean =
         if (useLocal) localModelReady else apiKey.isNotBlank()
-    val localModel: com.octos.aichat.ai.local.LocalModel
-        get() = com.octos.aichat.ai.local.LocalModel.of(localModelId)
 
     // Built-in supported apps are always included (union with user list), so a
     // newly supported app works without the user re-editing saved settings.
@@ -153,6 +152,12 @@ data class AppSettings(
     }
 
     companion object {
+        /**
+         * The on-device model a fresh install selects. Settings are plain data and don't
+         * depend on the AI layer, so the default lives here; `LocalModel.DEFAULT` follows it.
+         */
+        const val DEFAULT_LOCAL_MODEL_ID = "qwen1_5b"
+
         // WeChat + QQ + Soul + Hertz + Momo out of the box.
         const val DEFAULT_TARGET_PACKAGES =
             "com.tencent.mm,com.tencent.mobileqq,cn.soulapp.android," +

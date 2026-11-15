@@ -15,7 +15,7 @@ class DiagnosticsReportTest {
     private fun input(
         counts: Map<ErrorCode, Int> = emptyMap(),
         events: List<DiagEvent> = emptyList(),
-        settings: List<Pair<String, String>> = listOf("inference" to "CLOUD", "ocr" to "true"),
+        settings: List<Pair<String, String>> = listOf("inference" to "CLOUD", "ocrApps" to "2"),
     ) = ReportInput(
         generatedAtMs = 0,
         device = device,
@@ -32,7 +32,7 @@ class DiagnosticsReportTest {
             "生成时间  1970-01-01 00:00:00",
             "App       0.1.0 (1) release",
             "HONOR ELP-AN00 · Android 16 (API 36) · arm64-v8a · zh-CN",
-            "inference CLOUD · ocr true",
+            "inference CLOUD · ocrApps 2",
             "overlay 是 · notifications 否",
             "== 上次进程退出原因",
             "== 错误计数",

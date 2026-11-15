@@ -36,14 +36,19 @@ class ChatCaptureTest {
     @Before fun clearDebugRecord() = DebugCapture.recordConversation(Conversation.empty())
 
     @Test fun notConnectedReadsNothing() = runTest {
-        assertNull(capture(connected = null).read("com.soul", ocrPackages = emptySet()))
-        assertNull(capture(connected = null).read("com.tencent.mm", setOf("com.tencent.mm")))
+        assertNull(
+            capture(connected = null).read("com.soul", ocrPackages = emptySet()).conversation,
+        )
+        assertNull(
+            capture(connected = null).read("com.tencent.mm", setOf("com.tencent.mm")).conversation,
+        )
     }
 
     @Test fun treeAppIsReadFromTheNodeTreeWithoutTouchingTheOverlay() = runTest {
-        val conv = capture().read("com.soul", ocrPackages = setOf("com.tencent.mm"))
+        val result = capture().read("com.soul", ocrPackages = setOf("com.tencent.mm"))
 
-        assertSame(chat, conv)
+        assertSame(chat, result.conversation)
+        assertEquals(ReadPath.NODE_TREE, result.path)
         assertEquals(listOf("readConversation(com.soul)"), screen.calls)
         assertEquals(0, overlay.hides)
     }
@@ -55,8 +60,9 @@ class ChatCaptureTest {
     }
 
     @Test fun ocrAppIsCapturedWithTheOverlayHidden() = runTest {
-        capture().read("com.tencent.mm", ocrPackages = setOf("com.tencent.mm"))
+        val result = capture().read("com.tencent.mm", ocrPackages = setOf("com.tencent.mm"))
 
+        assertEquals(ReadPath.OCR, result.path)
         assertEquals(
             listOf("locateMessageBounds(com.tencent.mm)", "captureScreenshot(com.tencent.mm)"),
             screen.calls,
@@ -67,9 +73,10 @@ class ChatCaptureTest {
     }
 
     @Test fun failedScreenshotReadsNothingAndRecordsNothing() = runTest {
-        val conv = capture().read("com.tencent.mm", ocrPackages = setOf("com.tencent.mm"))
+        val result = capture().read("com.tencent.mm", ocrPackages = setOf("com.tencent.mm"))
 
-        assertNull(conv)
+        assertNull(result.conversation)
+        assertEquals("the hint must still say OCR", ReadPath.OCR, result.path)
         assertTrue(DebugCapture.lastConversation.isEmpty)
     }
 

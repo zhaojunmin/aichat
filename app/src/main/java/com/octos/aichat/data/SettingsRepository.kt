@@ -56,7 +56,6 @@ class SettingsRepository private constructor(
         suggestionCount = prefs.getInt(KEY_SUGGESTION_COUNT, 3),
         autoPaste = prefs.getBoolean(KEY_AUTO_PASTE, true),
         bubbleAutoStart = prefs.getBoolean(KEY_BUBBLE_AUTOSTART, true),
-        useScreenshotOcr = prefs.getBoolean(KEY_USE_OCR, false),
         ocrPackages = loadOcrPackages(),
         targetPackages = prefs.getString(KEY_TARGETS, AppSettings.DEFAULT_TARGET_PACKAGES)!!,
         memoryEnabled = prefs.getBoolean(KEY_MEMORY_ENABLED, true),
@@ -66,8 +65,7 @@ class SettingsRepository private constructor(
         inferenceMode = runCatching {
             InferenceMode.valueOf(prefs.getString(KEY_INFER_MODE, null) ?: "CLOUD")
         }.getOrDefault(InferenceMode.CLOUD),
-        localModelId = prefs.getString(KEY_LOCAL_MODEL, null)
-            ?: com.octos.aichat.ai.local.LocalModel.DEFAULT.id,
+        localModelId = prefs.getString(KEY_LOCAL_MODEL, null) ?: AppSettings.DEFAULT_LOCAL_MODEL_ID,
         themeVariantId = prefs.getString(KEY_THEME, null) ?: "system",
         diagnosticsEnabled = prefs.getBoolean(KEY_DIAGNOSTICS, true),
         diagnosticsEnabledAt = prefs.getLong(KEY_DIAGNOSTICS_SINCE, 0L),
@@ -144,7 +142,7 @@ class SettingsRepository private constructor(
             putInt(KEY_SUGGESTION_COUNT, s.suggestionCount)
             putBoolean(KEY_AUTO_PASTE, s.autoPaste)
             putBoolean(KEY_BUBBLE_AUTOSTART, s.bubbleAutoStart)
-            putBoolean(KEY_USE_OCR, s.useScreenshotOcr)
+            remove(KEY_USE_OCR) // retired: the OCR app list alone decides the read path
             putString(KEY_OCR_PKGS, s.ocrPackages)
             putString(KEY_TARGETS, s.targetPackages)
             putBoolean(KEY_MEMORY_ENABLED, s.memoryEnabled)

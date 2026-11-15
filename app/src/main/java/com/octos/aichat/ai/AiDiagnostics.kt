@@ -20,6 +20,7 @@ fun Throwable.diagnosticsCode(): ErrorCode = when ((this as? AiException)?.kind)
     Kind.NETWORK -> ErrorCode.AI_108
     Kind.BAD_RESPONSE -> ErrorCode.AI_109
     Kind.LOCAL_TIMEOUT -> ErrorCode.LLM_201
+    Kind.LOCAL_NOT_READY -> ErrorCode.LLM_205
     Kind.OTHER, null -> ErrorCode.AI_110
 }
 

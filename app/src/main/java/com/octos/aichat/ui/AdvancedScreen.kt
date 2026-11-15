@@ -233,25 +233,15 @@ internal fun AdvancedScreen(
                 stringResource(R.string.adv_recognition_title),
                 icon = Icons.Outlined.Visibility,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.adv_ocr_title))
-                        Text(
-                            stringResource(R.string.adv_ocr_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    Switch(
-                        checked = settings.useScreenshotOcr,
-                        onCheckedChange = { c -> vm.update { it.copy(useScreenshotOcr = c) } },
-                    )
-                }
-                if (settings.useScreenshotOcr) {
-                    LabeledField(
-                        stringResource(R.string.adv_ocr_packages_label),
-                        settings.ocrPackages,
-                    ) { v -> vm.update { it.copy(ocrPackages = v) } }
-                }
+                Text(stringResource(R.string.adv_ocr_title))
+                Text(
+                    stringResource(R.string.adv_ocr_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                LabeledField(
+                    stringResource(R.string.adv_ocr_packages_label),
+                    settings.ocrPackages,
+                ) { v -> vm.update { it.copy(ocrPackages = v) } }
                 Spacer(Modifier.height(8.dp))
                 LabeledField(
                     stringResource(R.string.adv_target_packages_label),

@@ -58,6 +58,12 @@ class AiException(
         /** The on-device model didn't finish in time (device too slow for the chosen model). */
         LOCAL_TIMEOUT,
 
+        /**
+         * Local mode is selected but the on-device model isn't loaded. Never answered by
+         * falling back to the cloud: that would ship the chat off the device.
+         */
+        LOCAL_NOT_READY,
+
         /** DNS / connect / TLS failure: no usable network path. */
         NETWORK,
 

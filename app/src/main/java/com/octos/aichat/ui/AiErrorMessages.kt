@@ -31,6 +31,8 @@ fun Throwable.toUserMessage(context: Context): String {
 
         Kind.LOCAL_TIMEOUT -> context.getString(R.string.ai_err_local_timeout)
 
+        Kind.LOCAL_NOT_READY -> context.getString(R.string.ai_err_local_not_ready)
+
         Kind.NETWORK -> context.getString(R.string.ai_err_network)
 
         Kind.BAD_RESPONSE -> context.getString(R.string.ai_err_bad_response)

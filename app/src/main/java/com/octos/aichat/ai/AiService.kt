@@ -249,17 +249,12 @@ class AiService(
         private val local: AiClient by lazy { LocalClient() }
 
         /**
-         * Local mode must never silently fall back to the cloud — that would ship
-         * the user's chat content off-device. If local is selected but the model
-         * isn't loaded, fail loudly so the caller can prompt a download instead.
+         * Local mode never falls back to the cloud — that would ship the user's chat
+         * off-device. An unloaded model surfaces from [LocalClient] as
+         * [AiException.Kind.LOCAL_NOT_READY].
          */
-        private fun defaultClientFor(settings: AppSettings): AiClient {
-            if (settings.useLocal) {
-                require(LlmEngine.isReady) { "本地模型未就绪,请先在设置中下载并启用本地模式" }
-                return local
-            }
-            return cloud
-        }
+        private fun defaultClientFor(settings: AppSettings): AiClient =
+            if (settings.useLocal) local else cloud
 
         /** Production singleton with the real cloud/local client selection. */
         val instance: AiService by lazy { AiService() }

@@ -23,6 +23,12 @@ interface CaptureOverlay {
 
 data class ScreenSize(val width: Int, val height: Int)
 
+/** Which way the chat was read. Decides, for one, which "nothing was read" hint fits. */
+enum class ReadPath { NODE_TREE, OCR }
+
+/** What one read produced and how; [conversation] is null when nothing could be read. */
+data class CaptureResult(val conversation: Conversation?, val path: ReadPath)
+
 /**
  * Reads the chat in front, the way a bubble tap needs it: the node tree by default;
  * for apps in the OCR list (tree blocked or too noisy, WeChat by default), a
@@ -37,14 +43,16 @@ class ChatCapture(
 ) {
 
     /**
-     * @return the conversation (also handed to [DebugCapture]), or null when the
-     *   accessibility service isn't connected or the screenshot failed.
+     * The path is decided here and only here: OCR for apps in [ocrPackages] (when the
+     * platform can take screenshots), the node tree otherwise. The conversation is also
+     * handed to [DebugCapture]; it is null when the accessibility service isn't
+     * connected or the screenshot failed.
      */
-    suspend fun read(pkg: String, ocrPackages: Set<String>): Conversation? =
+    suspend fun read(pkg: String, ocrPackages: Set<String>): CaptureResult =
         if (pkg in ocrPackages && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            readViaOcr(pkg)
+            CaptureResult(readViaOcr(pkg), ReadPath.OCR)
         } else {
-            readFromNodeTree(pkg)
+            CaptureResult(readFromNodeTree(pkg), ReadPath.NODE_TREE)
         }
 
     private suspend fun readFromNodeTree(pkg: String): Conversation? {

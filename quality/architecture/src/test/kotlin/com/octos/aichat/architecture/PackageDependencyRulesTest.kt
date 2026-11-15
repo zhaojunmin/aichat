@@ -125,11 +125,11 @@ class PackageDependencyRulesTest {
         val files = appFiles().filter { matches(it.appPackage(), pkg) }
         check(files.isNotEmpty()) { "no files in $pkg — rule is stale" }
         val violations = files.flatMap { file ->
-            file.imports
-                .filter { violates(it.name, pkg, allowed, allowedTypes) }
-                .map { "  ${file.appPackage()}/${file.name}.kt imports ${it.name}" }
+            file.appReferences()
+                .filter { violates(it, pkg, allowed, allowedTypes) }
+                .map { "  ${file.appPackage()}/${file.name}.kt uses $it" }
         }
-        val header = "$pkg may only import ${allowed + allowedTypes} from the app:"
+        val header = "$pkg may only use ${allowed + allowedTypes} from the app:"
         assertTrue(header + "\n" + violations.joinToString("\n"), violations.isEmpty())
     }
 
@@ -156,6 +156,23 @@ class PackageDependencyRulesTest {
 
         fun appFiles(): List<KoFileDeclaration> =
             scope.files.filter { it.packagee?.name?.startsWith(ROOT) == true }
+
+        /** A fully qualified app type, e.g. `com.octos.aichat.ai.local.LocalModel`. */
+        val QUALIFIED_APP_TYPE =
+            Regex("""\bcom\.octos\.aichat\.(?:[a-z][a-z0-9_]*\.)+[A-Z][A-Za-z0-9_]*""")
+
+        /**
+         * Everything a file references from the app: its imports, plus types written fully
+         * qualified in code — those need no import, so an import-only check misses them
+         * (it once let `data` depend on `ai.local.LocalModel` unnoticed). Comments don't count.
+         */
+        fun KoFileDeclaration.appReferences(): List<String> {
+            val code = text
+                .replace(Regex("""/\*.*?\*/""", RegexOption.DOT_MATCHES_ALL), "")
+                .replace(Regex("""//[^\n]*"""), "")
+            val qualified = QUALIFIED_APP_TYPE.findAll(code).map { it.value }
+            return (imports.map { it.name } + qualified).distinct()
+        }
 
         /** The package relative to [ROOT], "" for the root package. */
         fun KoFileDeclaration.appPackage(): String =
