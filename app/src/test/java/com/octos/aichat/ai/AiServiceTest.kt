@@ -111,8 +111,10 @@ class AiServiceTest {
     @Test fun parseLearn_fullObject() {
         val raw = """
             ```json
-            {"additions":[{"category":"事实","content":"在北京做程序员","keywords":"北京, 程序员、工作","importance":8}],
-             "updates":[{"id":12,"category":"偏好","content":"现在改喝拿铁","keywords":"拿铁","importance":5}],
+            {"additions":[{"category":"事实","content":"在北京做程序员",
+                           "keywords":"北京, 程序员、工作","importance":8}],
+             "updates":[{"id":12,"category":"偏好","content":"现在改喝拿铁",
+                         "keywords":"拿铁","importance":5}],
              "deletions":[7]}
             ```
         """.trimIndent()

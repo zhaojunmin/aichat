@@ -30,7 +30,10 @@ class ChatWindowReader(private val service: AccessibilityService) {
     private val screenWidth: Int get() = service.resources.displayMetrics.widthPixels
     private val screenHeight: Int get() = service.resources.displayMetrics.heightPixels
 
-    /** Parse [pkg]'s chat window as it is right now; empty when it can't be read. Off the main thread. */
+    /**
+     * Parse [pkg]'s chat window as it is right now; empty when it can't be read. Off the main
+     * thread.
+     */
     suspend fun readConversation(pkg: String): Conversation = withContext(Dispatchers.IO) {
         try {
             Tracing.section(Tracing.A11Y_PARSE) {
@@ -58,7 +61,10 @@ class ChatWindowReader(private val service: AccessibilityService) {
             .firstOrNull { it.packageName?.toString() == pkg }
             ?: service.rootInActiveWindow?.takeIf { it.packageName?.toString() == pkg }
 
-    /** Chat message bounds for apps with a [MessageBoundsLocator] rule; empty otherwise. A full tree walk, so off the main thread. */
+    /**
+     * Chat message bounds for apps with a [MessageBoundsLocator] rule; empty otherwise. A full tree
+     * walk, so off the main thread.
+     */
     suspend fun locateMessageBounds(pkg: String): List<MessageBounds> {
         if (!MessageBoundsLocator.hasRule(pkg)) return emptyList()
         return withContext(Dispatchers.IO) {

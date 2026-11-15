@@ -41,7 +41,10 @@ object AppBus {
             if (!value) lastRawDump = null
         }
 
-    /** Debug: the last raw node tree captured from a target app (id/class/bounds/text); null if none. */
+    /**
+     * Debug: the last raw node tree captured from a target app (id/class/bounds/text); null if
+     * none.
+     */
     @Volatile
     var lastRawDump: String? = null
 

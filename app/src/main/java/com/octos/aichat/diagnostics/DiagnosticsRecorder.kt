@@ -94,7 +94,9 @@ class DiagnosticsRecorder(
         flush()
     }
 
-    /** Record system-reported exits of earlier processes not yet recorded, ended after [sinceMs]. */
+    /**
+     * Record system-reported exits of earlier processes not yet recorded, ended after [sinceMs].
+     */
     fun recordExits(exits: List<ExitRecord>, sinceMs: Long) {
         if (!enabled) return
         val after = maxOf(sinceMs, exitSeenAt)
@@ -124,7 +126,10 @@ class DiagnosticsRecorder(
         store.writeSummary(DiagSummary(countsSnapshot(), exitSeenAt, durationsSnapshot()))
     }
 
-    /** Start or stop recording. Takes effect at once; no IO. Turning off should be followed by [wipe]. */
+    /**
+     * Start or stop recording. Takes effect at once; no IO. Turning off should be followed by
+     * [wipe].
+     */
     fun setEnabled(on: Boolean) {
         enabled = on
     }

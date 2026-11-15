@@ -214,7 +214,9 @@ enum class ThemeVariant(val id: String, @StringRes val labelRes: Int, val dark: 
     DAIQING("daiqing", R.string.theme_daiqing, true),
     ;
 
-    /** This variant's palette. Plain data, so non-Compose UI (the overlay bubble) can read it too. */
+    /**
+     * This variant's palette. Plain data, so non-Compose UI (the overlay bubble) can read it too.
+     */
     val colorScheme: ColorScheme
         get() = when (this) {
             PAPER -> PaperScheme

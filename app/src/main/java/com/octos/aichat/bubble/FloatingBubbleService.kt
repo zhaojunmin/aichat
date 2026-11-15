@@ -361,7 +361,8 @@ class FloatingBubbleService : Service() {
         val useOcr = pkg in settings.ocrPackageSet &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
         if (!useOcr) {
-            // Parse now, on tap: what's on screen this moment, no stale or post-restart-empty state.
+            // Parse now, on tap: what's on screen this moment, no stale or post-restart-empty
+            // state.
             val conv =
                 DiagLog.timed(TimedOp.PARSE) { AppBus.chatWindowReader?.readConversation(pkg) }
                     ?: return null

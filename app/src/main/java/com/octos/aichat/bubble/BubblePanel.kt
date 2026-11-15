@@ -156,7 +156,10 @@ internal class BubblePanel(
     }
 }
 
-/** A [ScrollView] that wraps its content up to [maxHeight], then scrolls. Built in code only, never inflated. */
+/**
+ * A [ScrollView] that wraps its content up to [maxHeight], then scrolls. Built in code only, never
+ * inflated.
+ */
 @SuppressLint("ViewConstructor")
 private class MaxHeightScrollView(context: Context, private val maxHeight: Int) :
     ScrollView(context) {

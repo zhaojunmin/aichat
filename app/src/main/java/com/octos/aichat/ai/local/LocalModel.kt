@@ -13,7 +13,7 @@ enum class LocalModel(
     val displayName: String,
     @StringRes val hintRes: Int,
     val repo: String,
-    val approxMB: Int,
+    val approxMb: Int,
 ) {
     // Hosted on ModelScope (reachable in mainland China; HuggingFace is not).
     QWEN_0_5B("qwen0_5b", "0.5B", R.string.model_hint_fast, "MNN/Qwen2.5-0.5B-Instruct-MNN", 540),

@@ -61,7 +61,10 @@ data class DiagEvent(
 
         private val SAFE_NAME = Regex("""[A-Za-z0-9_$.\-]{1,100}""")
 
-        /** Identifier-like values only (class / thread / package / enum names); anything else is dropped. */
+        /**
+         * Identifier-like values only (class / thread / package / enum names); anything else is
+         * dropped.
+         */
         fun safeName(value: String?): String? = value?.takeIf { SAFE_NAME.matches(it) }
     }
 }

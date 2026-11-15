@@ -33,7 +33,9 @@ object Encoder {
 
     @Volatile private var tokenizer: WordPieceTokenizer? = null
 
-    /** Why the last load/embed attempt failed (shown in the advanced settings); null if it didn't. */
+    /**
+     * Why the last load/embed attempt failed (shown in the advanced settings); null if it didn't.
+     */
     @Volatile var lastError: ErrorCode? = null
         private set
 

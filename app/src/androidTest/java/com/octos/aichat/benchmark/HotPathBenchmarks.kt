@@ -134,8 +134,10 @@ class HotPathBenchmarks {
 
     private val service = AiService()
     private val repliesRaw = "```json\n[\"周末一起去爬山吧\",\"好呀,几点出发?\",\"最近有点累,下次吧\"]\n```"
-    private val learnRaw = """{"additions":[{"category":"事实","content":"在北京做程序员","keywords":"北京 程序员 工作","importance":8}],
-        "updates":[{"id":12,"category":"偏好","content":"现在改喝拿铁","keywords":"拿铁 咖啡","importance":5}],"deletions":[7]}"""
+    private val learnRaw = """{"additions":[{"category":"事实","content":"在北京做程序员",
+        "keywords":"北京 程序员 工作","importance":8}],
+        "updates":[{"id":12,"category":"偏好","content":"现在改喝拿铁",
+        "keywords":"拿铁 咖啡","importance":5}],"deletions":[7]}"""
 
     @Test fun parseReplies() = benchmark.measureRepeated {
         service.parseReplies(repliesRaw, 3)

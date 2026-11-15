@@ -89,7 +89,10 @@ object LlmEngine {
         return ensureLoaded(ModelStore.configPath(ctx, model), ModelStore.tmpDir(ctx))
     }
 
-    /** One inference turn's output; [timedOut] means the engine hit its time limit and the text is truncated. */
+    /**
+     * One inference turn's output; [timedOut] means the engine hit its time limit and the text is
+     * truncated.
+     */
     class Output(val text: String, val timedOut: Boolean)
 
     /**

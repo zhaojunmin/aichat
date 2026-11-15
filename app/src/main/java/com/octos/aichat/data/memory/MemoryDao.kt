@@ -56,7 +56,8 @@ interface MemoryDao {
 
     /** Soft-delete: move a row to the recycle bin ([by] = "learner" / "user"). */
     @Query(
-        "UPDATE memory SET deletedAt = :deletedAt, deletedBy = :by WHERE id = :id AND deletedAt = 0",
+        "UPDATE memory SET deletedAt = :deletedAt, deletedBy = :by " +
+            "WHERE id = :id AND deletedAt = 0",
     )
     suspend fun softDelete(id: Long, deletedAt: Long, by: String)
 

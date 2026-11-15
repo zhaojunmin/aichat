@@ -221,7 +221,7 @@ internal fun HomeScreen(onOpenAdvanced: () -> Unit, onOpenMemory: () -> Unit) {
                         stringResource(
                             R.string.home_model_size,
                             stringResource(settings.localModel.hintRes),
-                            settings.localModel.approxMB,
+                            settings.localModel.approxMb,
                         ),
                         style = MaterialTheme.typography.bodySmall,
                     )
