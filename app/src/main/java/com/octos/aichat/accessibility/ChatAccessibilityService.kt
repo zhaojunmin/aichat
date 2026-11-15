@@ -124,9 +124,11 @@ class ChatAccessibilityService : AccessibilityService() {
      * because the tap itself lands on our overlay; falls back to the active window.
      */
     private fun windowRoot(pkg: String): AccessibilityNodeInfo? =
-        windows
-            ?.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_APPLICATION && it.root?.packageName == pkg }
-            ?.root
+        // getRoot() is a cross-process call: fetch it once per window.
+        windows.orEmpty().asSequence()
+            .filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
+            .mapNotNull { it.root }
+            .firstOrNull { it.packageName?.toString() == pkg }
             ?: rootInActiveWindow?.takeIf { it.packageName?.toString() == pkg }
 
     /** [captureThread], debug switch on: re-read the active window (it may have moved on) and capture it. */
@@ -200,7 +202,8 @@ class ChatAccessibilityService : AccessibilityService() {
                         } finally {
                             result.hardwareBuffer.close()
                         }
-                        if (cont.isActive) cont.resume(software)
+                        // A cancelled tap must not leak the ~13 MB copy.
+                        cont.resume(software) { software?.recycle() }
                     }
 
                     override fun onFailure(errorCode: Int) {
@@ -225,7 +228,8 @@ class ChatAccessibilityService : AccessibilityService() {
             ?.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
             ?.let { w -> Rect().also { w.getBoundsInScreen(it) } }
             ?.takeIf { !it.isEmpty }
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        DiagLog.record(ErrorCode.A11Y_306, cause = e)
         null
     }
 
@@ -239,19 +243,27 @@ class ChatAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Find the focused/visible editable field and set [text] into it.
-     * @return true if a field was found and filled.
+     * Set [text] into the chat's input box: the input-focused field if there is one
+     * (one IPC, and never a search box elsewhere on screen), else the first editable
+     * node in the tree. Off the main thread — the fallback walk is one IPC per node.
+     * @return true if a field was found and filled; on false, `A11Y-305` is already recorded.
      */
-    fun pasteText(text: String): Boolean {
-        val root = rootInActiveWindow ?: return false
-        val editable = findEditable(root) ?: return false
-        val args = Bundle().apply {
-            putCharSequence(
-                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                text
-            )
+    suspend fun pasteText(text: String): Boolean = withContext(Dispatchers.IO) {
+        val pkg = AppBus.foregroundPackage
+        val filled = try {
+            val editable = rootInActiveWindow?.let { root ->
+                root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.takeIf { it.isEditable } ?: findEditable(root)
+            }
+            val args = Bundle().apply {
+                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+            }
+            editable?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args) == true
+        } catch (e: Exception) {
+            DiagLog.record(ErrorCode.A11Y_305, cause = e, pkg = pkg)
+            return@withContext false
         }
-        return editable.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        if (!filled) DiagLog.record(ErrorCode.A11Y_305, pkg = pkg)
+        filled
     }
 
     private fun findEditable(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {

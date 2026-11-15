@@ -120,11 +120,15 @@ data class AppSettings(
         get() = com.octos.aichat.ai.local.LocalModel.of(localModelId)
     // Built-in supported apps are always included (union with user list), so a
     // newly supported app works without the user re-editing saved settings.
-    val targetPackageSet: Set<String>
-        get() = BUILTIN_TARGETS + targetPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    // Lazily cached per snapshot: the foreground check reads this on every
+    // accessibility event, so don't re-split the string each time.
+    val targetPackageSet: Set<String> by lazy {
+        BUILTIN_TARGETS + targetPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    }
 
-    val ocrPackageSet: Set<String>
-        get() = BUILTIN_OCR + ocrPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    val ocrPackageSet: Set<String> by lazy {
+        BUILTIN_OCR + ocrPackages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    }
 
     /** Config of the given backend, falling back to that backend's defaults. */
     fun configOf(b: AiBackend): BackendConfig =

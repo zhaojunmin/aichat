@@ -352,11 +352,15 @@ class FloatingBubbleService : Service() {
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("ai_reply", reply))
 
-        val autoPaste = SettingsRepository.get(this).current().autoPaste
-        val pasted = autoPaste && AppBus.accessibilityService?.pasteText(reply) == true
-        if (autoPaste && !pasted) DiagLog.record(ErrorCode.A11Y_305, pkg = AppBus.foregroundPackage)
-        toast(if (pasted) getString(R.string.svc_filled) else getString(R.string.svc_copied))
         panel.remove()
+        val autoPaste = SettingsRepository.get(this).current().autoPaste
+        if (!autoPaste) { toast(getString(R.string.svc_copied)); return }
+        scope.launch {
+            val svc = AppBus.accessibilityService
+            val pasted = svc != null && svc.pasteText(reply)
+            if (svc == null) DiagLog.record(ErrorCode.A11Y_305, pkg = AppBus.foregroundPackage)
+            toast(if (pasted) getString(R.string.svc_filled) else getString(R.string.svc_copied))
+        }
     }
 
     // ---- helpers ---------------------------------------------------------

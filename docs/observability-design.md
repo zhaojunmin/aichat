@@ -122,7 +122,8 @@
 | `A11Y-302` | ERROR | 点击时解析聊天失败 | `readConversation` |
 | `A11Y-303` | WARN | 点击时找不到聊天窗口 | `windowRoot` 返回 null |
 | `A11Y-304` | ERROR | 截图失败(带平台错误码) | `captureScreenshot` |
-| `A11Y-305` | WARN | 自动填入失败,已改为复制 | `pasteText` 返回 false |
+| `A11Y-305` | WARN | 自动填入失败,已改为复制 | `pasteText` 填不进(找不到输入框 / 动作被拒 / 异常),或无障碍未连接 |
+| `A11Y-306` | WARN | 读取键盘区域失败 | `imeBounds` 抛异常(OCR 截图不裁键盘) |
 | `OCR-401` | ERROR | 文字识别失败 | `OcrReader.recognize` |
 | `OCR-402` | WARN | 识别成功但没读出消息 | 解析结果为空 |
 | `BUB-501` | ERROR | 启动前台服务失败 | `startForegroundNotice` |
