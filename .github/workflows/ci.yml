@@ -10,8 +10,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Kotlin style (Android Kotlin style guide via ktlint, rules in .editorconfig).
-  # Separate job so a style slip shows up on its own, in about a minute.
+  # Kotlin style (Android Kotlin style guide via ktlint, rules in .editorconfig) and
+  # architecture / naming rules (Konsist, quality/architecture). Both only read
+  # sources, so they run in their own job and report in about a minute.
   style:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -29,6 +30,9 @@ jobs:
 
       - name: Kotlin style check (fix locally with ./gradlew spotlessApply)
         run: ./gradlew spotlessCheck --stacktrace
+
+      - name: Architecture and naming rules (Konsist)
+        run: ./gradlew :quality:architecture:test --stacktrace
 
   build:
     runs-on: ubuntu-latest
