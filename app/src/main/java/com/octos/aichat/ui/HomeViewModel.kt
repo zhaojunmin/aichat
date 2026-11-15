@@ -11,6 +11,7 @@ import com.octos.aichat.ai.AiService
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.LocalModel
 import com.octos.aichat.ai.local.ModelStore
+import com.octos.aichat.ai.local.localModel
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation

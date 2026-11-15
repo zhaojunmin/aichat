@@ -62,13 +62,14 @@ class ChatWindowReader(private val service: AccessibilityService) {
             ?: service.rootInActiveWindow?.takeIf { it.packageName?.toString() == pkg }
 
     /**
-     * Chat message bounds for apps with a [MessageBoundsLocator] rule; empty otherwise. A full tree
-     * walk, so off the main thread.
+     * Chat message bounds for apps with a [MessageBoundsLocator] rule; empty otherwise. Reads
+     * the same window as [readConversation] — [pkg]'s own, not whichever window is active
+     * (our overlay or the keyboard may be). A full tree walk, so off the main thread.
      */
     suspend fun locateMessageBounds(pkg: String): List<MessageBounds> {
         if (!MessageBoundsLocator.hasRule(pkg)) return emptyList()
         return withContext(Dispatchers.IO) {
-            MessageBoundsLocator.locate(service.rootInActiveWindow, screenWidth, pkg)
+            MessageBoundsLocator.locate(windowRoot(pkg), screenWidth, pkg)
         }
     }
 

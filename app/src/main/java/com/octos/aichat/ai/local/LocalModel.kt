@@ -2,6 +2,7 @@ package com.octos.aichat.ai.local
 
 import androidx.annotation.StringRes
 import com.octos.aichat.R
+import com.octos.aichat.data.AppSettings
 
 /**
  * Selectable on-device models (MNN-converted Qwen2.5, hosted by taobao-mnn).
@@ -28,7 +29,10 @@ enum class LocalModel(
     ;
 
     companion object {
-        val DEFAULT = QWEN_1_5B
+        val DEFAULT: LocalModel = entries.first { it.id == AppSettings.DEFAULT_LOCAL_MODEL_ID }
         fun of(id: String?): LocalModel = entries.firstOrNull { it.id == id } ?: DEFAULT
     }
 }
+
+/** The selected on-device model. Here rather than on [AppSettings]: settings don't know the AI layer. */
+val AppSettings.localModel: LocalModel get() = LocalModel.of(localModelId)

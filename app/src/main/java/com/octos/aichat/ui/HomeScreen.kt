@@ -55,6 +55,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.octos.aichat.R
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.LocalModel
+import com.octos.aichat.ai.local.localModel
 import com.octos.aichat.data.AiBackend
 import com.octos.aichat.data.InferenceMode
 import com.octos.aichat.data.PersonaPresets

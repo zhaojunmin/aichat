@@ -27,6 +27,7 @@ enum class ErrorCode(val id: String, val level: Level, val zh: String, val en: S
     LLM_202("LLM-202", Level.ERROR, "本地模型加载失败", "On-device model failed to load"),
     LLM_203("LLM-203", Level.WARN, "原生推理库不可用", "Native inference libraries unavailable"),
     LLM_204("LLM-204", Level.ERROR, "模型下载失败", "Model download failed"),
+    LLM_205("LLM-205", Level.ERROR, "本地模型未就绪", "On-device model not ready"),
 
     // A11Y — accessibility reading, screenshot, auto-fill.
     A11Y_301(

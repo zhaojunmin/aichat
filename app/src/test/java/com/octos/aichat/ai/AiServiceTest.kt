@@ -242,8 +242,9 @@ class AiServiceTest {
         try {
             AiService().generateReplies(local, conv(Speaker.OTHER to "hi"))
             fail("expected local-not-ready error")
-        } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("本地模型未就绪"))
+        } catch (e: AiException) {
+            // A typed failure, so diagnostics file it as LLM-205 rather than "other".
+            assertEquals(AiException.Kind.LOCAL_NOT_READY, e.kind)
         }
     }
 

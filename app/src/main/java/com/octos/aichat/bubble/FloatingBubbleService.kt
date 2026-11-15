@@ -29,12 +29,14 @@ import com.octos.aichat.ai.AiService
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.LocalModel
 import com.octos.aichat.ai.local.ModelStore
+import com.octos.aichat.ai.local.localModel
 import com.octos.aichat.ai.recordAiFailure
 import com.octos.aichat.capture.CaptureOverlay
+import com.octos.aichat.capture.CaptureResult
 import com.octos.aichat.capture.ChatCapture
+import com.octos.aichat.capture.ReadPath
 import com.octos.aichat.capture.ScreenSize
 import com.octos.aichat.data.AppSettings
-import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.memory.MemoryRepository
 import com.octos.aichat.diagnostics.DiagLog
@@ -323,18 +325,18 @@ class FloatingBubbleService : Service() {
         val tappedAt = SystemClock.elapsedRealtime()
         // Resolve the conversation first (may involve a screenshot); only then
         // show the loading panel so it isn't captured into the screenshot.
-        val conv = Tracing.asyncSection(Tracing.BUBBLE_RESOLVE_CONVERSATION) {
+        val read = Tracing.asyncSection(Tracing.BUBBLE_RESOLVE_CONVERSATION) {
             resolveConversation(settings)
         }
+        val conv = read.conversation
         panel.showLoading()
         if (conv == null || conv.isEmpty) {
-            panel.showError(
-                if (settings.useScreenshotOcr) {
-                    getString(R.string.svc_ocr_no_content)
-                } else {
-                    getString(R.string.svc_no_content)
-                },
-            )
+            // The hint follows the path actually taken, not a setting.
+            val hint = when (read.path) {
+                ReadPath.OCR -> R.string.svc_ocr_no_content
+                ReadPath.NODE_TREE -> R.string.svc_no_content
+            }
+            panel.showError(getString(hint))
             return
         }
         // Local mode: make sure the on-device model is loaded before generating.
@@ -368,7 +370,7 @@ class FloatingBubbleService : Service() {
     }
 
     /** What's on screen this moment, via the node tree or (OCR-list apps) a screenshot. */
-    private suspend fun resolveConversation(settings: AppSettings): Conversation? =
+    private suspend fun resolveConversation(settings: AppSettings): CaptureResult =
         capture.read(AccessibilityBridge.foregroundPackage ?: "", settings.ocrPackageSet)
 
     /** Ensure the on-device model is loaded; shows an error panel and returns false if not. */

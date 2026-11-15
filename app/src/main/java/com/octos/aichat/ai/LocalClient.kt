@@ -8,15 +8,20 @@ import com.octos.aichat.data.AppSettings
  * [CloudClient]. The engine must already be loaded ([LlmEngine.ensureLoaded]);
  * this just caps tokens and runs one inference turn.
  *
- * [infer] is the engine call, injected so the timeout mapping can be unit-tested
- * without the native library.
+ * Fails like any [AiClient] does — with an [AiException] — when the model isn't
+ * loaded, so callers needn't know which implementation they hold.
+ *
+ * [isReady] and [infer] are the engine calls, injected so the error mapping can be
+ * unit-tested without the native library.
  */
 class LocalClient(
+    private val isReady: () -> Boolean = { LlmEngine.isReady },
     private val infer: suspend (system: String, user: String, maxTokens: Int) -> LlmEngine.Output =
         { system, user, maxTokens -> LlmEngine.chat(system, user, maxTokens) },
 ) : AiClient {
 
     override suspend fun complete(settings: AppSettings, system: String, user: String): String {
+        if (!isReady()) throw AiException(AiException.Kind.LOCAL_NOT_READY)
         val out = infer(system, user, MAX_TOKENS)
         // Truncated output would parse into fragments; report the timeout instead.
         if (out.timedOut) {
