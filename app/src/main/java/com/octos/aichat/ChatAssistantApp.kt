@@ -3,6 +3,7 @@ package com.octos.aichat
 import android.app.Application
 import android.content.pm.ApplicationInfo
 import android.util.Log
+import com.octos.aichat.ai.local.ModelStore
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.DiagnosticsRecorder
@@ -32,6 +33,9 @@ class ChatAssistantApp : Application() {
             DiagLog.echo = { Log.d("Diag", it) }
         }
         installCrashRecorder()
+        // Lets the on-device engine find downloaded models without a Context threaded
+        // through the AI layer (paths only).
+        ModelStore.init(this)
 
         val settings = SettingsRepository.get(this)
         applyDiagnosticsSwitch(

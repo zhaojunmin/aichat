@@ -18,10 +18,6 @@ import android.view.WindowManager
 import android.widget.Toast
 import com.octos.aichat.R
 import com.octos.aichat.accessibility.AccessibilityBridge
-import com.octos.aichat.ai.local.LlmEngine
-import com.octos.aichat.ai.local.LocalModel
-import com.octos.aichat.ai.local.ModelStore
-import com.octos.aichat.ai.local.localModel
 import com.octos.aichat.capture.CaptureResult
 import com.octos.aichat.capture.ChatCapture
 import com.octos.aichat.capture.ReadPath
@@ -207,8 +203,8 @@ class FloatingBubbleService : Service() {
             panel.showError(getString(hint))
             return
         }
-        // Local mode: make sure the on-device model is loaded before generating.
-        if (settings.useLocal && !ensureLocalReady(settings.localModel)) return
+        // Local-mode problems (unsupported device, model not downloaded, load failure)
+        // come back from the AiClient as an AiException, shown like any other failure.
         val result = runCatching {
             suggestions.suggestFor(settings, conv, MemoryRepository.get(this@FloatingBubbleService))
         }
@@ -224,25 +220,6 @@ class FloatingBubbleService : Service() {
     /** What's on screen this moment, via the node tree or (OCR-list apps) a screenshot. */
     private suspend fun resolveConversation(settings: AppSettings): CaptureResult =
         capture.read(AccessibilityBridge.foregroundPackage ?: "", settings.ocrPackageSet)
-
-    /** Ensure the on-device model is loaded; shows an error panel and returns false if not. */
-    private suspend fun ensureLocalReady(model: LocalModel): Boolean {
-        if (!LlmEngine.isSupported) {
-            panel.showError(getString(R.string.home_local_unsupported))
-            return false
-        }
-        if (!ModelStore.isReady(this, model)) {
-            panel.showError(getString(R.string.svc_local_not_downloaded, model.displayName))
-            return false
-        }
-        if (!LlmEngine.isReady) panel.showLoading(getString(R.string.svc_loading_local))
-        // Idempotent when the same model is already loaded; reloads on a size switch.
-        if (!LlmEngine.ensureLoaded(this, model)) {
-            panel.showError(getString(R.string.error_local_load_failed))
-            return false
-        }
-        return true
-    }
 
     private fun onSuggestionChosen(suggestion: String) {
         // Once chosen, the suggestion is my reply: it goes into the reply log.

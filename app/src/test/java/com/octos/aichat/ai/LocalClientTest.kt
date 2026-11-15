@@ -1,6 +1,7 @@
 package com.octos.aichat.ai
 
 import com.octos.aichat.ai.local.LlmEngine
+import com.octos.aichat.ai.local.LocalReadiness
 import com.octos.aichat.bubble.SuggestionGenerator
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.ChatMessage
@@ -17,7 +18,7 @@ import org.junit.Test
 class LocalClientTest {
 
     /** The engine is loaded unless a test says otherwise. */
-    private val ready: () -> Boolean = { true }
+    private val ready: suspend (AppSettings) -> LocalReadiness = { LocalReadiness.Ready }
 
     @Test fun normalOutputPassesThrough_withTokenCap() = runTest {
         var cap = 0
@@ -32,23 +33,32 @@ class LocalClientTest {
     }
 
     /**
-     * An unloaded model fails like any client does — as an [AiException] — instead of an
-     * IllegalArgumentException that diagnostics could only file under "other".
+     * When the on-device model can't run, the client says why — as an [AiException] with
+     * its own kind and diagnostics code — and never reaches the engine. Callers handle it
+     * like any other AiClient failure.
      */
-    @Test fun unloadedModelIsLocalNotReady_andTheEngineIsNeverCalled() = runTest {
-        var called = false
-        val client = LocalClient(isReady = { false }) { _, _, _ ->
-            called = true
-            LlmEngine.Output("x", timedOut = false)
+    @Test fun unreadyModelFailsWithTheReason_andTheEngineIsNeverCalled() = runTest {
+        val cases = listOf(
+            LocalReadiness.Unsupported to (AiException.Kind.LOCAL_UNSUPPORTED to ErrorCode.LLM_203),
+            LocalReadiness.NotDownloaded("1.5B") to
+                (AiException.Kind.LOCAL_NOT_READY to ErrorCode.LLM_205),
+            LocalReadiness.LoadFailed to (AiException.Kind.LOCAL_LOAD_FAILED to ErrorCode.LLM_202),
+        )
+        for ((readiness, expected) in cases) {
+            var called = false
+            val client = LocalClient(prepare = { readiness }) { _, _, _ ->
+                called = true
+                LlmEngine.Output("x", timedOut = false)
+            }
+            try {
+                client.complete(AppSettings(), "sys", "user")
+                fail("expected ${expected.first}")
+            } catch (e: AiException) {
+                assertEquals(expected.first, e.kind)
+                assertEquals(expected.second, e.diagnosticsCode())
+            }
+            assertEquals("$readiness must not reach the engine", false, called)
         }
-        try {
-            client.complete(AppSettings(), "sys", "user")
-            fail("expected LOCAL_NOT_READY")
-        } catch (e: AiException) {
-            assertEquals(AiException.Kind.LOCAL_NOT_READY, e.kind)
-            assertEquals(ErrorCode.LLM_205, e.diagnosticsCode())
-        }
-        assertEquals(false, called)
     }
 
     /**

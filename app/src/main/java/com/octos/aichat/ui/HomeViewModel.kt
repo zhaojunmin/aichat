@@ -10,7 +10,6 @@ import com.octos.aichat.R
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.LocalModel
 import com.octos.aichat.ai.local.ModelStore
-import com.octos.aichat.ai.local.localModel
 import com.octos.aichat.bubble.SuggestionGenerator
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.ChatMessage
@@ -119,11 +118,6 @@ class HomeViewModel(
                 ),
             )
             _testOutput.value = runCatching {
-                if (s.useLocal) {
-                    check(LlmEngine.ensureLoaded(appContext, s.localModel)) {
-                        appContext.getString(R.string.error_local_load_failed)
-                    }
-                }
                 suggestions.generate(s, sample)
             }.getOrElse {
                 listOf(appContext.getString(R.string.vm_error_prefix, it.toUserMessage(appContext)))

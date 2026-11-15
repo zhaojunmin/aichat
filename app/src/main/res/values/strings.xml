@@ -163,8 +163,6 @@
     <string name="svc_need_api_key">请先在 App 内填写 API Key</string>
     <string name="svc_ocr_no_content">截图未识别到聊天内容(需无障碍已开启)</string>
     <string name="svc_no_content">未读取到聊天内容,请打开聊天界面并开启无障碍服务</string>
-    <string name="svc_local_not_downloaded">本地模型(%1$s)未下载,请在 App 设置里下载后再用</string>
-    <string name="svc_loading_local">正在加载本地模型…</string>
     <string name="svc_filled">已填入输入框</string>
     <string name="svc_copied">已复制,去粘贴发送</string>
     <string name="svc_bubble_name">悬浮助手</string>
