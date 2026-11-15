@@ -2,6 +2,7 @@ package com.octos.aichat.ai.embedding
 
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
+import com.octos.aichat.diagnostics.Tracing
 
 /**
  * On-device sentence embedding (bge-small-zh-v1.5, MNN fp16) via the shared MNN
@@ -24,6 +25,14 @@ object Encoder {
 
     private const val QUERY_PREFIX = "为这个句子生成表示以用于检索相关文章:"
     private const val MAX_TOKENS = 256
+
+    // MNN CPU threads and power mode (BackendConfig.PowerMode: 0 normal, 1 high, 2 low).
+    // Measured on the tap path with perf-loop.sh (ELP-AN00, 6–8 taps each, back to back):
+    // 4/normal P50 137 P95 169–211 ms; 4/high 109–132 / 124–149 ms; 2/high 143 / 168;
+    // 6/high 160 / 243. High keeps the pool off the cores the vendor governor pauses,
+    // which is where the spin-waiting (sched_yield, 34% of samples) came from.
+    private const val THREADS = 4
+    private const val POWER = 1
 
     private val lock = Any()
 
@@ -69,7 +78,7 @@ object Encoder {
         if (!loadLibs()) return false
         val tk = tokenizer ?: runCatching { WordPieceTokenizer.fromFile(vocabPath) }
             .getOrElse { return failed(ErrorCode.EMB_703, it) }
-        val h = runCatching { nativeEmbedLoad(modelPath) }
+        val h = runCatching { nativeEmbedLoad(modelPath, THREADS, POWER) }
             .getOrElse { return failed(ErrorCode.EMB_703, it) }
         if (h == 0L) return failed(ErrorCode.EMB_703)
         tokenizer = tk
@@ -85,12 +94,14 @@ object Encoder {
     fun embed(text: String): FloatArray? = synchronized(lock) {
         if (!isReady) return null
         val tk = tokenizer ?: return null
-        val (ids, mask) = tk.encode(text, MAX_TOKENS)
-        runCatching { nativeEmbed(handle, ids, mask) }
-            .getOrElse {
-                failed(ErrorCode.EMB_704, it)
-                null
-            }
+        Tracing.section(Tracing.EMBED_FORWARD) {
+            val (ids, mask) = tk.encode(text, MAX_TOKENS)
+            runCatching { nativeEmbed(handle, ids, mask) }
+                .getOrElse {
+                    failed(ErrorCode.EMB_704, it)
+                    null
+                }
+        }
     }
 
     fun release() = synchronized(lock) {
@@ -101,7 +112,7 @@ object Encoder {
     }
 
     // --- native (bound in the encoder JNI build; see embedding-integration-design.md §3) ---
-    private external fun nativeEmbedLoad(modelPath: String): Long
+    private external fun nativeEmbedLoad(modelPath: String, numThread: Int, power: Int): Long
     private external fun nativeEmbed(handle: Long, ids: IntArray, mask: IntArray): FloatArray
     private external fun nativeEmbedRelease(handle: Long)
 }
