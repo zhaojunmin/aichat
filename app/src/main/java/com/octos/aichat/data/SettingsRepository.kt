@@ -90,19 +90,25 @@ class SettingsRepository private constructor(
                 if (legacyKey.isNotEmpty()) foundPlaintextKey = true
                 legacyKey
             }
-            if (baseUrl == null && model == null && apiKey.isEmpty()) null
-            else b to BackendConfig(
-                baseUrl = baseUrl ?: b.defaultBaseUrl,
-                model = model ?: b.defaultModel,
-                apiKey = apiKey,
-            )
+            if (baseUrl == null && model == null && apiKey.isEmpty()) {
+                null
+            } else {
+                b to BackendConfig(
+                    baseUrl = baseUrl ?: b.defaultBaseUrl,
+                    model = model ?: b.defaultModel,
+                    apiKey = apiKey,
+                )
+            }
         }.toMap()
 
     private fun loadApiKey(b: AiBackend): String {
         val stored = prefs.getString(apiKeyPref(b), null)
         val decoded = secrets.decode(stored)
-        if (decoded.isLegacyPlaintext) foundPlaintextKey = true
-        else if (stored != null && decoded.value.isNotEmpty()) encodedKeys[b] = decoded.value to stored
+        if (decoded.isLegacyPlaintext) {
+            foundPlaintextKey = true
+        } else if (stored != null && decoded.value.isNotEmpty()) {
+            encodedKeys[b] = decoded.value to stored
+        }
         return decoded.value
     }
 
@@ -183,11 +189,10 @@ class SettingsRepository private constructor(
         private const val KEY_THEME = "theme_variant_id"
 
         @Volatile
-        private var INSTANCE: SettingsRepository? = null
+        private var instance: SettingsRepository? = null
 
-        fun get(context: Context): SettingsRepository =
-            INSTANCE ?: synchronized(this) {
-                INSTANCE ?: SettingsRepository(context).also { INSTANCE = it }
-            }
+        fun get(context: Context): SettingsRepository = instance ?: synchronized(this) {
+            instance ?: SettingsRepository(context).also { instance = it }
+        }
     }
 }

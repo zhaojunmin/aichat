@@ -24,7 +24,13 @@ class OcrMessageFilterTest {
 
     @Test fun realMessagesAreKept() {
         listOf(
-            "明天 10:30", "好的", "约在 10:30 吧", "Meet at 10:30", "ok", "2000", "5.5 看看是不是更好",
+            "明天 10:30",
+            "好的",
+            "约在 10:30 吧",
+            "Meet at 10:30",
+            "ok",
+            "2000",
+            "5.5 看看是不是更好",
         ).forEach { assertTrue(it, msg(it)) }
     }
 }

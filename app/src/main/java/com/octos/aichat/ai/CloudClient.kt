@@ -1,6 +1,10 @@
 package com.octos.aichat.ai
 
 import com.octos.aichat.data.AppSettings
+import java.io.IOException
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
 import okhttp3.Callback
@@ -12,10 +16,6 @@ import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
-import java.io.IOException
-import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 private val JSON = "application/json; charset=utf-8".toMediaType()
 
@@ -33,8 +33,18 @@ class CloudClient(private val http: OkHttpClient = defaultHttp) : AiClient {
 
     override suspend fun complete(settings: AppSettings, system: String, user: String): String {
         val messages = JSONArray()
-            .put(JSONObject().apply { put("role", "system"); put("content", system) })
-            .put(JSONObject().apply { put("role", "user"); put("content", user) })
+            .put(
+                JSONObject().apply {
+                    put("role", "system")
+                    put("content", system)
+                },
+            )
+            .put(
+                JSONObject().apply {
+                    put("role", "user")
+                    put("content", user)
+                },
+            )
         val body = JSONObject().apply {
             put("model", settings.model)
             put("messages", messages)
@@ -84,7 +94,12 @@ class CloudClient(private val http: OkHttpClient = defaultHttp) : AiClient {
             } catch (e: JSONException) {
                 throw AiException(AiException.Kind.BAD_RESPONSE, detail = text.take(120), cause = e)
             }
-            if (content.isNullOrBlank()) throw AiException(AiException.Kind.BAD_RESPONSE, detail = "empty content")
+            if (content.isNullOrBlank()) {
+                throw AiException(
+                    AiException.Kind.BAD_RESPONSE,
+                    detail = "empty content",
+                )
+            }
             return content
         }
     }

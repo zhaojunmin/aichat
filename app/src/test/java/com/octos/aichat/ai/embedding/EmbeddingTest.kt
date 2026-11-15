@@ -1,9 +1,9 @@
 package com.octos.aichat.ai.embedding
 
+import java.io.File
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import java.io.File
 
 class VectorCodecTest {
 
@@ -29,7 +29,9 @@ class WordPieceTokenizerTest {
     private val vocab: List<String> = vocabFile.readLines().map { it.trim() }
     private val tok = WordPieceTokenizer.fromFile(vocabFile.path)
 
-    private fun id(t: String) = vocab.indexOf(t).also { require(it >= 0) { "token $t not in vocab" } }
+    private fun id(t: String) = vocab.indexOf(t).also {
+        require(it >= 0) { "token $t not in vocab" }
+    }
     private fun pieces(text: String) = tok.encode(text).first.map { vocab[it] }
 
     @Test fun wrapsWithClsAndSep() {

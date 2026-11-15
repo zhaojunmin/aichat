@@ -19,16 +19,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** The diagnostics preview: builds the export text off the main thread (it reads the log files). */
-class DiagnosticsViewModel(
-    app: Application,
-    private val settings: SettingsStore,
-) : AndroidViewModel(app) {
+class DiagnosticsViewModel(app: Application, private val settings: SettingsStore) :
+    AndroidViewModel(app) {
 
     private val _report = MutableStateFlow<String?>(null)
+
     /** The export text; null while it is being built. */
     val report: StateFlow<String?> = _report
 
-    init { refresh() }
+    init {
+        refresh()
+    }
 
     fun refresh() {
         viewModelScope.launch {
@@ -55,7 +56,10 @@ class DiagnosticsViewModel(
     companion object {
         fun factory(context: Context): ViewModelProvider.Factory = viewModelFactory {
             initializer {
-                DiagnosticsViewModel(context.applicationContext as Application, SettingsRepository.get(context))
+                DiagnosticsViewModel(
+                    context.applicationContext as Application,
+                    SettingsRepository.get(context),
+                )
             }
         }
     }

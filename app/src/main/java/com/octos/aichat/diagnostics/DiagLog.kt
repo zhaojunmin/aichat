@@ -6,6 +6,17 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
+ * Diagnostics kept at one moment: whether recording is on, the counters, and the stored
+ * events (oldest first).
+ */
+data class DiagSnapshot(
+    val enabled: Boolean,
+    val counts: Map<ErrorCode, Int>,
+    val events: List<DiagEvent>,
+    val durations: Map<TimedOp, List<Int>> = emptyMap(),
+)
+
+/**
  * The app's single entry point for diagnostics (docs/observability-design.md).
  *
  * Call sites pass an [ErrorCode] plus structured fields — there is deliberately no
@@ -16,14 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean
  * when on. Files are written on one background thread, every [FLUSH_SECONDS] or
  * when enough events pile up.
  */
-/** Diagnostics kept at one moment: whether recording is on, the counters, and the stored events (oldest first). */
-data class DiagSnapshot(
-    val enabled: Boolean,
-    val counts: Map<ErrorCode, Int>,
-    val events: List<DiagEvent>,
-    val durations: Map<TimedOp, List<Int>> = emptyMap(),
-)
-
 object DiagLog {
 
     @Volatile private var recorder: DiagnosticsRecorder? = null
@@ -43,7 +46,12 @@ object DiagLog {
         r.onPendingFull = { io.execute(::flushQuietly) }
         io.execute { runCatching { r.load() } }
         if (periodicFlush.compareAndSet(false, true)) {
-            io.scheduleWithFixedDelay(::flushQuietly, FLUSH_SECONDS, FLUSH_SECONDS, TimeUnit.SECONDS)
+            io.scheduleWithFixedDelay(
+                ::flushQuietly,
+                FLUSH_SECONDS,
+                FLUSH_SECONDS,
+                TimeUnit.SECONDS,
+            )
         }
     }
 
@@ -58,7 +66,10 @@ object DiagLog {
         val r = recorder ?: return
         if (!r.enabled) return
         r.record(code, cause, ms, http, platform, pkg)
-        echo?.invoke("${code.id} ${cause?.javaClass?.simpleName.orEmpty()} ms=$ms http=$http platform=$platform pkg=$pkg")
+        echo?.invoke(
+            "${code.id} ${cause?.javaClass?.simpleName.orEmpty()} " +
+                "ms=$ms http=$http platform=$platform pkg=$pkg",
+        )
     }
 
     /** Count one completed [op] that took [ms] (design §5.4: tap path and learning only). */
@@ -101,11 +112,17 @@ object DiagLog {
         io.execute { runCatching { r.recordExits(read(), sinceMs) } }
     }
 
-    /** What is kept right now, for the export. File IO: call off the main thread. Null before [install]. */
+    /**
+     * What is kept right now, for the export. File IO: call off the main thread. Null before
+     * [install].
+     */
     fun snapshot(): DiagSnapshot? {
         val r = recorder ?: return null
         return DiagSnapshot(
-            r.enabled, r.countsSnapshot(), if (r.enabled) r.recent(MAX_EVENTS) else emptyList(), r.durationsSnapshot(),
+            r.enabled,
+            r.countsSnapshot(),
+            if (r.enabled) r.recent(MAX_EVENTS) else emptyList(),
+            r.durationsSnapshot(),
         )
     }
 

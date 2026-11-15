@@ -1,6 +1,4 @@
 package com.octos.aichat.ui
-import com.octos.aichat.R
-
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
@@ -39,6 +37,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -53,12 +52,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.runtime.DisposableEffect
-import com.octos.aichat.data.AiBackend
-import com.octos.aichat.data.PersonaPresets
-import com.octos.aichat.data.InferenceMode
+import com.octos.aichat.R
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.LocalModel
+import com.octos.aichat.data.AiBackend
+import com.octos.aichat.data.InferenceMode
+import com.octos.aichat.data.PersonaPresets
 import kotlinx.coroutines.launch
 
 /** Bumps a counter on every ON_RESUME so permission state re-reads. */
@@ -75,12 +74,10 @@ private fun rememberResumeTick(): Int {
     }
     return tick
 }
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-internal fun HomeScreen(
-    onOpenAdvanced: () -> Unit,
-    onOpenMemory: () -> Unit,
-) {
+internal fun HomeScreen(onOpenAdvanced: () -> Unit, onOpenMemory: () -> Unit) {
     val context = LocalContext.current
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.factory(context))
     val settings by vm.settingsState.collectAsStateWithLifecycle()
@@ -104,41 +101,46 @@ internal fun HomeScreen(
     val inferenceConfigured = settings.isInferenceConfigured(localModelReady = localReady)
 
     val notifLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
+        ActivityResultContracts.RequestPermission(),
     ) { }
 
-    Scaffold(topBar = { CenterAlignedTopAppBar(title = { Text(stringResource(R.string.home_title)) }) }) { pad ->
+    Scaffold(topBar = {
+        CenterAlignedTopAppBar(title = { Text(stringResource(R.string.home_title)) })
+    }) { pad ->
         Column(
             Modifier
                 .padding(pad)
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // --- Setup checklist ---
-            SectionCard(stringResource(R.string.home_permissions_title), icon = Icons.Outlined.Lock) {
+            SectionCard(
+                stringResource(R.string.home_permissions_title),
+                icon = Icons.Outlined.Lock,
+            ) {
                 Text(
                     stringResource(R.string.home_permissions_desc),
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(8.dp))
                 PermissionRow(
                     label = stringResource(R.string.home_perm_accessibility),
                     granted = accessibilityOn,
-                    action = stringResource(R.string.action_enable)
+                    action = stringResource(R.string.action_enable),
                 ) { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
 
                 PermissionRow(
                     label = stringResource(R.string.home_perm_overlay),
                     granted = overlayOn,
-                    action = stringResource(R.string.action_enable)
+                    action = stringResource(R.string.action_enable),
                 ) {
                     context.startActivity(
                         Intent(
                             Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            Uri.parse("package:${context.packageName}")
-                        )
+                            Uri.parse("package:${context.packageName}"),
+                        ),
                     )
                 }
 
@@ -146,25 +148,31 @@ internal fun HomeScreen(
                     Spacer(Modifier.height(4.dp))
                     OutlinedButton(
                         onClick = { notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) { Text(stringResource(R.string.home_perm_notification)) }
                 }
             }
 
             // --- AI service (key + model + quick test) ---
-            SectionCard(stringResource(R.string.home_ai_service_title), icon = Icons.Outlined.AutoAwesome) {
-                Text(stringResource(R.string.home_inference_desc), style = MaterialTheme.typography.bodyMedium)
+            SectionCard(
+                stringResource(R.string.home_ai_service_title),
+                icon = Icons.Outlined.AutoAwesome,
+            ) {
+                Text(
+                    stringResource(R.string.home_inference_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = !settings.useLocal,
                         onClick = { vm.update { it.copy(inferenceMode = InferenceMode.CLOUD) } },
-                        label = { Text(stringResource(R.string.inference_cloud)) }
+                        label = { Text(stringResource(R.string.inference_cloud)) },
                     )
                     FilterChip(
                         selected = settings.useLocal,
                         onClick = { vm.update { it.copy(inferenceMode = InferenceMode.LOCAL) } },
-                        label = { Text(stringResource(R.string.inference_local)) }
+                        label = { Text(stringResource(R.string.inference_local)) },
                     )
                 }
                 Spacer(Modifier.height(8.dp))
@@ -174,25 +182,37 @@ internal fun HomeScreen(
                             FilterChip(
                                 selected = settings.backend == b,
                                 onClick = { vm.update { it.copy(backend = b) } },
-                                label = { Text(b.displayName) }
+                                label = { Text(b.displayName) },
                             )
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    LabeledField(stringResource(R.string.label_api_key), settings.apiKey, isSecret = true) { v ->
+                    LabeledField(
+                        stringResource(R.string.label_api_key),
+                        settings.apiKey,
+                        isSecret = true,
+                    ) { v ->
                         vm.update { it.withApiKey(v) }
                     }
-                    LabeledField(stringResource(R.string.label_model), settings.model) { v -> vm.update { it.withModel(v) } }
+                    LabeledField(stringResource(R.string.label_model), settings.model) { v ->
+                        vm.update { it.withModel(v) }
+                    }
                 } else if (!LlmEngine.isSupported) {
-                    Text(stringResource(R.string.home_local_unsupported), color = MaterialTheme.colorScheme.error)
+                    Text(
+                        stringResource(R.string.home_local_unsupported),
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         LocalModel.entries.forEach { m ->
                             FilterChip(
                                 selected = settings.localModelId == m.id,
                                 enabled = !localDownloading,
-                                onClick = { vm.update { it.copy(localModelId = m.id) }; vm.clearModelError() },
-                                label = { Text(m.displayName) }
+                                onClick = {
+                                    vm.update { it.copy(localModelId = m.id) }
+                                    vm.clearModelError()
+                                },
+                                label = { Text(m.displayName) },
                             )
                         }
                     }
@@ -201,15 +221,18 @@ internal fun HomeScreen(
                         stringResource(
                             R.string.home_model_size,
                             stringResource(settings.localModel.hintRes),
-                            settings.localModel.approxMB
+                            settings.localModel.approxMb,
                         ),
-                        style = MaterialTheme.typography.bodySmall
+                        style = MaterialTheme.typography.bodySmall,
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        if (localReady) stringResource(R.string.status_ready)
-                        else stringResource(R.string.home_model_not_downloaded),
-                        style = MaterialTheme.typography.bodyMedium
+                        if (localReady) {
+                            stringResource(R.string.status_ready)
+                        } else {
+                            stringResource(R.string.home_model_not_downloaded)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                     if (localDownloading) {
                         Spacer(Modifier.height(6.dp))
@@ -217,25 +240,39 @@ internal fun HomeScreen(
                     }
                     localError?.let { err ->
                         Spacer(Modifier.height(6.dp))
-                        Text(stringResource(R.string.home_error_prefix, err), color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            stringResource(R.string.home_error_prefix, err),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                     }
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (!localReady) {
                             Button(
                                 enabled = !localDownloading,
-                                onClick = { vm.downloadModel(settings.localModel) }
+                                onClick = { vm.downloadModel(settings.localModel) },
                             ) {
                                 if (localDownloading) {
-                                    CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
-                                    Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.home_downloading))
-                                } else Text(stringResource(R.string.home_download_model, settings.localModel.displayName))
+                                    CircularProgressIndicator(
+                                        Modifier.height(18.dp).width(18.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(stringResource(R.string.home_downloading))
+                                } else {
+                                    Text(
+                                        stringResource(
+                                            R.string.home_download_model,
+                                            settings.localModel.displayName,
+                                        ),
+                                    )
+                                }
                             }
                         } else {
                             OutlinedButton(
                                 enabled = !localDownloading,
-                                onClick = { vm.deleteModel(settings.localModel) }
+                                onClick = { vm.deleteModel(settings.localModel) },
                             ) { Text(stringResource(R.string.action_delete)) }
                         }
                     }
@@ -244,20 +281,36 @@ internal fun HomeScreen(
                 Button(
                     enabled = !testing && inferenceConfigured,
                     onClick = { vm.runConnectionTest() },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     if (testing) {
-                        CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(
+                            Modifier.height(18.dp).width(18.dp),
+                            strokeWidth = 2.dp,
+                        )
                         Spacer(Modifier.width(8.dp))
-                        Text(if (settings.useLocal) stringResource(R.string.home_testing_local)
-                             else stringResource(R.string.home_testing_cloud))
-                    } else Text(stringResource(R.string.test_connection))
+                        Text(
+                            if (settings.useLocal) {
+                                stringResource(R.string.home_testing_local)
+                            } else {
+                                stringResource(R.string.home_testing_cloud)
+                            },
+                        )
+                    } else {
+                        Text(stringResource(R.string.test_connection))
+                    }
                 }
             }
 
             // --- Reply style ---
-            SectionCard(stringResource(R.string.home_reply_style_title), icon = Icons.Outlined.Chat) {
-                Text(stringResource(R.string.home_reply_style_desc), style = MaterialTheme.typography.bodyMedium)
+            SectionCard(
+                stringResource(R.string.home_reply_style_title),
+                icon = Icons.Outlined.Chat,
+            ) {
+                Text(
+                    stringResource(R.string.home_reply_style_desc),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 Spacer(Modifier.height(8.dp))
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -265,9 +318,12 @@ internal fun HomeScreen(
                 ) {
                     PersonaPresets.DEFAULTS.forEach { preset ->
                         FilterChip(
-                            selected = settings.customPersona.isBlank() && settings.personaId == preset.id,
-                            onClick = { vm.update { it.copy(personaId = preset.id, customPersona = "") } },
-                            label = { Text(stringResource(preset.titleRes)) }
+                            selected =
+                                settings.customPersona.isBlank() && settings.personaId == preset.id,
+                            onClick = {
+                                vm.update { it.copy(personaId = preset.id, customPersona = "") }
+                            },
+                            label = { Text(stringResource(preset.titleRes)) },
                         )
                     }
                 }
@@ -275,49 +331,64 @@ internal fun HomeScreen(
                 LabeledField(
                     stringResource(R.string.home_custom_persona_label),
                     settings.customPersona,
-                    singleLine = false
+                    singleLine = false,
                 ) { v -> vm.update { it.copy(customPersona = v) } }
             }
 
             // --- Personal memory ---
-            SectionCard(stringResource(R.string.home_memory_title), icon = Icons.Outlined.Psychology) {
+            SectionCard(
+                stringResource(R.string.home_memory_title),
+                icon = Icons.Outlined.Psychology,
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.home_memory_switch_label))
                         Text(
                             stringResource(R.string.home_memory_desc),
-                            style = MaterialTheme.typography.bodySmall
+                            style = MaterialTheme.typography.bodySmall,
                         )
                     }
                     Switch(
                         checked = settings.memoryEnabled,
-                        onCheckedChange = { c -> vm.update { it.copy(memoryEnabled = c) } }
+                        onCheckedChange = { c -> vm.update { it.copy(memoryEnabled = c) } },
                     )
                 }
                 if (settings.memoryEnabled) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        stringResource(R.string.home_memory_stats, memStats.totalReplies, memories.size),
-                        style = MaterialTheme.typography.bodyMedium
+                        stringResource(
+                            R.string.home_memory_stats,
+                            memStats.totalReplies,
+                            memories.size,
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(
-                            enabled = !memStats.learning && memStats.pending > 0 && inferenceConfigured,
-                            onClick = { vm.learnNow() }
+                            enabled =
+                                !memStats.learning && memStats.pending > 0 && inferenceConfigured,
+                            onClick = { vm.learnNow() },
                         ) {
                             if (memStats.learning) {
-                                CircularProgressIndicator(Modifier.height(18.dp).width(18.dp), strokeWidth = 2.dp)
+                                CircularProgressIndicator(
+                                    Modifier.height(18.dp).width(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
                                 Spacer(Modifier.width(8.dp))
                                 Text(stringResource(R.string.home_learning))
-                            } else Text(stringResource(R.string.home_learn_now))
+                            } else {
+                                Text(stringResource(R.string.home_learn_now))
+                            }
                         }
-                        OutlinedButton(onClick = onOpenMemory) { Text(stringResource(R.string.home_manage_memory)) }
+                        OutlinedButton(onClick = onOpenMemory) {
+                            Text(stringResource(R.string.home_manage_memory))
+                        }
                     }
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
                         onClick = { vm.clearMemory() },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     ) { Text(stringResource(R.string.home_clear_memory)) }
                 }
             }
@@ -325,7 +396,7 @@ internal fun HomeScreen(
             // --- Entry to advanced ---
             OutlinedButton(
                 onClick = onOpenAdvanced,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.home_advanced_entry)) }
             Spacer(Modifier.height(8.dp))
         }
@@ -334,14 +405,17 @@ internal fun HomeScreen(
     testOutput?.let { replies ->
         AlertDialog(
             onDismissRequest = { vm.dismissTest() },
-            confirmButton = { TextButton(onClick = { vm.dismissTest() }) { Text(stringResource(R.string.action_close)) } },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.dismissTest()
+                }) { Text(stringResource(R.string.action_close)) }
+            },
             title = { Text(stringResource(R.string.home_test_result_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     replies.forEachIndexed { i, r -> Text("${i + 1}. $r") }
                 }
-            }
+            },
         )
     }
-
 }

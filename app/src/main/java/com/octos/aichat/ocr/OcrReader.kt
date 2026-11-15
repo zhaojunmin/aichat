@@ -58,7 +58,8 @@ object OcrReader {
                 .sortedBy { it.first.top }
                 .joinToString(" ") { it.second }
                 .trim()
-            if (content.isEmpty() || !OcrMessageFilter.looksLikeMessage(content) || content == last) continue
+            if (content.isEmpty() || content == last) continue
+            if (!OcrMessageFilter.looksLikeMessage(content)) continue
             messages.add(ChatMessage(bounds.speaker, content))
             last = content
         }
@@ -92,8 +93,11 @@ object OcrReader {
         // Upper bound: the first full date-time stamp marks where the chat starts,
         // so the profile card above it is excluded. Fall back to a fixed band.
         val firstStamp = all.indexOfFirst { OcrMessageFilter.DATE_RE.containsMatchIn(it.text) }
-        val minY = if (firstStamp >= 0) all[firstStamp].top.toFloat()
-        else h * 0.08f
+        val minY = if (firstStamp >= 0) {
+            all[firstStamp].top.toFloat()
+        } else {
+            h * 0.08f
+        }
         // Lower bound: only exclude the gesture nav bar at the very bottom. The
         // input box text ("请输入消息" / "发送") is dropped by looksLikeMessage,
         // so we can keep the band low enough to retain the latest messages that
@@ -103,10 +107,13 @@ object OcrReader {
         // Drop timestamps / system lines first, so they can never be glued onto a
         // neighbouring block (e.g. OCR noise from the wallpaper right above a time).
         val candidates = all.filter {
-            (h <= 0 || ((it.top + it.bottom) / 2).toFloat() in minY..maxY) && OcrMessageFilter.looksLikeMessage(it.text)
+            val centerY = ((it.top + it.bottom) / 2).toFloat()
+            (h <= 0 || centerY in minY..maxY) && OcrMessageFilter.looksLikeMessage(it.text)
         }
         // One bubble's wrapped lines can come back as separate blocks; stitch them.
-        val merged = MessageLineMerger.merge(candidates) { upper, lower -> gapInsideMessage(bitmap, upper, lower) }
+        val merged = MessageLineMerger.merge(candidates) { upper, lower ->
+            gapInsideMessage(bitmap, upper, lower)
+        }
         // Group chats: drop the sender name printed above each bubble.
         val blocks = SenderNameFilter.drop(merged) { name, below ->
             val a = paddingColor(bitmap, name, name.lineHeight)
@@ -121,9 +128,11 @@ object OcrReader {
         var last: String? = null
         for (b in blocks) {
             val content = b.text
-            if (!OcrMessageFilter.looksLikeMessage(content)) continue // e.g. merged text now over the length cap
+            // e.g. merged text now over the length cap
+            if (!OcrMessageFilter.looksLikeMessage(content)) continue
             if (content == last) continue
-            messages.add(ChatMessage(classify(bitmap, Rect(b.left, b.top, b.right, b.bottom), screenWidth), content))
+            val speaker = classify(bitmap, Rect(b.left, b.top, b.right, b.bottom), screenWidth)
+            messages.add(ChatMessage(speaker, content))
             last = content
         }
         return Conversation(pkg, messages)

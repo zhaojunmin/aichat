@@ -19,8 +19,7 @@ class MemoryEmbedder(
 ) {
 
     /** Load the model if [enabled]; returns whether the engine is now usable. */
-    fun prepare(enabled: Boolean): Boolean =
-        enabled && embedder.prepare(context)
+    fun prepare(enabled: Boolean): Boolean = enabled && embedder.prepare(context)
 
     /**
      * Compute + store vectors for active rows with missing/stale embeddings.

@@ -36,7 +36,10 @@ internal data class OcrBlock(
 internal object MessageLineMerger {
 
     /** @param blocks in any order; returned top to bottom. */
-    fun merge(blocks: List<OcrBlock>, sameMessage: (upper: OcrBlock, lower: OcrBlock) -> Boolean): List<OcrBlock> {
+    fun merge(
+        blocks: List<OcrBlock>,
+        sameMessage: (upper: OcrBlock, lower: OcrBlock) -> Boolean,
+    ): List<OcrBlock> {
         val out = ArrayList<OcrBlock>()
         for (b in blocks.sortedBy { it.top }) {
             val prev = out.lastOrNull()
@@ -83,5 +86,5 @@ internal object MessageLineMerger {
     private fun Char.isCjk(): Boolean =
         Character.UnicodeScript.of(code) == Character.UnicodeScript.HAN ||
             code in 0x3000..0x303F || // CJK symbols & punctuation (。、「」)
-            code in 0xFF00..0xFFEF    // full-width forms (，！？：)
+            code in 0xFF00..0xFFEF // full-width forms (，！？：)
 }

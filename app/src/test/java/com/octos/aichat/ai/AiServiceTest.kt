@@ -74,7 +74,15 @@ class AiServiceTest {
 
     // R3: content-free answers yield no candidates (never a blank or literal "[]" one).
     @Test fun parseReplies_contentFreeAnswersAreEmpty() {
-        for (raw in listOf("", "   \n\t", "[]", "```json\n[]\n```", "```", """["", "  "]""", "-\n•\n1.")) {
+        for (raw in listOf(
+            "",
+            "   \n\t",
+            "[]",
+            "```json\n[]\n```",
+            "```",
+            """["", "  "]""",
+            "-\n•\n1.",
+        )) {
             assertEquals("for input <$raw>", emptyList<String>(), service.parseReplies(raw, 3))
         }
     }
@@ -103,8 +111,10 @@ class AiServiceTest {
     @Test fun parseLearn_fullObject() {
         val raw = """
             ```json
-            {"additions":[{"category":"事实","content":"在北京做程序员","keywords":"北京, 程序员、工作","importance":8}],
-             "updates":[{"id":12,"category":"偏好","content":"现在改喝拿铁","keywords":"拿铁","importance":5}],
+            {"additions":[{"category":"事实","content":"在北京做程序员",
+                           "keywords":"北京, 程序员、工作","importance":8}],
+             "updates":[{"id":12,"category":"偏好","content":"现在改喝拿铁",
+                         "keywords":"拿铁","importance":5}],
              "deletions":[7]}
             ```
         """.trimIndent()
@@ -169,7 +179,10 @@ class AiServiceTest {
     @Test fun generate_clampsSuggestionCount() = runTest {
         val fake = FakeClient("""["1","2","3","4","5","6","7"]""")
         val svc = AiService { fake }
-        val out = svc.generateReplies(cloudSettings.copy(suggestionCount = 99), conv(Speaker.OTHER to "hi"))
+        val out = svc.generateReplies(
+            cloudSettings.copy(suggestionCount = 99),
+            conv(Speaker.OTHER to "hi"),
+        )
         assertEquals(5, out.size)
         assertTrue(fake.user!!.contains("给 5 条"))
     }
@@ -178,7 +191,9 @@ class AiServiceTest {
     @Test fun generate_emptyAnswerIsBadResponse() = runTest {
         for (answer in listOf("", "[]", "```json\n[]\n```")) {
             try {
-                AiService { FakeClient(answer) }.generateReplies(cloudSettings, conv(Speaker.OTHER to "hi"))
+                AiService {
+                    FakeClient(answer)
+                }.generateReplies(cloudSettings, conv(Speaker.OTHER to "hi"))
                 fail("expected BAD_RESPONSE for <$answer>")
             } catch (e: AiException) {
                 assertEquals(AiException.Kind.BAD_RESPONSE, e.kind)
@@ -186,12 +201,17 @@ class AiServiceTest {
         }
     }
 
-    /** R4: a cloud failure reaches the caller with its kind intact (the UI picks the hint from it). */
+    /**
+     * R4: a cloud failure reaches the caller with its kind intact (the UI picks the hint from it).
+     */
     @Test fun generate_clientErrorKindIsPreserved() = runTest {
         val svc = AiService {
             object : AiClient {
-                override suspend fun complete(settings: AppSettings, system: String, user: String): String =
-                    throw AiException(AiException.Kind.INSUFFICIENT_BALANCE, 402)
+                override suspend fun complete(
+                    settings: AppSettings,
+                    system: String,
+                    user: String,
+                ): String = throw AiException(AiException.Kind.INSUFFICIENT_BALANCE, 402)
             }
         }
         try {
@@ -244,8 +264,11 @@ class AiServiceTest {
     @Test fun learn_clientFailureReturnsNull() = runTest {
         val svc = AiService {
             object : AiClient {
-                override suspend fun complete(settings: AppSettings, system: String, user: String): String =
-                    throw AiException(AiException.Kind.SERVER, 500, "boom")
+                override suspend fun complete(
+                    settings: AppSettings,
+                    system: String,
+                    user: String,
+                ): String = throw AiException(AiException.Kind.SERVER, 500, "boom")
             }
         }
         assertNull(svc.learnMemory(cloudSettings, emptyList(), listOf("x")))
@@ -259,9 +282,11 @@ class AiServiceTest {
 
     // ---- reply time budget -------------------------------------------------
 
-    private class SlowClient(private val ms: Long, private val answer: String = """["慢"]""") : AiClient {
+    private class SlowClient(private val ms: Long, private val answer: String = """["慢"]""") :
+        AiClient {
         override suspend fun complete(settings: AppSettings, system: String, user: String): String {
-            delay(ms); return answer
+            delay(ms)
+            return answer
         }
     }
 

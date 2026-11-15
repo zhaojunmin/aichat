@@ -22,8 +22,12 @@ object ModelStore {
 
     // Docs / metadata we don't need at runtime.
     private val SKIP = setOf(
-        ".gitattributes", "README.md", "LICENSE",
-        "configuration.json", "export_args.json", "refresh_metadata.json",
+        ".gitattributes",
+        "README.md",
+        "LICENSE",
+        "configuration.json",
+        "export_args.json",
+        "refresh_metadata.json",
     )
 
     private val http: OkHttpClient = OkHttpClient.Builder()
@@ -34,8 +38,7 @@ object ModelStore {
     fun dir(ctx: Context, model: LocalModel): File = File(ctx.filesDir, "llm/${model.id}")
     fun configPath(ctx: Context, model: LocalModel): String =
         File(dir(ctx, model), "config.json").absolutePath
-    fun tmpDir(ctx: Context): String =
-        File(ctx.cacheDir, "llm-tmp").apply { mkdirs() }.absolutePath
+    fun tmpDir(ctx: Context): String = File(ctx.cacheDir, "llm-tmp").apply { mkdirs() }.absolutePath
 
     /**
      * Ready when the config and the weight file are present. Weights are streamed
@@ -85,7 +88,11 @@ object ModelStore {
                     .url("https://modelscope.cn/models/${model.repo}/resolve/master/$name")
                     .build()
                 http.newCall(req).execute().use { resp ->
-                    if (!resp.isSuccessful) error(ctx.getString(R.string.ms_download_http, name, resp.code))
+                    if (!resp.isSuccessful) {
+                        error(
+                            ctx.getString(R.string.ms_download_http, name, resp.code),
+                        )
+                    }
                     val body = resp.body ?: error(ctx.getString(R.string.ms_empty_resp, name))
                     part.outputStream().use { out ->
                         body.byteStream().use { input ->
@@ -102,7 +109,9 @@ object ModelStore {
                 }
                 check(part.renameTo(dest)) { ctx.getString(R.string.ms_write_failed, name) }
             }
-        }.onFailure { if (it !is CancellationException) DiagLog.record(ErrorCode.LLM_204, cause = it) }
+        }.onFailure {
+            if (it !is CancellationException) DiagLog.record(ErrorCode.LLM_204, cause = it)
+        }
     }
 
     /** Discover downloadable files + sizes from the ModelScope files API. */
@@ -113,7 +122,8 @@ object ModelStore {
         http.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) error(ctx.getString(R.string.ms_manifest_http, resp.code))
             val files = JSONObject(resp.body?.string().orEmpty())
-                .optJSONObject("Data")?.optJSONArray("Files") ?: error(ctx.getString(R.string.ms_manifest_empty))
+                .optJSONObject("Data")?.optJSONArray("Files")
+                ?: error(ctx.getString(R.string.ms_manifest_empty))
             val out = ArrayList<Pair<String, Long>>()
             for (i in 0 until files.length()) {
                 val o = files.optJSONObject(i) ?: continue

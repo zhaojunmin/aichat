@@ -24,11 +24,13 @@ internal object SenderNameFilter {
     private const val MAX_SIZE_RATIO = 0.92f
 
     /** @param blocks top to bottom (as [MessageLineMerger.merge] returns them). */
-    fun drop(blocks: List<OcrBlock>, sameBackground: (name: OcrBlock, below: OcrBlock) -> Boolean): List<OcrBlock> =
-        blocks.filterIndexed { i, b ->
-            val below = blocks.getOrNull(i + 1)
-            !(below != null && looksLikeNameAbove(b, below) && !sameBackground(b, below))
-        }
+    fun drop(
+        blocks: List<OcrBlock>,
+        sameBackground: (name: OcrBlock, below: OcrBlock) -> Boolean,
+    ): List<OcrBlock> = blocks.filterIndexed { i, b ->
+        val below = blocks.getOrNull(i + 1)
+        !(below != null && looksLikeNameAbove(b, below) && !sameBackground(b, below))
+    }
 
     internal fun looksLikeNameAbove(name: OcrBlock, below: OcrBlock): Boolean {
         if (name.lines != 1 || name.text.length > MAX_NAME_CHARS) return false

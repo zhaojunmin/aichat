@@ -47,7 +47,11 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
     private val settingsRepo = SettingsRepository.get(appContext)
     private val replyLog = ReplyLog(appContext, db.learningStateDao())
     private val embedder = MemoryEmbedder(appContext, dao)
-    private val learningPass = MemoryLearningPass(replyLog, dao, inTransaction = { block -> db.withTransaction { block() } })
+    private val learningPass = MemoryLearningPass(
+        replyLog,
+        dao,
+        inTransaction = { block -> db.withTransaction { block() } },
+    )
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val learnLock = Mutex() // only one learning pass at a time
@@ -65,7 +69,10 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
     init {
         scope.launch {
             val counts = replyLog.primeRecent()
-            _stats.value = _stats.value.copy(totalReplies = counts.total, learnedReplies = counts.learned)
+            _stats.value = _stats.value.copy(
+                totalReplies = counts.total,
+                learnedReplies = counts.learned,
+            )
             refreshMemories()
             prepareEmbedding()
         }
@@ -138,7 +145,9 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
         try {
             // Loading can take seconds, so it happens after the UI shows "learning".
             // Idempotent when the bubble already loaded the same model.
-            if (settings.useLocal && !LlmEngine.ensureLoaded(appContext, settings.localModel)) return
+            if (settings.useLocal && !LlmEngine.ensureLoaded(appContext, settings.localModel)) {
+                return
+            }
             val started = System.nanoTime()
             val learned = learningPass.run { existing, replies ->
                 AiService.instance.learnMemory(settings, existing, replies)
@@ -150,7 +159,8 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
         } catch (e: CancellationException) {
             throw e // a cancelled pass must stay cancelled, not be swallowed as a failure
         } catch (e: Exception) {
-            // MemoryLearningPass leaves the learned offset untouched, so it retries on the next trigger.
+            // MemoryLearningPass leaves the learned offset untouched, so it retries on the next
+            // trigger.
             DiagLog.record(ErrorCode.MEM_601, cause = e)
         } finally {
             _stats.value = _stats.value.copy(learning = false)
@@ -206,7 +216,8 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
 
     /** Load the on-device embedding model (if enabled) and backfill missing vectors. */
     private suspend fun prepareEmbedding() {
-        if (embedder.prepare(settingsRepo.current().memoryEmbeddingEnabled) && embedder.backfill()) {
+        val enabled = settingsRepo.current().memoryEmbeddingEnabled
+        if (embedder.prepare(enabled) && embedder.backfill()) {
             refreshMemories()
         }
     }
@@ -220,11 +231,10 @@ class MemoryRepository private constructor(context: Context) : MemoryStore {
         private const val DELETED_BY_USER = "user"
 
         @Volatile
-        private var INSTANCE: MemoryRepository? = null
+        private var instance: MemoryRepository? = null
 
-        fun get(context: Context): MemoryRepository =
-            INSTANCE ?: synchronized(this) {
-                INSTANCE ?: MemoryRepository(context).also { INSTANCE = it }
-            }
+        fun get(context: Context): MemoryRepository = instance ?: synchronized(this) {
+            instance ?: MemoryRepository(context).also { instance = it }
+        }
     }
 }

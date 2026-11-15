@@ -37,18 +37,41 @@ class MemoryDatabaseMigrationTest {
         add("`category` TEXT NOT NULL")
         add("`content` TEXT NOT NULL")
         add("`updatedAt` INTEGER NOT NULL")
-        if (version >= 2) { add("`keywords` TEXT NOT NULL DEFAULT ''"); add("`importance` INTEGER NOT NULL DEFAULT 5") }
-        if (version >= 3) { add("`deletedAt` INTEGER NOT NULL DEFAULT 0"); add("`deletedBy` TEXT NOT NULL DEFAULT ''") }
-        if (version >= 4) { add("`embedding` BLOB"); add("`embeddingVersion` INTEGER NOT NULL DEFAULT 0") }
+        if (version >=
+            2
+        ) {
+            add("`keywords` TEXT NOT NULL DEFAULT ''")
+            add("`importance` INTEGER NOT NULL DEFAULT 5")
+        }
+        if (version >=
+            3
+        ) {
+            add("`deletedAt` INTEGER NOT NULL DEFAULT 0")
+            add("`deletedBy` TEXT NOT NULL DEFAULT ''")
+        }
+        if (version >=
+            4
+        ) {
+            add("`embedding` BLOB")
+            add("`embeddingVersion` INTEGER NOT NULL DEFAULT 0")
+        }
     }
 
     private fun createOldDatabase(version: Int) {
         val file = context.getDatabasePath(name).apply { parentFile?.mkdirs() }
         SQLiteDatabase.openOrCreateDatabase(file, null).use { db ->
             db.execSQL("CREATE TABLE `memory` (${columns(version).joinToString()})")
-            db.execSQL("INSERT INTO memory (category, content, updatedAt) VALUES ('事实', '在北京做程序员', 100)")
-            db.execSQL("INSERT INTO memory (category, content, updatedAt) VALUES ('偏好', '喜欢拿铁', 200)")
-            if (version >= 3) db.execSQL("UPDATE memory SET deletedAt = 300, deletedBy = 'user' WHERE id = 2")
+            db.execSQL(
+                "INSERT INTO memory (category, content, updatedAt) VALUES ('事实', '在北京做程序员', 100)",
+            )
+            db.execSQL(
+                "INSERT INTO memory (category, content, updatedAt) VALUES ('偏好', '喜欢拿铁', 200)",
+            )
+            if (version >=
+                3
+            ) {
+                db.execSQL("UPDATE memory SET deletedAt = 300, deletedBy = 'user' WHERE id = 2")
+            }
             db.version = version
         }
     }
@@ -61,7 +84,13 @@ class MemoryDatabaseMigrationTest {
         try {
             val dao = db.memoryDao()
             val all = dao.all() + dao.allDeleted()
-            assertEquals("v$version: no rows lost", setOf("在北京做程序员", "喜欢拿铁"), all.map { it.content }.toSet())
+            assertEquals(
+                "v$version: no rows lost",
+                setOf("在北京做程序员", "喜欢拿铁"),
+                all.map {
+                    it.content
+                }.toSet(),
+            )
 
             val first = all.single { it.id == 1L }
             assertEquals(100L, first.updatedAt)
@@ -73,7 +102,16 @@ class MemoryDatabaseMigrationTest {
             assertNull(first.embedding)
             assertEquals(0, first.embeddingVersion)
             // v3+ kept its recycle bin; older versions had none, so everything stays active.
-            assertEquals(if (version >= 3) listOf(2L) else emptyList(), dao.allDeleted().map { it.id })
+            assertEquals(
+                if (version >=
+                    3
+                ) {
+                    listOf(2L)
+                } else {
+                    emptyList()
+                },
+                dao.allDeleted().map { it.id },
+            )
 
             // The learner's progress starts unset; ReplyLog moves the old prefs value in.
             assertNull(db.learningStateDao().learnedReplies())
@@ -83,7 +121,10 @@ class MemoryDatabaseMigrationTest {
     }
 
     @Test fun fromV1() = upgradeFrom(1)
+
     @Test fun fromV2() = upgradeFrom(2)
+
     @Test fun fromV3() = upgradeFrom(3)
+
     @Test fun fromV4() = upgradeFrom(4)
 }

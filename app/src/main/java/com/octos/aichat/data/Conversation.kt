@@ -3,20 +3,13 @@ package com.octos.aichat.data
 /** Who authored a line in the on-screen conversation. */
 enum class Speaker { ME, OTHER }
 
-data class ChatMessage(
-    val speaker: Speaker,
-    val text: String,
-)
+data class ChatMessage(val speaker: Speaker, val text: String)
 
-data class Conversation(
-    val packageName: String,
-    val messages: List<ChatMessage>,
-) {
+data class Conversation(val packageName: String, val messages: List<ChatMessage>) {
     val isEmpty: Boolean get() = messages.isEmpty()
 
     /** The most recent message from the other party, if any. */
-    fun lastFromOther(): String? =
-        messages.lastOrNull { it.speaker == Speaker.OTHER }?.text
+    fun lastFromOther(): String? = messages.lastOrNull { it.speaker == Speaker.OTHER }?.text
 
     /**
      * Drop trailing messages I authored. When generating a reply we want the AI
@@ -26,7 +19,13 @@ data class Conversation(
     fun withoutTrailingMine(): Conversation {
         var end = messages.size
         while (end > 0 && messages[end - 1].speaker == Speaker.ME) end--
-        return if (end == messages.size) this else copy(messages = messages.subList(0, end).toList())
+        return if (end ==
+            messages.size
+        ) {
+            this
+        } else {
+            copy(messages = messages.subList(0, end).toList())
+        }
     }
 
     /** Render as plain transcript lines for the LLM prompt. */

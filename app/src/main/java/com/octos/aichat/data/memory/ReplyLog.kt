@@ -52,7 +52,12 @@ class ReplyLog(context: Context, private val state: LearningStateDao) : ReplyLed
     suspend fun append(raw: String): Boolean = lock.withLock {
         val text = normalize(raw)
         if (text.isEmpty() || !recent.add(text)) return@withLock false
-        if (recent.size > RECENT_MEMORY) recent.iterator().let { it.next(); it.remove() }
+        if (recent.size > RECENT_MEMORY) {
+            recent.iterator().let {
+                it.next()
+                it.remove()
+            }
+        }
         runCatching { file.appendText("${System.currentTimeMillis()}\t$text\n") }
             .onFailure { DiagLog.record(ErrorCode.MEM_603, cause = it) }
         true

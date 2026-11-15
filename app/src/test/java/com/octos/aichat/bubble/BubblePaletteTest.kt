@@ -9,7 +9,7 @@ import org.junit.Test
 class BubblePaletteTest {
 
     @Test
-    fun `palette is taken from the theme's color scheme`() {
+    fun paletteIsTakenFromThemeColorScheme() {
         val scheme = ThemeVariant.DAIQING.colorScheme
         val p = BubblePalette.from(scheme)
         assertEquals(scheme.primary.toArgb(), p.ball)
@@ -19,7 +19,7 @@ class BubblePaletteTest {
     }
 
     @Test
-    fun `light and dark themes give different overlays`() {
+    fun lightAndDarkThemesGiveDifferentOverlays() {
         val light = BubblePalette.from(ThemeVariant.PAPER.colorScheme)
         val dark = BubblePalette.from(ThemeVariant.INK.colorScheme)
         assertNotEquals(light.panel, dark.panel)

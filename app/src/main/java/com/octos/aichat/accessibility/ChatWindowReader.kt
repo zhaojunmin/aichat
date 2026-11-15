@@ -30,7 +30,10 @@ class ChatWindowReader(private val service: AccessibilityService) {
     private val screenWidth: Int get() = service.resources.displayMetrics.widthPixels
     private val screenHeight: Int get() = service.resources.displayMetrics.heightPixels
 
-    /** Parse [pkg]'s chat window as it is right now; empty when it can't be read. Off the main thread. */
+    /**
+     * Parse [pkg]'s chat window as it is right now; empty when it can't be read. Off the main
+     * thread.
+     */
     suspend fun readConversation(pkg: String): Conversation = withContext(Dispatchers.IO) {
         try {
             Tracing.section(Tracing.A11Y_PARSE) {
@@ -58,10 +61,15 @@ class ChatWindowReader(private val service: AccessibilityService) {
             .firstOrNull { it.packageName?.toString() == pkg }
             ?: service.rootInActiveWindow?.takeIf { it.packageName?.toString() == pkg }
 
-    /** Chat message bounds for apps with a [MessageBoundsLocator] rule; empty otherwise. A full tree walk, so off the main thread. */
+    /**
+     * Chat message bounds for apps with a [MessageBoundsLocator] rule; empty otherwise. A full tree
+     * walk, so off the main thread.
+     */
     suspend fun locateMessageBounds(pkg: String): List<MessageBounds> {
         if (!MessageBoundsLocator.hasRule(pkg)) return emptyList()
-        return withContext(Dispatchers.IO) { MessageBoundsLocator.locate(service.rootInActiveWindow, screenWidth, pkg) }
+        return withContext(Dispatchers.IO) {
+            MessageBoundsLocator.locate(service.rootInActiveWindow, screenWidth, pkg)
+        }
     }
 
     /**
@@ -83,7 +91,10 @@ class ChatWindowReader(private val service: AccessibilityService) {
                 object : TakeScreenshotCallback {
                     override fun onSuccess(result: ScreenshotResult) {
                         val software = try {
-                            val hw = Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
+                            val hw = Bitmap.wrapHardwareBuffer(
+                                result.hardwareBuffer,
+                                result.colorSpace,
+                            )
                             val copy = hw?.copy(Bitmap.Config.ARGB_8888, false)
                             hw?.recycle()
                             copy
@@ -101,7 +112,7 @@ class ChatWindowReader(private val service: AccessibilityService) {
                         DiagLog.record(ErrorCode.A11Y_304, platform = errorCode, pkg = pkg)
                         if (cont.isActive) cont.resume(null)
                     }
-                }
+                },
             )
         } catch (e: Exception) {
             DiagLog.record(ErrorCode.A11Y_304, cause = e, pkg = pkg)

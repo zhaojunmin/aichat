@@ -19,8 +19,12 @@ class ForegroundTracker(
     private var current: ForegroundApp? = null
 
     /** True when the event can't change the foreground, so [track] can be skipped. */
-    fun canSkip(event: AccessibilityEvent): Boolean =
-        isRoutineUpdateOfForegroundApp(event.eventType, event.packageName, current?.pkg, dumpingRawTree())
+    fun canSkip(event: AccessibilityEvent): Boolean = isRoutineUpdateOfForegroundApp(
+        event.eventType,
+        event.packageName,
+        current?.pkg,
+        dumpingRawTree(),
+    )
 
     /**
      * Drive foreground state only from the *active window's* package. The IME,
@@ -39,7 +43,8 @@ class ForegroundTracker(
         // Re-evaluated every time so an edited target list applies at once; only
         // allocate when something actually changed.
         val target = isTarget(pkg)
-        val app = current?.takeIf { it.pkg == pkg && it.isTarget == target } ?: ForegroundApp(pkg, target)
+        val app =
+            current?.takeIf { it.pkg == pkg && it.isTarget == target } ?: ForegroundApp(pkg, target)
         current = app
         publish(app)
         return app
@@ -66,6 +71,8 @@ internal fun isRoutineUpdateOfForegroundApp(
     if (captureRawTree || foregroundPackage == null || eventPackage == null) return false
     if (eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
         eventType != AccessibilityEvent.TYPE_VIEW_SCROLLED
-    ) return false
+    ) {
+        return false
+    }
     return eventPackage.contentEquals(foregroundPackage)
 }

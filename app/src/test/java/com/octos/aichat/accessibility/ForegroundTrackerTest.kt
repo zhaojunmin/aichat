@@ -51,7 +51,10 @@ class ForegroundTrackerTest {
     }
 
     @Test fun skipsOnlyRoutineEventsOfTheTrackedApp() {
-        assertFalse("nothing known yet", tracker.canSkip(event(AccessibilityEvent.TYPE_VIEW_SCROLLED, soul)))
+        assertFalse(
+            "nothing known yet",
+            tracker.canSkip(event(AccessibilityEvent.TYPE_VIEW_SCROLLED, soul)),
+        )
         tracker.track(root(soul))
         assertTrue(tracker.canSkip(event(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED, soul)))
         assertFalse(tracker.canSkip(event(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED, soul)))

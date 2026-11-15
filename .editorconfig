@@ -1,0 +1,23 @@
+# Kotlin style: Android Kotlin style guide
+# https://developer.android.com/kotlin/style-guide
+# Enforced by ktlint (android_studio code style) via Spotless: ./gradlew spotlessCheck
+# The Gradle daemon caches this file: after editing it, run ./gradlew --stop first.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{kt,kts}]
+ktlint_code_style = android_studio
+max_line_length = 100
+# Unit-returning @Composable functions are PascalCase nouns (style guide: Naming → Functions).
+ktlint_function_naming_ignore_when_annotated_with = Composable
+# The style guide is silent on trailing commas; the codebase uses them (as Kotlin's
+# own conventions recommend), so require them on multi-line lists — auto-fixable.
+ij_kotlin_allow_trailing_comma = true
+ij_kotlin_allow_trailing_comma_on_call_site = true

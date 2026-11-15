@@ -150,7 +150,10 @@ object ChatParser {
         var hops = 0
         while (cur != null && hops < 8) {
             val r = Rect().also { cur!!.getBoundsInScreen(it) }
-            if (r.width() > screenWidth * 0.85f) { row = cur; break }
+            if (r.width() > screenWidth * 0.85f) {
+                row = cur
+                break
+            }
             cur = cur.parent
             hops++
         }
@@ -170,7 +173,10 @@ object ChatParser {
 
     // ---- Generic path ----------------------------------------------------
 
-    private fun collectLeafText(node: AccessibilityNodeInfo?, out: MutableList<Pair<Rect, String>>) {
+    private fun collectLeafText(
+        node: AccessibilityNodeInfo?,
+        out: MutableList<Pair<Rect, String>>,
+    ) {
         if (node == null) return
         if (node.childCount == 0) {
             val raw = (node.text ?: node.contentDescription)?.toString()?.trim()
@@ -211,9 +217,12 @@ object ChatParser {
         val rightZone = screenWidth * 0.82f
         return when {
             rect.right >= rightZone && rect.left > leftZone -> Speaker.ME
+
             rect.left <= leftZone && rect.right < rightZone -> Speaker.OTHER
+
             // Ambiguous (full-width): fall back to which half the center sits in.
             rect.centerX() >= screenWidth / 2 -> Speaker.ME
+
             else -> Speaker.OTHER
         }
     }

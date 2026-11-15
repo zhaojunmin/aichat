@@ -37,10 +37,13 @@ internal class BubblePanel(
     fun showLoading(title: String = context.getString(R.string.bubble_generating)) {
         val c = basePanel()
         c.addView(header(title))
-        c.addView(ProgressBar(context).apply {
-            val p = (12 * dp).toInt(); setPadding(p, p, p, p)
-            indeterminateTintList = ColorStateList.valueOf(palette.accent)
-        })
+        c.addView(
+            ProgressBar(context).apply {
+                val p = (12 * dp).toInt()
+                setPadding(p, p, p, p)
+                indeterminateTintList = ColorStateList.valueOf(palette.accent)
+            },
+        )
         swap(c)
     }
 
@@ -53,15 +56,29 @@ internal class BubblePanel(
 
     fun showResults(replies: List<String>, otherLine: String?) {
         val c = basePanel()
-        c.addView(header(
-            if (otherLine != null) context.getString(R.string.bubble_other_preview, otherLine.take(40))
-            else context.getString(R.string.bubble_suggestions_title)
-        ))
+        c.addView(
+            header(
+                if (otherLine !=
+                    null
+                ) {
+                    context.getString(R.string.bubble_other_preview, otherLine.take(40))
+                } else {
+                    context.getString(R.string.bubble_suggestions_title)
+                },
+            ),
+        )
         // As tall as the candidates need, capped so a long list scrolls instead of
         // covering the whole chat.
-        val maxListHeight = minOf((320 * dp).toInt(), context.resources.displayMetrics.heightPixels / 2)
+        val maxListHeight = minOf(
+            (320 * dp).toInt(),
+            context.resources.displayMetrics.heightPixels / 2,
+        )
         val scroll = MaxHeightScrollView(context, maxListHeight).apply {
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            layoutParams =
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                )
         }
         val list = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
         replies.forEachIndexed { i, reply -> list.addView(replyCard(i + 1, reply)) }
@@ -71,7 +88,11 @@ internal class BubblePanel(
     }
 
     fun remove() {
-        view?.let { v -> runCatching { wm.removeView(v) }.onFailure { DiagLog.record(ErrorCode.BUB_502, cause = it) } }
+        view?.let { v ->
+            runCatching {
+                wm.removeView(v)
+            }.onFailure { DiagLog.record(ErrorCode.BUB_502, cause = it) }
+        }
         view = null
     }
 
@@ -92,19 +113,24 @@ internal class BubblePanel(
 
     private fun header(title: String): View = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
-        addView(TextView(context).apply {
-            text = title
-            setTextColor(palette.title)
-            textSize = 16f
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-        })
-        addView(TextView(context).apply {
-            text = "✕"
-            setTextColor(palette.muted)
-            textSize = 18f
-            val pad = (4 * dp).toInt(); setPadding(pad * 2, pad, pad * 2, pad)
-            setOnClickListener { remove() }
-        })
+        addView(
+            TextView(context).apply {
+                text = title
+                setTextColor(palette.title)
+                textSize = 16f
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            },
+        )
+        addView(
+            TextView(context).apply {
+                text = "✕"
+                setTextColor(palette.muted)
+                textSize = 18f
+                val pad = (4 * dp).toInt()
+                setPadding(pad * 2, pad, pad * 2, pad)
+                setOnClickListener { remove() }
+            },
+        )
     }
 
     private fun bodyText(msg: String): View = TextView(context).apply {
@@ -123,17 +149,24 @@ internal class BubblePanel(
         background = BubbleStyle.roundedRect(palette.card, 12f, dp)
         layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
+            ViewGroup.LayoutParams.WRAP_CONTENT,
         ).apply { topMargin = (8 * dp).toInt() }
         isClickable = true
         setOnClickListener { onReplyChosen(reply) }
     }
 }
 
-/** A [ScrollView] that wraps its content up to [maxHeight], then scrolls. Built in code only, never inflated. */
+/**
+ * A [ScrollView] that wraps its content up to [maxHeight], then scrolls. Built in code only, never
+ * inflated.
+ */
 @SuppressLint("ViewConstructor")
-private class MaxHeightScrollView(context: Context, private val maxHeight: Int) : ScrollView(context) {
+private class MaxHeightScrollView(context: Context, private val maxHeight: Int) :
+    ScrollView(context) {
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        super.onMeasure(widthMeasureSpec, MeasureSpec.makeMeasureSpec(maxHeight, MeasureSpec.AT_MOST))
+        super.onMeasure(
+            widthMeasureSpec,
+            MeasureSpec.makeMeasureSpec(maxHeight, MeasureSpec.AT_MOST),
+        )
     }
 }

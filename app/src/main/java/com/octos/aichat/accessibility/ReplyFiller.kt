@@ -22,7 +22,8 @@ class ReplyFiller(private val activeRoot: () -> AccessibilityNodeInfo?) {
     suspend fun fill(text: String, pkg: String?): Boolean = withContext(Dispatchers.IO) {
         val filled = try {
             val editable = activeRoot()?.let { root ->
-                root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.takeIf { it.isEditable } ?: findEditable(root)
+                root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.takeIf { it.isEditable }
+                    ?: findEditable(root)
             }
             val args = Bundle().apply {
                 putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)

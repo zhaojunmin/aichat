@@ -1,6 +1,4 @@
 package com.octos.aichat.ui
-import com.octos.aichat.R
-
 import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
@@ -8,16 +6,17 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.octos.aichat.R
 import com.octos.aichat.ai.AiService
+import com.octos.aichat.ai.local.LlmEngine
+import com.octos.aichat.ai.local.LocalModel
+import com.octos.aichat.ai.local.ModelStore
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.data.SettingsStore
 import com.octos.aichat.data.Speaker
-import com.octos.aichat.ai.local.LlmEngine
-import com.octos.aichat.ai.local.LocalModel
-import com.octos.aichat.ai.local.ModelStore
 import com.octos.aichat.data.memory.MemoryRepository
 import com.octos.aichat.data.memory.MemoryStore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,6 +50,7 @@ class HomeViewModel(
     val progress: StateFlow<String> = _progress
     private val _modelError = MutableStateFlow<String?>(null)
     val modelError: StateFlow<String?> = _modelError
+
     // Bumped after download/delete so the UI re-checks model readiness.
     private val _readyTick = MutableStateFlow(0)
     val readyTick: StateFlow<Int> = _readyTick
@@ -64,11 +64,14 @@ class HomeViewModel(
 
     fun isModelReady(model: LocalModel): Boolean = ModelStore.isReady(appContext, model)
 
-    fun clearModelError() { _modelError.value = null }
+    fun clearModelError() {
+        _modelError.value = null
+    }
 
     fun downloadModel(model: LocalModel) {
         if (_downloading.value) return
-        _downloading.value = true; _modelError.value = null
+        _downloading.value = true
+        _modelError.value = null
         _progress.value = appContext.getString(R.string.vm_connecting)
         viewModelScope.launch {
             val r = ModelStore.download(appContext, model) { p ->
@@ -76,8 +79,9 @@ class HomeViewModel(
                     "${p.doneBytes / 1_000_000}/${p.totalBytes / 1_000_000}MB"
             }
             _downloading.value = false
-            if (r.isSuccess) _progress.value = appContext.getString(R.string.vm_download_done)
-            else {
+            if (r.isSuccess) {
+                _progress.value = appContext.getString(R.string.vm_download_done)
+            } else {
                 _progress.value = ""
                 _modelError.value = r.exceptionOrNull()?.message
                     ?: appContext.getString(R.string.vm_download_failed)
@@ -94,7 +98,9 @@ class HomeViewModel(
         }
     }
 
-    fun dismissTest() { _testOutput.value = null }
+    fun dismissTest() {
+        _testOutput.value = null
+    }
 
     fun runConnectionTest() {
         if (_testing.value) return
@@ -107,7 +113,7 @@ class HomeViewModel(
                     ChatMessage(Speaker.OTHER, appContext.getString(R.string.vm_sample_other_1)),
                     ChatMessage(Speaker.ME, appContext.getString(R.string.vm_sample_me)),
                     ChatMessage(Speaker.OTHER, appContext.getString(R.string.vm_sample_other_2)),
-                )
+                ),
             )
             _testOutput.value = runCatching {
                 if (s.useLocal) {
@@ -116,7 +122,9 @@ class HomeViewModel(
                     }
                 }
                 AiService.instance.generateReplies(s, sample)
-            }.getOrElse { listOf(appContext.getString(R.string.vm_error_prefix, it.toUserMessage(appContext))) }
+            }.getOrElse {
+                listOf(appContext.getString(R.string.vm_error_prefix, it.toUserMessage(appContext)))
+            }
             _testing.value = false
         }
     }

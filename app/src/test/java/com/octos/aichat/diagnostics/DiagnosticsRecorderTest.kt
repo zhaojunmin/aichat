@@ -1,5 +1,7 @@
 package com.octos.aichat.diagnostics
 
+import java.io.File
+import java.net.UnknownHostException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -7,8 +9,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import java.io.File
-import java.net.UnknownHostException
 
 class DiagnosticsRecorderTest {
 
@@ -19,7 +19,9 @@ class DiagnosticsRecorderTest {
     private fun recorder(enabled: Boolean = true) =
         DiagnosticsRecorder(DiagnosticsStore(dir), clock = { now }).apply { setEnabled(enabled) }
 
-    private fun storedText(): String = dir.listFiles().orEmpty().joinToString("\n") { it.readText() }
+    private fun storedText(): String = dir.listFiles().orEmpty().joinToString("\n") {
+        it.readText()
+    }
 
     @Test fun offRecordsNothing() {
         val r = recorder(enabled = false)
@@ -39,14 +41,23 @@ class DiagnosticsRecorderTest {
         assertEquals(mapOf(ErrorCode.AI_108 to 2, ErrorCode.BUB_501 to 1), r.countsSnapshot())
 
         val events = r.recent(10)
-        assertEquals(listOf(ErrorCode.AI_108, ErrorCode.AI_108, ErrorCode.BUB_501), events.map { it.code })
+        assertEquals(
+            listOf(ErrorCode.AI_108, ErrorCode.AI_108, ErrorCode.BUB_501),
+            events.map {
+                it.code
+            },
+        )
         assertEquals("UnknownHostException", events[0].cause)
         assertEquals(31L, events[0].ms)
         assertEquals(1_000L, events[0].atMs)
     }
 
     @Test fun countersSurviveARestart_andLoadAddsToEarlyEvents() {
-        recorder().apply { record(ErrorCode.AI_108); record(ErrorCode.AI_108); flush() }
+        recorder().apply {
+            record(ErrorCode.AI_108)
+            record(ErrorCode.AI_108)
+            flush()
+        }
 
         val restarted = recorder()
         restarted.record(ErrorCode.AI_108) // before load() ran on the background thread
@@ -72,7 +83,12 @@ class DiagnosticsRecorderTest {
         r.record(ErrorCode.OCR_402, pkg = "com.tencent.mm")
         r.record(ErrorCode.AI_108, pkg = "com.tencent.mm")
         r.record(ErrorCode.A11Y_303, pkg = "not a package!")
-        assertEquals(listOf("com.tencent.mm", "com.tencent.mm", null, null), r.recent(10).map { it.pkg })
+        assertEquals(
+            listOf("com.tencent.mm", "com.tencent.mm", null, null),
+            r.recent(10).map {
+                it.pkg
+            },
+        )
     }
 
     @Test fun crashIsWrittenSynchronously() {
@@ -84,15 +100,32 @@ class DiagnosticsRecorderTest {
 
     @Test fun exitsAreRecordedOnceAndOnlyAfterSince() {
         val r = recorder()
-        val exits = listOf(ExitRecord("CRASH", 3_000), ExitRecord("ANR", 6_000), ExitRecord("LOW_MEMORY", 9_000))
+        val exits =
+            listOf(
+                ExitRecord("CRASH", 3_000),
+                ExitRecord("ANR", 6_000),
+                ExitRecord("LOW_MEMORY", 9_000),
+            )
         r.recordExits(exits, sinceMs = 5_000)
         r.recordExits(exits, sinceMs = 5_000) // next start: same system records
-        assertEquals(listOf("ANR" to 6_000L, "LOW_MEMORY" to 9_000L), r.recent(10).map { it.exit to it.exitAt })
+        assertEquals(
+            listOf("ANR" to 6_000L, "LOW_MEMORY" to 9_000L),
+            r.recent(10).map {
+                it.exit to
+                    it.exitAt
+            },
+        )
 
         r.flush()
         val restarted = recorder().apply { load() }
         restarted.recordExits(exits + ExitRecord("CRASH", 12_000), sinceMs = 5_000)
-        assertEquals("only the new one", listOf("CRASH"), restarted.recent(10).drop(2).map { it.exit })
+        assertEquals(
+            "only the new one",
+            listOf("CRASH"),
+            restarted.recent(10).drop(2).map {
+                it.exit
+            },
+        )
     }
 
     @Test fun wipeDeletesEverything() {
@@ -119,7 +152,10 @@ class DiagnosticsRecorderTest {
         r.recordDuration(TimedOp.OCR, 40)
         r.recordDuration(TimedOp.OCR, -1) // clock went backwards: ignored
         assertEquals(2, r.durationsSnapshot()[TimedOp.TAP_TO_RESULT]!!.sum())
-        assertEquals(1, r.durationsSnapshot()[TimedOp.TAP_TO_RESULT]!![DurationBuckets.indexOf(1_800)])
+        assertEquals(
+            1,
+            r.durationsSnapshot()[TimedOp.TAP_TO_RESULT]!![DurationBuckets.indexOf(1_800)],
+        )
         assertEquals(1, r.durationsSnapshot()[TimedOp.OCR]!!.sum())
         r.flush()
 

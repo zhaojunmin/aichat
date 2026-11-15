@@ -16,7 +16,12 @@ class DurationBucketsTest {
     }
 
     @Test fun quantiles() {
-        val counts = List(DurationBuckets.SIZE) { 0 }.toMutableList().apply { this[1] = 5; this[3] = 4; this[8] = 1 }
+        val counts = List(DurationBuckets.SIZE) { 0 }.toMutableList().apply {
+            this[1] = 5
+            this[3] =
+                4
+            this[8] = 1
+        }
         assertEquals(1, DurationBuckets.quantileBucket(counts, 0.50)) // 5 of 10 reached in bucket 1
         assertEquals(3, DurationBuckets.quantileBucket(counts, 0.90))
         assertEquals(8, DurationBuckets.quantileBucket(counts, 0.95))

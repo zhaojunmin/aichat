@@ -17,11 +17,11 @@ enum class AiBackend(
     val defaultModel: String,
 ) {
     DEEPSEEK("DeepSeek", "https://api.deepseek.com", "deepseek-chat"),
-    DOUBAO("豆包", "https://ark.cn-beijing.volces.com/api/v3", "doubao-pro-32k");
+    DOUBAO("豆包", "https://ark.cn-beijing.volces.com/api/v3", "doubao-pro-32k"),
+    ;
 
     companion object {
-        fun fromName(name: String?): AiBackend =
-            entries.firstOrNull { it.name == name } ?: DEEPSEEK
+        fun fromName(name: String?): AiBackend = entries.firstOrNull { it.name == name } ?: DEEPSEEK
     }
 }
 
@@ -29,44 +29,36 @@ enum class AiBackend(
 enum class InferenceMode { CLOUD, LOCAL }
 
 /** Per-backend connection settings, so each provider keeps its own values. */
-data class BackendConfig(
-    val baseUrl: String,
-    val model: String,
-    val apiKey: String = "",
-)
+data class BackendConfig(val baseUrl: String, val model: String, val apiKey: String = "")
 
 /**
  * A reusable "persona + scene" preset that shapes how the assistant replies.
  * The [systemPrompt] is sent as the system message; it is combined with the
  * extracted conversation to produce candidate replies.
  */
-data class PersonaPreset(
-    val id: String,
-    @StringRes val titleRes: Int,
-    val systemPrompt: String,
-)
+data class PersonaPreset(val id: String, @StringRes val titleRes: Int, val systemPrompt: String)
 
 object PersonaPresets {
     val DEFAULTS: List<PersonaPreset> = listOf(
         PersonaPreset(
             id = "dating",
             titleRes = R.string.persona_dating,
-            systemPrompt = "高情商恋爱助手。回复自然有趣、略带调侃和暖意,不油腻、不肉麻,顺势接话题。"
+            systemPrompt = "高情商恋爱助手。回复自然有趣、略带调侃和暖意,不油腻、不肉麻,顺势接话题。",
         ),
         PersonaPreset(
             id = "icebreak",
             titleRes = R.string.persona_icebreak,
-            systemPrompt = "社交破冰助手。回复礼貌轻松、好接话,结尾可带一个开放式问题。"
+            systemPrompt = "社交破冰助手。回复礼貌轻松、好接话,结尾可带一个开放式问题。",
         ),
         PersonaPreset(
             id = "business",
             titleRes = R.string.persona_business,
-            systemPrompt = "商务沟通助手。语气得体专业,态度清晰、给出下一步,不口语化、不用表情。"
+            systemPrompt = "商务沟通助手。语气得体专业,态度清晰、给出下一步,不口语化、不用表情。",
         ),
         PersonaPreset(
             id = "support",
             titleRes = R.string.persona_support,
-            systemPrompt = "客服助手。先共情再解决,答复明确可执行,语气温和专业。"
+            systemPrompt = "客服助手。先共情再解决,答复明确可执行,语气温和专业。",
         ),
     )
 }
@@ -94,7 +86,10 @@ data class AppSettings(
     val learnThreshold: Int = 20,
     /** Inject only the most-recently-updated N memory items into the prompt. */
     val memoryInjectLimit: Int = 30,
-    /** Use on-device semantic embeddings for memory recall (falls back to lexical when off/unavailable). */
+    /**
+     * Use on-device semantic embeddings for memory recall (falls back to lexical when
+     * off/unavailable).
+     */
     val memoryEmbeddingEnabled: Boolean = true,
     /** Cloud API vs on-device model. Local keeps chat content on the phone. */
     val inferenceMode: InferenceMode = InferenceMode.CLOUD,
@@ -102,7 +97,10 @@ data class AppSettings(
     val localModelId: String = com.octos.aichat.ai.local.LocalModel.DEFAULT.id,
     /** Appearance variant id ("system", or a [com.octos.aichat.ui.theme.ThemeVariant] id). */
     val themeVariantId: String = "system",
-    /** Keep local diagnostics (error codes, timings — never chat text). Off deletes what was kept. */
+    /**
+     * Keep local diagnostics (error codes, timings — never chat text). Off deletes what was
+     * kept.
+     */
     val diagnosticsEnabled: Boolean = true,
     /** When diagnostics were last switched on (epoch ms); 0 = on since install. */
     val diagnosticsEnabledAt: Long = 0L,
@@ -118,6 +116,7 @@ data class AppSettings(
         if (useLocal) localModelReady else apiKey.isNotBlank()
     val localModel: com.octos.aichat.ai.local.LocalModel
         get() = com.octos.aichat.ai.local.LocalModel.of(localModelId)
+
     // Built-in supported apps are always included (union with user list), so a
     // newly supported app works without the user re-editing saved settings.
     // Lazily cached per snapshot: the foreground check reads this on every
@@ -156,7 +155,9 @@ data class AppSettings(
     companion object {
         // WeChat + QQ + Soul + Hertz + Momo out of the box.
         const val DEFAULT_TARGET_PACKAGES =
-            "com.tencent.mm,com.tencent.mobileqq,cn.soulapp.android,com.immomo.vchat,com.immomo.momo"
+            "com.tencent.mm,com.tencent.mobileqq,cn.soulapp.android," +
+                "com.immomo.vchat,com.immomo.momo"
+
         // Screenshot-OCR apps: WeChat (whole-screen) and Momo (bubble-geometry
         // guided). QQ/Soul/Hertz are read straight from the node tree's text.
         const val DEFAULT_OCR_PACKAGES = "com.tencent.mm,com.immomo.momo"
@@ -164,8 +165,11 @@ data class AppSettings(
         // Always-supported apps, merged with the user's list.
         val BUILTIN_TARGETS =
             setOf(
-                "com.tencent.mm", "com.tencent.mobileqq", "cn.soulapp.android",
-                "com.immomo.vchat", "com.immomo.momo",
+                "com.tencent.mm",
+                "com.tencent.mobileqq",
+                "cn.soulapp.android",
+                "com.immomo.vchat",
+                "com.immomo.momo",
             )
         val BUILTIN_OCR = setOf("com.tencent.mm", "com.immomo.momo")
     }

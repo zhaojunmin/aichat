@@ -62,10 +62,13 @@ export ANDROID_HOME=$HOME/Android/Sdk
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 # 质量检查(与 CI 一致)
-./gradlew :app:testDebugUnitTest :app:lintDebug
+./gradlew spotlessCheck :app:testDebugUnitTest :app:lintDebug
+# Kotlin 规范自动修复(换行、import 排序、空白等)
+./gradlew spotlessApply
 ```
 
-> - CI(`.github/workflows/ci.yml`)在每个 PR 和 main 上跑单测 + Lint + debug 构建;不拉 LFS。
+> - CI(`.github/workflows/ci.yml`)在每个 PR 和 main 上跑 Kotlin 规范检查 + 单测 + Lint + debug 构建;不拉 LFS。
+> - Kotlin 规范 = [Android Kotlin 风格指南](https://developer.android.com/kotlin/style-guide?hl=zh-cn),由 ktlint(`android_studio` 风格)经 Spotless 执行,规则在 `.editorconfig`。`spotlessApply` 修不了的(命名、超 100 列的长行)需手改。纯格式化提交记入 `.git-blame-ignore-revs`(本地 `git config blame.ignoreRevsFile .git-blame-ignore-revs`)。
 > - Lint 用 `app/lint-baseline.xml` 冻结存量问题,只拦新增;修掉存量后用 `./gradlew :app:updateLintBaseline` 重新生成。
 > - 质量属性与工程方法见 `docs/quality-attributes.md`。
 > - 性能测试(微基准 / 宏基准,真机)见 `docs/performance-testing.md`,一键运行:`ADB=adb.exe quality/scripts/run-benchmarks.sh`。

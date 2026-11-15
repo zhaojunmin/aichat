@@ -21,7 +21,10 @@ class MemoryLearningPassTest {
         override suspend fun pending() = PendingReplies(lines.drop(learned), lines.size)
         var markedInTx: Boolean? = null
         var inTx = false
-        override suspend fun markLearned(total: Int) { learned = total; markedInTx = inTx }
+        override suspend fun markLearned(total: Int) {
+            learned = total
+            markedInTx = inTx
+        }
     }
 
     /** In-memory table; [failOn] makes the named write throw (simulates a crash mid-apply). */
@@ -29,7 +32,9 @@ class MemoryLearningPassTest {
         val rows = rows.toMutableList()
         var failOn: String? = null
         private var nextId = (rows.maxOfOrNull { it.id } ?: 0) + 1
-        private fun maybeFail(op: String) { if (failOn == op) error("disk full during $op") }
+        private fun maybeFail(op: String) {
+            if (failOn == op) error("disk full during $op")
+        }
         private fun edit(id: Long, f: (MemoryEntity) -> MemoryEntity) {
             val i = rows.indexOfFirst { it.id == id }
             if (i >= 0) rows[i] = f(rows[i])
@@ -38,31 +43,65 @@ class MemoryLearningPassTest {
         override suspend fun all() = rows.filter { it.deletedAt == 0L }
         override suspend fun allDeleted() = rows.filter { it.deletedAt > 0L }
         override suspend fun insertAll(items: List<MemoryEntity>) {
-            maybeFail("insert"); items.forEach { rows += it.copy(id = nextId++) }
+            maybeFail("insert")
+            items.forEach { rows += it.copy(id = nextId++) }
         }
         override suspend fun update(id: Long, category: String, content: String, updatedAt: Long) =
             edit(id) { it.copy(category = category, content = content, updatedAt = updatedAt) }
         override suspend fun updateFull(
-            id: Long, category: String, content: String, keywords: String, importance: Int, updatedAt: Long,
+            id: Long,
+            category: String,
+            content: String,
+            keywords: String,
+            importance: Int,
+            updatedAt: Long,
         ) {
             maybeFail("update")
-            edit(id) { it.copy(category = category, content = content, keywords = keywords, importance = importance, updatedAt = updatedAt) }
+            edit(id) {
+                it.copy(
+                    category = category,
+                    content = content,
+                    keywords = keywords,
+                    importance = importance,
+                    updatedAt = updatedAt,
+                )
+            }
         }
         override suspend fun setEmbedding(id: Long, embedding: ByteArray, version: Int) =
             edit(id) { it.copy(embedding = embedding, embeddingVersion = version) }
-        override suspend fun needingEmbedding(version: Int) = rows.filter { it.embeddingVersion < version }
-        override suspend fun clearEmbedding(id: Long) = edit(id) { it.copy(embedding = null, embeddingVersion = 0) }
+        override suspend fun needingEmbedding(version: Int) = rows.filter {
+            it.embeddingVersion <
+                version
+        }
+        override suspend fun clearEmbedding(id: Long) =
+            edit(id) { it.copy(embedding = null, embeddingVersion = 0) }
         override suspend fun softDelete(id: Long, deletedAt: Long, by: String) {
-            maybeFail("delete"); edit(id) { if (it.deletedAt == 0L) it.copy(deletedAt = deletedAt, deletedBy = by) else it }
+            maybeFail("delete")
+            edit(id) {
+                if (it.deletedAt ==
+                    0L
+                ) {
+                    it.copy(deletedAt = deletedAt, deletedBy = by)
+                } else {
+                    it
+                }
+            }
         }
         override suspend fun restore(id: Long) = edit(id) { it.copy(deletedAt = 0, deletedBy = "") }
-        override suspend fun deleteById(id: Long) { rows.removeAll { it.id == id } }
+        override suspend fun deleteById(id: Long) {
+            rows.removeAll { it.id == id }
+        }
         override suspend fun clear() = rows.clear()
     }
 
     // No embedding bytes: ByteArray breaks data-class equality. Version 1 = "has a vector".
-    private fun mem(id: Long, content: String) =
-        MemoryEntity(id = id, category = "事实", content = content, updatedAt = 1, embeddingVersion = 1)
+    private fun mem(id: Long, content: String) = MemoryEntity(
+        id = id,
+        category = "事实",
+        content = content,
+        updatedAt = 1,
+        embeddingVersion = 1,
+    )
 
     private val result = MemoryLearnResult(
         additions = listOf(MemoryDraft("偏好", "喜欢爬山", "爬山 户外", 7)),
@@ -75,7 +114,10 @@ class MemoryLearningPassTest {
         val dao = FakeDao(mem(1, "住在北京"), mem(2, "养了只猫"))
         var seen: List<String>? = null
 
-        val learned = MemoryLearningPass(ledger, dao) { 99 }.run { _, replies -> seen = replies; result }
+        val learned = MemoryLearningPass(ledger, dao) { 99 }.run { _, replies ->
+            seen = replies
+            result
+        }
 
         assertEquals(2, learned)
         assertEquals(2, ledger.learned)
@@ -84,7 +126,12 @@ class MemoryLearningPassTest {
         assertEquals("搬到上海了", updated.content)
         assertEquals(99L, updated.updatedAt)
         assertEquals("changed text must drop the stale vector", 0, updated.embeddingVersion)
-        assertEquals(MemoryLearningPass.DELETED_BY_LEARNER, dao.rows.single { it.id == 2L }.deletedBy)
+        assertEquals(
+            MemoryLearningPass.DELETED_BY_LEARNER,
+            dao.rows.single {
+                it.id == 2L
+            }.deletedBy,
+        )
         assertEquals("喜欢爬山", dao.rows.single { it.id == 3L }.content)
     }
 
@@ -122,7 +169,13 @@ class MemoryLearningPassTest {
 
         dao.failOn = null
         var retried: List<String>? = null
-        assertEquals(1, pass.run { _, replies -> retried = replies; result })
+        assertEquals(
+            1,
+            pass.run { _, replies ->
+                retried = replies
+                result
+            },
+        )
         assertEquals(listOf("我搬到上海了"), retried)
         assertEquals(1, ledger.learned)
     }
@@ -132,7 +185,10 @@ class MemoryLearningPassTest {
         val pass = MemoryLearningPass(ledger, FakeDao())
         var calls = 0
         val learn: suspend (List<MemoryEntity>, List<String>) -> MemoryLearnResult? =
-            { _, _ -> calls++; MemoryLearnResult(emptyList(), emptyList()) }
+            { _, _ ->
+                calls++
+                MemoryLearnResult(emptyList(), emptyList())
+            }
 
         pass.run(learn)
         assertNull(pass.run(learn))
@@ -140,12 +196,19 @@ class MemoryLearningPassTest {
 
         ledger.lines += "c"
         var replies: List<String>? = null
-        pass.run { _, r -> replies = r; calls++; MemoryLearnResult(emptyList(), emptyList()) }
+        pass.run { _, r ->
+            replies = r
+            calls++
+            MemoryLearnResult(emptyList(), emptyList())
+        }
         assertEquals("only the new reply is learned", listOf("c"), replies)
         assertEquals(3, ledger.learned)
     }
 
-    /** The writes and the offset must commit together (see LearningTransactionTest for real rollback). */
+    /**
+     * The writes and the offset must commit together (see LearningTransactionTest for real
+     * rollback).
+     */
     @Test fun writesAndOffsetRunInsideOneTransaction() = runTest {
         val ledger = FakeLedger("我搬到上海了")
         val dao = FakeDao(mem(1, "住在北京"), mem(2, "养了只猫"))
@@ -153,7 +216,11 @@ class MemoryLearningPassTest {
         val pass = MemoryLearningPass(ledger, dao, inTransaction = { block ->
             transactions++
             ledger.inTx = true
-            try { block() } finally { ledger.inTx = false }
+            try {
+                block()
+            } finally {
+                ledger.inTx = false
+            }
         })
 
         pass.run { _, _ -> result }
@@ -164,7 +231,12 @@ class MemoryLearningPassTest {
 
     @Test fun nothingPending_learnerNotCalled() = runTest {
         var called = false
-        assertNull(MemoryLearningPass(FakeLedger(), FakeDao()).run { _, _ -> called = true; null })
+        assertNull(
+            MemoryLearningPass(FakeLedger(), FakeDao()).run { _, _ ->
+                called = true
+                null
+            },
+        )
         assertTrue(!called)
     }
 

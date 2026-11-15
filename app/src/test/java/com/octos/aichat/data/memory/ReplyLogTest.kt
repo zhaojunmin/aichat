@@ -3,6 +3,7 @@ package com.octos.aichat.data.memory
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -13,7 +14,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -44,7 +44,9 @@ class ReplyLogTest {
 
     @Test fun offsetAndDedupSurviveARestart() = runBlocking {
         val log = newLog()
-        log.append("a"); log.append("b"); log.append("c")
+        log.append("a")
+        log.append("b")
+        log.append("c")
         log.markLearned(2)
 
         val restarted = newLog()
@@ -55,7 +57,11 @@ class ReplyLogTest {
 
     /** Upgrade from a version that kept the offset in SharedPreferences. */
     @Test fun legacyPrefsOffsetIsMovedIntoTheDatabase() = runBlocking {
-        newLog().apply { append("a"); append("b"); append("c") } // append never writes the offset row
+        newLog().apply {
+            append("a")
+            append("b")
+            append("c")
+        } // append never writes the offset row
         prefs.edit().putInt("learned_reply_count", 2).commit()
 
         assertEquals(listOf("c"), newLog().pending().replies)
@@ -72,7 +78,8 @@ class ReplyLogTest {
 
     @Test fun clearResetsFileOffsetAndDedup() = runBlocking {
         val log = newLog()
-        log.append("a"); log.markLearned(1)
+        log.append("a")
+        log.markLearned(1)
         log.clear()
 
         assertFalse(file.exists())

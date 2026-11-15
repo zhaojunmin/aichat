@@ -29,7 +29,12 @@ enum class ErrorCode(val id: String, val level: Level, val zh: String, val en: S
     LLM_204("LLM-204", Level.ERROR, "模型下载失败", "Model download failed"),
 
     // A11Y — accessibility reading, screenshot, auto-fill.
-    A11Y_301("A11Y-301", Level.WARN, "处理无障碍事件时出异常(已兜底)", "Accessibility event handling failed (contained)"),
+    A11Y_301(
+        "A11Y-301",
+        Level.WARN,
+        "处理无障碍事件时出异常(已兜底)",
+        "Accessibility event handling failed (contained)",
+    ),
     A11Y_302("A11Y-302", Level.ERROR, "点击时解析聊天失败", "Parsing the chat on tap failed"),
     A11Y_303("A11Y-303", Level.WARN, "点击时找不到聊天窗口", "Chat window not found on tap"),
     A11Y_304("A11Y-304", Level.ERROR, "截图失败", "Screenshot failed"),
@@ -70,8 +75,15 @@ enum class ErrorCode(val id: String, val level: Level, val zh: String, val en: S
 
     /** Error-code domains; the id's hundreds digit is [hundreds]. */
     enum class Domain(val prefix: String, val hundreds: Int) {
-        AI("AI", 1), LLM("LLM", 2), A11Y("A11Y", 3), OCR("OCR", 4), BUB("BUB", 5),
-        MEM("MEM", 6), EMB("EMB", 7), SET("SET", 8), APP("APP", 9),
+        AI("AI", 1),
+        LLM("LLM", 2),
+        A11Y("A11Y", 3),
+        OCR("OCR", 4),
+        BUB("BUB", 5),
+        MEM("MEM", 6),
+        EMB("EMB", 7),
+        SET("SET", 8),
+        APP("APP", 9),
     }
 
     companion object {

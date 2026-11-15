@@ -20,15 +20,22 @@ class MemoryRetrievalTest {
         keywords: String = "",
         embedding: ByteArray? = null,
     ) = MemoryEntity(
-        id = id, category = "事实", content = content,
-        updatedAt = now - ageDays * day, keywords = keywords,
-        importance = importance, embedding = embedding,
+        id = id,
+        category = "事实",
+        content = content,
+        updatedAt = now - ageDays * day,
+        keywords = keywords,
+        importance = importance,
+        embedding = embedding,
     )
 
     // ---- tokenize -----------------------------------------------------------
 
     @Test fun tokenize_cjkBigramsAndLowercasedAscii() {
-        assertEquals(setOf("喜欢", "欢喝", "喝咖", "咖啡", "latte"), MemoryRetrieval.tokenize("喜欢喝咖啡 Latte"))
+        assertEquals(
+            setOf("喜欢", "欢喝", "喝咖", "咖啡", "latte"),
+            MemoryRetrieval.tokenize("喜欢喝咖啡 Latte"),
+        )
     }
 
     @Test fun tokenize_singleCjkCharKept() {
@@ -47,7 +54,12 @@ class MemoryRetrievalTest {
     }
 
     @Test fun retrieve_blankQueryFewItems_sortsByRecency() {
-        val items = listOf(mem(1, "old", ageDays = 10), mem(2, "new", ageDays = 1), mem(3, "mid", ageDays = 5))
+        val items =
+            listOf(
+                mem(1, "old", ageDays = 10),
+                mem(2, "new", ageDays = 1),
+                mem(3, "mid", ageDays = 5),
+            )
         assertEquals(listOf(2L, 3L, 1L), MemoryRetrieval.retrieve(items, "", now, 5).map { it.id })
     }
 
@@ -62,7 +74,12 @@ class MemoryRetrievalTest {
     }
 
     @Test fun retrieve_importanceBreaksTieWithoutQuery() {
-        val items = listOf(mem(1, "a", importance = 2), mem(2, "b", importance = 9), mem(3, "c", importance = 5))
+        val items =
+            listOf(
+                mem(1, "a", importance = 2),
+                mem(2, "b", importance = 9),
+                mem(3, "c", importance = 5),
+            )
         assertEquals(2L, MemoryRetrieval.retrieve(items, "", now, 1).single().id)
     }
 
@@ -105,7 +122,9 @@ class MemoryRetrievalTest {
     @Test fun embedding_notReadyOrDimMismatchScoresZero() {
         val items = listOf(mem(1, "a", embedding = VectorCodec.encode(floatArrayOf(1f, 0f, 0f))))
         val notReady = MemoryRetrieval.EmbeddingRelevance(FakeEmbedder(null)).scores(items, "q")
-        val mismatch = MemoryRetrieval.EmbeddingRelevance(FakeEmbedder(floatArrayOf(1f, 0f))).scores(items, "q")
+        val mismatch = MemoryRetrieval.EmbeddingRelevance(
+            FakeEmbedder(floatArrayOf(1f, 0f)),
+        ).scores(items, "q")
         assertEquals(0.0, notReady[0], 0.0)
         assertEquals(0.0, mismatch[0], 0.0)
     }

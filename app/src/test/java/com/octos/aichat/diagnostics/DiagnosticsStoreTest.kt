@@ -1,12 +1,12 @@
 package com.octos.aichat.diagnostics
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import java.io.File
 
 class DiagnosticsStoreTest {
 
@@ -49,9 +49,12 @@ class DiagnosticsStoreTest {
         dir().mkdirs()
         File(dir(), "summary").writeText(
             "exitSeenAt\t5\nAI-108\t3\ngarbage\nZZ-999\t4\nAI-101\tx\n" +
-                "T:OCR\t1,2\nT:NOPE\t0,0,0,0,0,0,0,0,0\nT:PARSE\t1,x,0,0,0,0,0,0,0\n"
+                "T:OCR\t1,2\nT:NOPE\t0,0,0,0,0,0,0,0,0\nT:PARSE\t1,x,0,0,0,0,0,0,0\n",
         )
-        assertEquals(DiagSummary(mapOf(ErrorCode.AI_108 to 3), exitSeenAt = 5), DiagnosticsStore(dir()).readSummary())
+        assertEquals(
+            DiagSummary(mapOf(ErrorCode.AI_108 to 3), exitSeenAt = 5),
+            DiagnosticsStore(dir()).readSummary(),
+        )
     }
 
     @Test fun clearDeletesEverything() {
