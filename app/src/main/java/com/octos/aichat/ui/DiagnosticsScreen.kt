@@ -49,9 +49,12 @@ import com.octos.aichat.R
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun DiagnosticsScreen(onBack: () -> Unit) {
+internal fun DiagnosticsScreen(
+    onBack: () -> Unit,
+    vm: DiagnosticsViewModel =
+        viewModel(factory = DiagnosticsViewModel.factory(LocalContext.current)),
+) {
     val context = LocalContext.current
-    val vm: DiagnosticsViewModel = viewModel(factory = DiagnosticsViewModel.factory(context))
     val report by vm.report.collectAsStateWithLifecycle()
 
     BackHandler(onBack = onBack)

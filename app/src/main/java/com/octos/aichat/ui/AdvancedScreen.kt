@@ -60,9 +60,12 @@ import com.octos.aichat.ui.theme.ThemeVariant
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-internal fun AdvancedScreen(onBack: () -> Unit, onOpenDiagnostics: () -> Unit) {
+internal fun AdvancedScreen(
+    onBack: () -> Unit,
+    onOpenDiagnostics: () -> Unit,
+    vm: AdvancedViewModel = viewModel(factory = AdvancedViewModel.factory(LocalContext.current)),
+) {
     val context = LocalContext.current
-    val vm: AdvancedViewModel = viewModel(factory = AdvancedViewModel.factory(context))
     val settings by vm.settingsState.collectAsStateWithLifecycle()
     val memStats by vm.stats.collectAsStateWithLifecycle()
     val memories by vm.memories.collectAsStateWithLifecycle()
