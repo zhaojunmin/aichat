@@ -25,8 +25,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.core.view.isVisible
-import com.octos.aichat.AppBus
 import com.octos.aichat.R
+import com.octos.aichat.accessibility.AccessibilityBridge
 import com.octos.aichat.accessibility.MessageBounds
 import com.octos.aichat.ai.AiService
 import com.octos.aichat.ai.local.LlmEngine
@@ -156,7 +156,7 @@ class FloatingBubbleService : Service() {
      */
     private fun followForegroundApp() {
         scope.launch {
-            AppBus.foreground.filterNotNull().collect { setBubbleVisible(it.isTarget) }
+            AccessibilityBridge.foreground.filterNotNull().collect { setBubbleVisible(it.isTarget) }
         }
     }
 
@@ -355,7 +355,7 @@ class FloatingBubbleService : Service() {
      * Soul and others keep their precise node-tree parsing untouched.
      */
     private suspend fun resolveConversation(settings: AppSettings): Conversation? {
-        val pkg = AppBus.foregroundPackage ?: ""
+        val pkg = AccessibilityBridge.foregroundPackage ?: ""
         // Apps in the OCR list are always read via screenshot (the node tree is
         // blocked or too noisy); the global toggle is no longer required.
         return if (pkg in settings.ocrPackageSet &&
@@ -370,7 +370,7 @@ class FloatingBubbleService : Service() {
     /** Parse now, on tap: what's on screen this moment, no stale or post-restart-empty state. */
     private suspend fun readFromNodeTree(pkg: String): Conversation? {
         val conv =
-            DiagLog.timed(TimedOp.PARSE) { AppBus.chatWindowReader?.readConversation(pkg) }
+            DiagLog.timed(TimedOp.PARSE) { AccessibilityBridge.screen.value?.readConversation(pkg) }
                 ?: return null
         DebugCapture.recordConversation(conv) // let the in-app debug viewer show it too
         return conv
@@ -379,7 +379,7 @@ class FloatingBubbleService : Service() {
     /** Screenshot + OCR, guided by message geometry when the app exposes it. */
     @RequiresApi(Build.VERSION_CODES.R)
     private suspend fun readViaOcr(pkg: String): Conversation? {
-        val reader = AppBus.chatWindowReader ?: return null
+        val screen = AccessibilityBridge.screen.value ?: return null
         val messageBounds: List<MessageBounds>
         val bmp: Bitmap?
         // Hide our own bubble so it isn't part of the captured image; always bring
@@ -389,8 +389,8 @@ class FloatingBubbleService : Service() {
             delay(80)
             // Grab message geometry from the node tree at the same moment we capture,
             // so rects and pixels line up. Empty for apps with no geometry (WeChat).
-            messageBounds = reader.locateMessageBounds(pkg)
-            bmp = reader.captureScreenshot(pkg)
+            messageBounds = screen.locateMessageBounds(pkg)
+            bmp = screen.captureScreenshot(pkg)
         } finally {
             if (::bubble.isInitialized) bubble.visibility = View.VISIBLE
         }
@@ -400,7 +400,7 @@ class FloatingBubbleService : Service() {
         val h = resources.displayMetrics.heightPixels
         // When the soft keyboard is up, its letters get OCR'd as chat text. Crop
         // the screenshot to just above the IME window before the whole-screen read.
-        val imeTop = reader.imeBounds()?.top ?: -1
+        val imeTop = screen.imeBounds()?.top ?: -1
         val conv = withContext(Dispatchers.Default) {
             Tracing.asyncSection(Tracing.BUBBLE_OCR) {
                 DiagLog.timed(TimedOp.OCR) {
@@ -462,10 +462,10 @@ class FloatingBubbleService : Service() {
             return
         }
         scope.launch {
-            val pkg = AppBus.foregroundPackage
-            val filler = AppBus.replyFiller
-            val pasted = filler != null && filler.fill(reply, pkg)
-            if (filler == null) DiagLog.record(ErrorCode.A11Y_305, pkg = pkg)
+            val pkg = AccessibilityBridge.foregroundPackage
+            val screen = AccessibilityBridge.screen.value
+            val pasted = screen != null && screen.fill(reply, pkg)
+            if (screen == null) DiagLog.record(ErrorCode.A11Y_305, pkg = pkg)
             toast(if (pasted) getString(R.string.svc_filled) else getString(R.string.svc_copied))
         }
     }

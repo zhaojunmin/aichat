@@ -67,13 +67,14 @@ class PackageDependencyRulesTest {
         assertPackage("data.memory..", allowed = setOf("data", "ai..", "diagnostics.."))
 
     /**
-     * The overlay orchestrates everything below it. From `ui` it may only take the
-     * theme, the activity a notification opens, and the shared error wording.
+     * The overlay orchestrates everything below it. It reaches the screen reader only
+     * through its published port ([ScreenAccess] via the bridge), never the concrete
+     * reader or filler. From `ui` it may only take the theme, the activity a
+     * notification opens, and the shared error wording.
      */
-    @Test fun bubbleUsesUiOnlyForThemeNotificationAndErrorText() = assertPackage(
+    @Test fun bubbleUsesScreenPortAndUiOnlyForThemeNotificationAndErrorText() = assertPackage(
         "bubble..",
         allowed = setOf(
-            "accessibility..",
             "ai..",
             "data..",
             "debug",
@@ -81,29 +82,35 @@ class PackageDependencyRulesTest {
             "ocr..",
             "ui.theme..",
         ),
-        allowedTypes = setOf("ui.MainActivity", "ui.toUserMessage"),
+        allowedTypes = setOf(
+            "accessibility.AccessibilityBridge",
+            "accessibility.ScreenAccess",
+            "accessibility.MessageBounds",
+            "ui.MainActivity",
+            "ui.toUserMessage",
+        ),
     )
 
-    /** Settings screens never parse the screen; they only check the reader is enabled. */
+    /** Settings screens never parse the screen; they only check the reader is enabled / connected. */
     @Test fun uiNeverUsesOcrAndOnlyNamesTheAccessibilityService() = assertPackage(
         "ui..",
         allowed = setOf("ai..", "bubble..", "data..", "debug", "diagnostics.."),
-        allowedTypes = setOf("accessibility.ChatAccessibilityService"),
+        allowedTypes = setOf(
+            "accessibility.ChatAccessibilityService",
+            "accessibility.AccessibilityBridge",
+        ),
     )
 
-    /** The in-process bus wires services to the UI; data, AI and OCR code must not reach for it. */
-    @Test fun onlyServicesAndUiUseAppBus() {
-        val users = setOf("accessibility", "bubble", "ui")
-        val violations = appFiles()
-            .filter { file ->
-                val top = file.appPackage().substringBefore('.')
-                top.isNotEmpty() && top !in users
-            }
-            .filter { file -> file.imports.any { it.name == "$ROOT.AppBus" } }
-            .map { "  ${it.appPackage()}/${it.name}.kt" }
+    /**
+     * The root package holds only the Application class. Process-wide hubs that every
+     * layer reaches for (the old `AppBus`) belong to the package that owns the state.
+     */
+    @Test fun rootPackageHoldsOnlyTheApplication() {
+        val stray = appFiles().filter { it.appPackage().isEmpty() && it.name != "ChatAssistantApp" }
         assertTrue(
-            "AppBus is for accessibility / bubble / ui only:\n" + violations.joinToString("\n"),
-            violations.isEmpty(),
+            "only ChatAssistantApp lives in the root package:\n" +
+                stray.joinToString("\n") { "  ${it.name}.kt" },
+            stray.isEmpty(),
         )
     }
 
@@ -134,7 +141,7 @@ class PackageDependencyRulesTest {
         if (!import.startsWith("$ROOT.")) return false
         val target = import.removePrefix("$ROOT.")
         val targetPkg = packageOf(target)
-        // Root types (AppBus, R, BuildConfig) are covered by onlyServicesAndUiUseAppBus.
+        // Root types (R, BuildConfig, the Application) are fine to import from anywhere.
         if (targetPkg.isEmpty()) return false
         if (matches(targetPkg, pkg)) return false // inside its own package
         if (target in allowedTypes) return false
