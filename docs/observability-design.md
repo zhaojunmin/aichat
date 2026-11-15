@@ -129,7 +129,7 @@
 | `BUB-501` | ERROR | 启动前台服务失败 | `startForegroundNotice` |
 | `BUB-502` | WARN | 移除悬浮窗失败 | `removeView` |
 | `MEM-601` | ERROR | 学习失败(已回滚,下次重试) | `MemoryRepository.runLearning` |
-| `MEM-602` | WARN | 学习器返回不可用结果 | `learnMemory` 返回 null |
+| `MEM-602` | WARN | 学习器返回不可用结果 | `MemoryLearner.learn` 返回 null |
 | `MEM-603` | ERROR | 回复日志写入失败 | `ReplyLog.append` |
 | `EMB-701` | WARN | 向量原生库载入失败 | `Encoder.loadLibs` |
 | `EMB-702` | WARN | 向量模型或词表资源拷贝失败 | `ModelAssets` |
@@ -288,7 +288,7 @@ A11Y-304 截图失败            3
 | `ReplyLog.append` `runCatching { appendText }` | 吞掉 | 记 `MEM-603` |
 | `ReplyLog.clear` `runCatching { delete }` | 吞掉 | 保持(删除失败下次会覆盖) |
 | `CloudClient` 4 处 | 转成 `AiException` | 保持;由调用方按 `Kind` 记 `AI-1xx` |
-| `AiService.learnMemory` `runCatching { complete }` | 返回 null | 记对应的 `AI-1xx` / `LLM-2xx`,再返回 null |
+| `MemoryLearner.learn` `runCatching { complete }` | 返回 null | 记对应的 `AI-1xx` / `LLM-2xx`,再返回 null |
 | `AiService` 2 处 `JSONException` | 退回宽松解析 | 保持(解析失败最终会体现为 `AI-109`) |
 | `ModelStore.download` | 返回 `Result` | 失败时记 `LLM-204` |
 | `SecretCodec.decode` | 解不开就返回 "" | 记 `SET-802` |

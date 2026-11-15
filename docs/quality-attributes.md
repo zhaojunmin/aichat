@@ -182,7 +182,7 @@ prompt 和人设会频繁调整,需要一个离线评测集:
 - 第一步不必追求清零告警,先做到**不新增**。
 - **架构与命名规则(Konsist)**:`quality/architecture` 模块把约定写成单测,读 `app` 源码检查,CI 的 style 任务里运行(`./gradlew :quality:architecture:test`)。
   - 包依赖白名单(`PackageDependencyRulesTest`):`diagnostics` 不依赖任何包;`debug`(开发者工具状态)只用 `data`;`accessibility` 只用 `data`/`diagnostics`/`debug`;`ocr` 只取 `MessageBounds`;`capture`(点击时读取会话)只经 `ScreenAccess` 访问读屏;`bubble` 经 `capture` 读屏、只从读屏取 `AccessibilityBridge`,只从 `ui` 取主题、`MainActivity`、错误文案;`ui` 不碰 `ocr`;根包只放 `ChatAssistantApp`。
-  - 已知循环 `ai` ⇄ `data.memory`:`ai` 解析学习结果用到 `MemoryDraft` 等 4 个类型,以白名单形式冻结,不许再扩大;把这些结果类型移出 `data.memory` 即可消除。
+  - `ai` 只负责调用模型(设置和会话进、文本出),不认识记忆:学习的提示词、结果解析和记忆规则在 `data.memory.MemoryLearner`,由它调用 `ai`,不反向依赖。原先的 `ai` ⇄ `data.memory` 循环已消除。
   - 命名(`NamingRulesTest`):Bubble 只指悬浮球;`*ViewModel` 在 `ui` 且继承 androidx `ViewModel`,每个 `*Screen` 有对应 ViewModel;`*Repository` 只在 `data` 且实现同名 `*Store`;`AiClient` 实现叫 `*Client`;禁用 `Impl`/`Manager`/`Helper`/`Util(s)` 后缀;只有 `ChatAssistantApp` 可用 `android.util.Log`;`@Composable` 只在 `ui`。
 - 「依赖有新版本」类检查(`GradleDependency`、`NewerVersionAvailable`、`AndroidGradlePluginVersion`)已关闭:它们的结果随联网和日期变化,与代码无关,会让 CI 结果漂移。依赖升级单独跟踪。
 - baseline 里有一条 `NewApi` 错误(`captureScreenshot` 需要 API 30),实际调用处已有 `SDK_INT >= R` 判断,是 Lint 跟不进条件分支导致的误报。

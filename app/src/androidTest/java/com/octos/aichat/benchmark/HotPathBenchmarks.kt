@@ -10,6 +10,7 @@ import com.octos.aichat.ai.embedding.Embedder
 import com.octos.aichat.ai.embedding.VectorCodec
 import com.octos.aichat.ai.embedding.WordPieceTokenizer
 import com.octos.aichat.data.memory.MemoryEntity
+import com.octos.aichat.data.memory.MemoryLearner
 import com.octos.aichat.data.memory.MemoryRetrieval
 import java.io.File
 import kotlin.random.Random
@@ -133,6 +134,7 @@ class HotPathBenchmarks {
     // ---- model output parsing ----------------------------------------------
 
     private val service = AiService()
+    private val learner = MemoryLearner()
     private val repliesRaw = "```json\n[\"周末一起去爬山吧\",\"好呀,几点出发?\",\"最近有点累,下次吧\"]\n```"
     private val learnRaw = """{"additions":[{"category":"事实","content":"在北京做程序员",
         "keywords":"北京 程序员 工作","importance":8}],
@@ -144,6 +146,6 @@ class HotPathBenchmarks {
     }
 
     @Test fun parseLearnResult() = benchmark.measureRepeated {
-        service.parseLearnResult(learnRaw)
+        learner.parseLearnResult(learnRaw)
     }
 }
