@@ -9,7 +9,11 @@ import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.InferenceMode
 import com.octos.aichat.data.Speaker
+import com.octos.aichat.data.memory.MemoryEntity
+import com.octos.aichat.data.memory.MemoryStats
+import com.octos.aichat.data.memory.MemoryStore
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -17,7 +21,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+/** Robolectric because [SuggestionGenerator.suggestFor] traces through android.os.Trace. */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class SuggestionGeneratorTest {
 
     /** Records what it was asked and returns a canned answer. */
@@ -228,5 +238,66 @@ class SuggestionGeneratorTest {
         val local = cloudSettings.copy(inferenceMode = InferenceMode.LOCAL)
         val svc = SuggestionGenerator(clientFor = { SlowClient(150) }, suggestionTimeoutMs = 50)
         assertEquals(listOf("慢"), svc.generate(local, conv(Speaker.OTHER to "hi")))
+    }
+
+    // ---- suggestFor (one tap) -------------------------------------------------
+
+    /** Records the calls the tap flow makes; everything else is unused here. */
+    private class FakeMemory(private val block: String) : MemoryStore {
+        val calls = mutableListOf<String>()
+        override val memories = MutableStateFlow(emptyList<MemoryEntity>())
+        override val deleted = MutableStateFlow(emptyList<MemoryEntity>())
+        override val stats = MutableStateFlow(MemoryStats())
+        override fun recordMyMessages(conv: Conversation) {
+            calls += "record"
+        }
+        override fun memoryBlock(conv: Conversation?): String {
+            calls += "block"
+            return block
+        }
+        override fun recordReply(text: String) = Unit
+        override fun learnIfDue() = Unit
+        override suspend fun learnNow() = Unit
+        override suspend fun deleteMemory(id: Long) = Unit
+        override suspend fun restoreMemory(id: Long) = Unit
+        override suspend fun purgeMemory(id: Long) = Unit
+        override suspend fun editMemory(id: Long, content: String) = Unit
+        override suspend fun clearAll() = Unit
+    }
+
+    @Test fun suggestFor_recordsMyMessagesThenPromptsWithWhatMemoryKnows() = runTest {
+        val fake = FakeClient("""["好呀"]""")
+        val memory = FakeMemory("【偏好】喜欢户外")
+
+        val out = SuggestionGenerator { fake }.suggestFor(
+            cloudSettings,
+            conv(Speaker.OTHER to "周末去哪"),
+            memory,
+        )
+
+        assertEquals(listOf("好呀"), out)
+        assertEquals(listOf("record", "block"), memory.calls)
+        assertTrue(fake.system!!.contains("喜欢户外"))
+    }
+
+    @Test fun suggestFor_failureIsRethrown_afterMyMessagesWereRecorded() = runTest {
+        val memory = FakeMemory("")
+        val failing = SuggestionGenerator {
+            object : AiClient {
+                override suspend fun complete(settings: AppSettings, system: String, user: String) =
+                    throw AiException(AiException.Kind.SERVER, 503)
+            }
+        }
+        try {
+            failing.suggestFor(cloudSettings, conv(Speaker.OTHER to "hi"), memory)
+            fail("expected the client's failure")
+        } catch (e: AiException) {
+            assertEquals(AiException.Kind.SERVER, e.kind)
+        }
+        assertEquals(
+            "my messages are kept even when generation fails",
+            "record",
+            memory.calls.first(),
+        )
     }
 }
