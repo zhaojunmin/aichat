@@ -113,17 +113,21 @@ object DiagLog {
     }
 
     /**
-     * What is kept right now, for the export. File IO: call off the main thread. Null before
+     * What is kept right now, for the export. Built on the diagnostics thread, so it comes
+     * after any clear or flush already queued there — a clear followed at once by an export
+     * never shows the old data. Blocks until built: call off the main thread. Null before
      * [install].
      */
     fun snapshot(): DiagSnapshot? {
         val r = recorder ?: return null
-        return DiagSnapshot(
-            r.enabled,
-            r.countsSnapshot(),
-            if (r.enabled) r.recent(MAX_EVENTS) else emptyList(),
-            r.durationsSnapshot(),
-        )
+        return io.submit<DiagSnapshot> {
+            DiagSnapshot(
+                r.enabled,
+                r.countsSnapshot(),
+                if (r.enabled) r.recent(MAX_EVENTS) else emptyList(),
+                r.durationsSnapshot(),
+            )
+        }.get()
     }
 
     private fun flushQuietly() {

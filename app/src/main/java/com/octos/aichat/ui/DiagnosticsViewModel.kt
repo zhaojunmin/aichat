@@ -27,11 +27,13 @@ class DiagnosticsViewModel(app: Application, private val settings: SettingsStore
     /** The export text; null while it is being built. */
     val report: StateFlow<String?> = _report
 
-    init {
-        refresh()
-    }
-
+    /**
+     * Rebuild the report. Called each time the screen is shown: this ViewModel is scoped to
+     * the activity and outlives the screen, so a one-off build would keep showing what was
+     * there before a "clear".
+     */
     fun refresh() {
+        _report.value = null // show "building" rather than the previous report
         viewModelScope.launch {
             val ctx = getApplication<Application>()
             val text = withContext(Dispatchers.IO) {
