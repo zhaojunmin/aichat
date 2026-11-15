@@ -40,7 +40,7 @@
 
 | # | 场景 | 目标(度量) | 战术 |
 |---|---|---|---|
-| S1 | 用户选了**本地模式** | 聊天内容 **0 字节**发往网络 | 已实现:`AiService.defaultClientFor` 本地未就绪时直接报错,不回退云端。**补一条单测锁住这个不变式。** |
+| S1 | 用户选了**本地模式** | 聊天内容 **0 字节**发往网络 | 已实现:`aiClientFor` 选本地时由 `LocalClient` 在未就绪时直接报错,不回退云端。**补一条单测锁住这个不变式。** |
 | S2 | 手机做了云备份或换机迁移 | 记忆库、回复日志、API Key **不进备份** | `allowBackup=false`,或加 `dataExtractionRules` 排除 `databases/` 和 `shared_prefs/` |
 | S3 | 设备被 root 或数据被导出 | API Key 不以明文存在 | `EncryptedSharedPreferences`,或用 Android Keystore 包一层 AES-GCM |
 | S4 | 聊天 App 打开时无障碍事件持续触发 | 只在需要时把聊天文本留在内存里 | `captureTree` 改成仅在开启调试开关时运行;`DebugCapture.lastRawDump` 不在 release 版持有聊天原文 |
@@ -139,9 +139,9 @@
 
 | 对象 | 要测什么 |
 |---|---|
-| `AiService.parseSuggestions` / `parseLearnResult` | 表驱动:纯 JSON 数组、带围栏、带前后废话、编号列表、空串、非法 id、未知 category |
-| `AiService.generateSuggestions` | 注入假 `AiClient`,检查 prompt 里包含记忆块,并且不包含「我」在末尾连发的消息 |
-| `AiService` 本地模式 | **本地未就绪时抛异常、绝不调用云端 client**(锁住 S1) |
+| `SuggestionGenerator.parseSuggestions` / `MemoryLearner.parseLearnResult` | 表驱动:纯 JSON 数组、带围栏、带前后废话、编号列表、空串、非法 id、未知 category |
+| `SuggestionGenerator.generate` | 注入假 `AiClient`,检查 prompt 里包含记忆块,并且不包含「我」在末尾连发的消息 |
+| `SuggestionGenerator` 本地模式 | **本地未就绪时抛异常、绝不调用云端 client**(锁住 S1) |
 | `MemoryRetrieval` | 三因子打分的排序、词法回退、空记忆 |
 | `WordPieceTokenizer` / `VectorCodec` | 与 HF tokenizer 的对齐样例;编码和解码互逆 |
 | `Conversation` | `withoutTrailingMine`、`lastFromOther`、`toTranscript` |
@@ -181,7 +181,7 @@ prompt 和人设会频繁调整,需要一个离线评测集:
 - **detekt**(带 formatting 规则):**暂缓**。detekt 1.x 基于 Kotlin 2.0,与 AGP 9 内置的 Kotlin 2.2 冲突;等 detekt 2.0 正式版支持 K2 后再接,同样用 baseline 接纳存量。
 - 第一步不必追求清零告警,先做到**不新增**。
 - **架构与命名规则(Konsist)**:`quality/architecture` 模块把约定写成单测,读 `app` 源码检查,CI 的 style 任务里运行(`./gradlew :quality:architecture:test`)。
-  - 包依赖白名单(`PackageDependencyRulesTest`):`diagnostics` 不依赖任何包;`debug`(开发者工具状态)只用 `data`;`accessibility` 只用 `data`/`diagnostics`/`debug`;`ocr` 只取 `MessageBounds`;`capture`(点击时读取会话)只经 `ScreenAccess` 访问读屏;`bubble` 经 `capture` 读屏、只从读屏取 `AccessibilityBridge`,只从 `ui` 取主题、`MainActivity`、错误文案;`ui` 不碰 `ocr`;根包只放 `ChatAssistantApp`。
+  - 包依赖白名单(`PackageDependencyRulesTest`):`diagnostics` 不依赖任何包;`debug`(开发者工具状态)只用 `data`;`accessibility` 只用 `data`/`diagnostics`/`debug`;`ocr` 只取 `MessageBounds`;`capture`(点击时读取会话)只经 `ScreenAccess` 访问读屏;`bubble` 经 `capture` 读屏、只从读屏取 `AccessibilityBridge`,只从 `ui` 取主题、`MainActivity`、错误文案;`ui` 不碰 `ocr`;根包只放 `ChatAssistantApp`;`ai` 以外只能经 `AiClient`(及 `AiException`、`aiClientFor`、`recordAiFailure`)访问 `ai` 根包,提示词与解析随功能放在 `bubble.SuggestionGenerator` / `data.memory.MemoryLearner`。
   - `ai` 只负责调用模型(设置和会话进、文本出),不认识记忆:学习的提示词、结果解析和记忆规则在 `data.memory.MemoryLearner`,由它调用 `ai`,不反向依赖。原先的 `ai` ⇄ `data.memory` 循环已消除。
   - 命名(`NamingRulesTest`):Bubble 只指悬浮球;`*ViewModel` 在 `ui` 且继承 androidx `ViewModel`,每个 `*Screen` 有对应 ViewModel;`*Repository` 只在 `data` 且实现同名 `*Store`;`AiClient` 实现叫 `*Client`;禁用 `Impl`/`Manager`/`Helper`/`Util(s)` 后缀;只有 `ChatAssistantApp` 可用 `android.util.Log`;`@Composable` 只在 `ui`。
 - 「依赖有新版本」类检查(`GradleDependency`、`NewerVersionAvailable`、`AndroidGradlePluginVersion`)已关闭:它们的结果随联网和日期变化,与代码无关,会让 CI 结果漂移。依赖升级单独跟踪。

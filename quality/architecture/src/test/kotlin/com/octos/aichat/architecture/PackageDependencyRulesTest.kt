@@ -46,6 +46,31 @@ class PackageDependencyRulesTest {
     @Test fun aiOnlyUsesSettingsAndDiagnostics() =
         assertPackage("ai..", allowed = setOf("data", "diagnostics.."))
 
+    /**
+     * Outside the AI layer, models are reached only through `AiClient`: the interface, the
+     * failure it throws, the factory that picks cloud or on-device, and the diagnostics hook.
+     * Prompting and parsing live with their feature (suggestions in `bubble`, learning in
+     * `data.memory`). The on-device runtime (`ai.local`) and embeddings (`ai.embedding`)
+     * are a separate concern and not covered here.
+     */
+    @Test fun aiIsReachedOnlyThroughAiClient() {
+        val port = setOf("AiClient", "AiException", "aiClientFor", "recordAiFailure")
+        val violations = appFiles()
+            .filterNot { matches(it.appPackage(), "ai..") }
+            .flatMap { file ->
+                file.appReferences()
+                    .map { it.removePrefix("$ROOT.") }
+                    .filter { packageOf(it) == "ai" }
+                    .filter { it.removePrefix("ai.").substringBefore('.') !in port }
+                    .map { "  ${file.appPackage()}/${file.name}.kt uses $it" }
+            }
+        assertTrue(
+            "outside ai, only $port may be used from the ai package:\n" +
+                violations.joinToString("\n"),
+            violations.isEmpty(),
+        )
+    }
+
     /** Settings, conversation and secrets are plain data: no AI, no memory, no UI. */
     @Test fun dataRootOnlyUsesDiagnostics() = assertPackage(
         "data",

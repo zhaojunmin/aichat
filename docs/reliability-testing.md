@@ -23,7 +23,7 @@ quality/scripts/run-reliability.sh
 | `MemoryDatabaseMigrationTest` | 升级不丢数据 | 按 v1–v4 各版本全新安装时的建表语句造库,再用当前版本和真实迁移链打开。Room 打开时会校验 schema,迁移写错就会失败 |
 | `ReplyLogTest` | R5 | 去重、重启后保留进度、旧版本 prefs 里的进度迁进数据库、进度超出文件行数、清空 |
 | `MemoryLearningPassTest` | R5 | 学习器返回空 / 抛异常 / 写库失败时进度不前进;编造的 id 不动任何行 |
-| `AiServiceTest`、`CloudClientTest`、`LocalClientTest` | R3、R4 | 畸形输出、HTTP 错误分类、超时、断连、取消、本地超时 |
+| `SuggestionGeneratorTest`、`CloudClientTest`、`LocalClientTest` | R3、R4 | 畸形输出、HTTP 错误分类、超时、断连、取消、本地超时 |
 
 数据库 schema 导出在 `app/schemas/`(每个版本一个 JSON,提交进仓库)。以后再升级数据库,可以对照上一版的 schema 检查迁移。
 

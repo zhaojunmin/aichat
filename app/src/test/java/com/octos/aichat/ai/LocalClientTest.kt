@@ -1,6 +1,7 @@
 package com.octos.aichat.ai
 
 import com.octos.aichat.ai.local.LlmEngine
+import com.octos.aichat.bubble.SuggestionGenerator
 import com.octos.aichat.data.AppSettings
 import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
@@ -80,15 +81,15 @@ class LocalClientTest {
     }
 
     /**
-     * Through AiService: the local timeout reaches the caller as-is, not rewrapped as a cloud
+     * Through SuggestionGenerator: the local timeout reaches the caller as-is, not rewrapped as a cloud
      * TIMEOUT.
      */
     @Test fun localTimeoutSurfacesFromGenerateSuggestions() = runTest {
         val local = LocalClient(ready) { _, _, _ -> LlmEngine.Output("", timedOut = true) }
-        val svc = AiService { local }
+        val svc = SuggestionGenerator { local }
         val settings = AppSettings(inferenceMode = InferenceMode.LOCAL)
         try {
-            svc.generateSuggestions(
+            svc.generate(
                 settings,
                 Conversation("pkg", listOf(ChatMessage(Speaker.OTHER, "hi"))),
             )
