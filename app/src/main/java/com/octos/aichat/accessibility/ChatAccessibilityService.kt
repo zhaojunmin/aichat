@@ -1,61 +1,52 @@
 package com.octos.aichat.accessibility
 
 import android.accessibilityservice.AccessibilityService
-import android.graphics.Bitmap
-import android.graphics.Rect
-import android.os.Build
-import android.os.Bundle
-import android.os.Handler
-import android.os.HandlerThread
-import android.os.SystemClock
-import android.view.Display
 import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityNodeInfo
-import android.view.accessibility.AccessibilityWindowInfo
-import androidx.annotation.RequiresApi
 import com.octos.aichat.AppBus
-import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.SettingsRepository
+import com.octos.aichat.data.SettingsStore
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 import com.octos.aichat.diagnostics.Tracing
-import kotlin.coroutines.resume
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.asExecutor
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withContext
 
 /**
- * Tracks which app is in the foreground (to show/hide the bubble) and, on bubble
- * tap, reads the chat window of supported apps ([readConversation]). Also exposes [pasteText] so the overlay can drop a chosen reply
- * straight into the input box.
+ * Wiring only: receives the system's accessibility callbacks and hands them to the
+ * pieces that act on them.
+ *
+ * - [ForegroundTracker]: which app is in front (shows / hides the bubble), per event.
+ * - [ChatWindowReader]: reading the chat on bubble tap (node tree, or screenshot for OCR).
+ * - [ReplyFiller]: dropping the chosen reply into the input box.
+ * - [RawTreeDumper]: debug-only node tree capture.
  */
 class ChatAccessibilityService : AccessibilityService() {
 
-    private val screenWidth: Int
-        get() = resources.displayMetrics.widthPixels
+    private val settings: SettingsStore by lazy { SettingsRepository.get(this) }
+    private val isTarget: (String) -> Boolean = { it in settings.current().targetPackageSet }
 
-    private val screenHeight: Int
-        get() = resources.displayMetrics.heightPixels
-
-    // Debug-only: the raw-tree capture walks the whole node tree (one IPC per
-    // child), so it runs on its own thread, never the main thread events arrive on.
-    private val captureThread = HandlerThread("a11y-capture").apply { start() }
-    private val captureHandler = Handler(captureThread.looper)
-    private val captureTask = Runnable { guarded(::captureActiveWindow) }
+    private val foreground = ForegroundTracker(isTarget, { AppBus.captureRawTree }, AppBus::onForeground)
+    private val treeDumper = RawTreeDumper({ rootInActiveWindow }, isTarget)
+    private val reader = ChatWindowReader(this)
+    private val replyFiller = ReplyFiller { rootInActiveWindow }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        AppBus.accessibilityService = this
+        AppBus.attachAccessibility(reader, replyFiller)
     }
 
+    /**
+     * Main thread, on every event: cheap foreground tracking only. The chat itself
+     * is parsed on demand ([ChatWindowReader.readConversation]) when the user taps
+     * the bubble — no per-event tree walks while they're just chatting.
+     */
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event ?: return
-        if (isRoutineUpdateOfForegroundApp(
-                event.eventType, event.packageName, AppBus.foregroundPackage, AppBus.captureRawTree,
-            )
-        ) return
-        Tracing.section(Tracing.A11Y_EVENT) { guarded(::onWindowChanged) }
+        if (foreground.canSkip(event)) return
+        Tracing.section(Tracing.A11Y_EVENT) {
+            guarded {
+                val app = foreground.track(rootInActiveWindow)
+                if (app?.isTarget == true) treeDumper.request()
+            }
+        }
     }
 
     /**
@@ -71,231 +62,11 @@ class ChatAccessibilityService : AccessibilityService() {
         }
     }
 
-    /**
-     * Main thread, on every event: cheap foreground tracking only. The chat itself
-     * is parsed on demand ([readConversation]) when the user taps the bubble — no
-     * per-event tree walks while they're just chatting.
-     */
-    private fun onWindowChanged() {
-        // Drive foreground state only from the *active window's* package. The IME,
-        // toasts and transient sub-windows don't own the active window, so this
-        // avoids false "left the chat app" signals (which would hide the bubble).
-        //
-        // Crucially, when rootInActiveWindow is momentarily null (common during
-        // transitions / when the keyboard opens) we must NOT fall back to
-        // event.packageName — that package often belongs to the IME or a system
-        // window, which would wrongly hide the bubble and leave it stuck hidden.
-        // Skipping the event keeps the last known state until a reliable one.
-        val root = rootInActiveWindow ?: return
-        val pkg = root.packageName?.toString() ?: return
-        val settings = SettingsRepository.get(this).current()
-        val isTarget = pkg in settings.targetPackageSet
-
-        AppBus.onForeground(pkg, isTarget)
-        if (!isTarget || !AppBus.captureRawTree) return
-
-        // Coalesce bursts: a queued capture reads the window when it runs, so one
-        // pending task is enough — later events just replace it.
-        captureHandler.removeCallbacks(captureTask)
-        captureHandler.post(captureTask)
-    }
-
-    /**
-     * Parse the chat window of [pkg] as it is right now. Called on bubble tap; the
-     * tree walk runs off the main thread. Empty when that window can't be read.
-     */
-    suspend fun readConversation(pkg: String): Conversation = withContext(Dispatchers.IO) {
-        try {
-            Tracing.section(Tracing.A11Y_PARSE) {
-                val root = windowRoot(pkg) ?: run {
-                    DiagLog.record(ErrorCode.A11Y_303, pkg = pkg)
-                    return@withContext Conversation(pkg, emptyList())
-                }
-                ChatParser.parse(root, screenWidth, screenHeight, pkg)
-            }
-        } catch (e: Exception) {
-            DiagLog.record(ErrorCode.A11Y_302, cause = e, pkg = pkg)
-            Conversation(pkg, emptyList())
-        }
-    }
-
-    /**
-     * Root of [pkg]'s app window. Looked up by package rather than "active window"
-     * because the tap itself lands on our overlay; falls back to the active window.
-     */
-    private fun windowRoot(pkg: String): AccessibilityNodeInfo? =
-        // getRoot() is a cross-process call: fetch it once per window.
-        windows.orEmpty().asSequence()
-            .filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
-            .mapNotNull { it.root }
-            .firstOrNull { it.packageName?.toString() == pkg }
-            ?: rootInActiveWindow?.takeIf { it.packageName?.toString() == pkg }
-
-    /** [captureThread], debug switch on: re-read the active window (it may have moved on) and capture it. */
-    private fun captureActiveWindow() {
-        if (!AppBus.captureRawTree) return
-        val root = rootInActiveWindow ?: return
-        val pkg = root.packageName?.toString() ?: return
-        if (pkg !in SettingsRepository.get(this).current().targetPackageSet) return
-        captureTree(root, pkg)
-    }
-
-    // Capture the node tree into AppBus so the in-app debug viewer can show it.
-    // This is how we design per-app parse rules without relying on logcat /
-    // uiautomator, both of which are blocked on some devices/apps.
-    // Only touched on captureThread.
-    private var lastDumpAt = 0L
-    private fun captureTree(root: AccessibilityNodeInfo, pkg: String) {
-        val now = SystemClock.uptimeMillis()
-        if (now - lastDumpAt < 1500) return
-        lastDumpAt = now
-        val sb = StringBuilder()
-        sb.append("来源: ").append(pkg).append("\n\n")
-        var count = 0
-        fun walk(n: AccessibilityNodeInfo?, depth: Int) {
-            if (n == null || count > 300) return
-            val txt = (n.text ?: n.contentDescription)?.toString()?.trim()
-            val vid = n.viewIdResourceName
-            if (!txt.isNullOrEmpty() || vid != null) {
-                val r = Rect().also { n.getBoundsInScreen(it) }
-                val cls = n.className?.toString()?.substringAfterLast('.')
-                sb.append("[").append(cls).append("] id=")
-                    .append(vid?.substringAfterLast('/') ?: "-")
-                    .append(" ").append(r.toShortString())
-                if (!txt.isNullOrEmpty()) sb.append(" t=").append(txt.take(40))
-                sb.append('\n')
-                count++
-            }
-            for (i in 0 until n.childCount) walk(n.getChild(i), depth + 1)
-        }
-        walk(root, 0)
-        sb.append("\n共 ").append(count).append(" 个有文本/ID 的节点")
-        AppBus.lastRawDump = sb.toString()
-    }
-
-    /**
-     * Capture the current screen via the accessibility API — no MediaProjection
-     * consent dialog needed. Returns a software ARGB_8888 bitmap ready for OCR,
-     * or null on failure (e.g. a FLAG_SECURE window, or rate limiting).
-     */
-    @RequiresApi(Build.VERSION_CODES.R)
-    suspend fun captureScreenshot(pkg: String): Bitmap? = suspendCancellableCoroutine { cont ->
-        // takeScreenshot() can throw synchronously (e.g. SecurityException if the
-        // capability is missing). Guard it so a failure never crashes the whole
-        // accessibility service process.
-        try {
-            takeScreenshot(
-                Display.DEFAULT_DISPLAY,
-                // Off the main thread: the callback copies the full-screen hardware
-                // bitmap into a software one (~13 MB at 1224×2700).
-                Dispatchers.Default.asExecutor(),
-                object : TakeScreenshotCallback {
-                    override fun onSuccess(result: ScreenshotResult) {
-                        val software = try {
-                            val hw = Bitmap.wrapHardwareBuffer(result.hardwareBuffer, result.colorSpace)
-                            val copy = hw?.copy(Bitmap.Config.ARGB_8888, false)
-                            hw?.recycle()
-                            copy
-                        } catch (e: Exception) {
-                            DiagLog.record(ErrorCode.A11Y_304, cause = e, pkg = pkg)
-                            null
-                        } finally {
-                            result.hardwareBuffer.close()
-                        }
-                        // A cancelled tap must not leak the ~13 MB copy.
-                        cont.resume(software) { software?.recycle() }
-                    }
-
-                    override fun onFailure(errorCode: Int) {
-                        DiagLog.record(ErrorCode.A11Y_304, platform = errorCode, pkg = pkg)
-                        if (cont.isActive) cont.resume(null)
-                    }
-                }
-            )
-        } catch (e: Exception) {
-            DiagLog.record(ErrorCode.A11Y_304, cause = e, pkg = pkg)
-            if (cont.isActive) cont.resume(null)
-        }
-    }
-
-    /**
-     * Screen bounds of the on-screen IME (soft keyboard) if it's currently shown,
-     * else null. Used to crop the keyboard out of OCR screenshots so its letters
-     * aren't misread as chat text.
-     */
-    fun imeBounds(): Rect? = try {
-        windows
-            ?.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
-            ?.let { w -> Rect().also { w.getBoundsInScreen(it) } }
-            ?.takeIf { !it.isEmpty }
-    } catch (e: Exception) {
-        DiagLog.record(ErrorCode.A11Y_306, cause = e)
-        null
-    }
-
     override fun onInterrupt() {}
 
     override fun onDestroy() {
         super.onDestroy()
-        captureHandler.removeCallbacksAndMessages(null)
-        captureThread.quitSafely()
-        if (AppBus.accessibilityService === this) AppBus.accessibilityService = null
+        treeDumper.close()
+        AppBus.detachAccessibility(reader)
     }
-
-    /**
-     * Set [text] into the chat's input box: the input-focused field if there is one
-     * (one IPC, and never a search box elsewhere on screen), else the first editable
-     * node in the tree. Off the main thread — the fallback walk is one IPC per node.
-     * @return true if a field was found and filled; on false, `A11Y-305` is already recorded.
-     */
-    suspend fun pasteText(text: String): Boolean = withContext(Dispatchers.IO) {
-        val pkg = AppBus.foregroundPackage
-        val filled = try {
-            val editable = rootInActiveWindow?.let { root ->
-                root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)?.takeIf { it.isEditable } ?: findEditable(root)
-            }
-            val args = Bundle().apply {
-                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
-            }
-            editable?.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args) == true
-        } catch (e: Exception) {
-            DiagLog.record(ErrorCode.A11Y_305, cause = e, pkg = pkg)
-            return@withContext false
-        }
-        if (!filled) DiagLog.record(ErrorCode.A11Y_305, pkg = pkg)
-        filled
-    }
-
-    private fun findEditable(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
-        if (node == null) return null
-        if (node.isEditable) return node
-        for (i in 0 until node.childCount) {
-            findEditable(node.getChild(i))?.let { return it }
-        }
-        return null
-    }
-}
-
-/**
- * True when [eventType] is a scroll / content change coming from the app already
- * known to be in front ([foregroundPackage]): such an event can't change which app
- * is in the foreground, so the main thread can skip [AccessibilityService.getRootInActiveWindow]
- * — a cross-process round trip served by the chat app's busy UI thread (7 ms P50,
- * 18 ms P95 while scrolling), which was ~95% of the per-event cost.
- *
- * Window-state changes and events from any other package (IME, system UI, a newly
- * opened app) still take the full check, as does everything while the debug
- * raw-tree capture is on (it refreshes from these events).
- */
-internal fun isRoutineUpdateOfForegroundApp(
-    eventType: Int,
-    eventPackage: CharSequence?,
-    foregroundPackage: String?,
-    captureRawTree: Boolean,
-): Boolean {
-    if (captureRawTree || foregroundPackage == null || eventPackage == null) return false
-    if (eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
-        eventType != AccessibilityEvent.TYPE_VIEW_SCROLLED
-    ) return false
-    return eventPackage.contentEquals(foregroundPackage)
 }
