@@ -9,20 +9,20 @@ import org.json.JSONArray
 import org.json.JSONException
 
 /**
- * Turns an extracted [Conversation] into a handful of candidate replies via the
+ * Turns an extracted [Conversation] into a handful of suggestions via the
  * configured OpenAI-compatible chat API (DeepSeek / Doubao).
  */
 class AiService(
     // The user is waiting mid-chat: past this they'd rather type themselves.
     // Cloud only — a blocking on-device inference can't be interrupted midway.
-    private val replyTimeoutMs: Long = REPLY_TIMEOUT_MS,
-    // Which AiClient to use for a given request — injected so reply generation and
+    private val suggestionTimeoutMs: Long = SUGGESTION_TIMEOUT_MS,
+    // Which AiClient to use for a given request — injected so suggestion generation and
     // learning can be unit-tested with a fake client. Default = cloud/local selection.
     // Last, so callers can pass it as a trailing lambda.
     private val clientFor: (AppSettings) -> AiClient = ::aiClientFor,
 ) {
 
-    suspend fun generateReplies(
+    suspend fun generateSuggestions(
         settings: AppSettings,
         conversation: Conversation,
         memoryBlock: String = "",
@@ -30,7 +30,7 @@ class AiService(
         require(settings.useLocal || settings.apiKey.isNotBlank()) { "尚未填写 API Key" }
 
         val n = settings.suggestionCount.coerceIn(1, 5)
-        // Exclude my own trailing messages so the model replies to the other
+        // Exclude my own trailing messages so the suggestions answer the other
         // party's latest line instead of continuing my last turn.
         val transcript = conversation.withoutTrailingMine().toTranscript()
         val user = buildString {
@@ -39,8 +39,8 @@ class AiService(
             append("\n\n以\"我\"的口吻给 ").append(n).append(" 条风格各异的回复。")
             append("要求:每条一句话、像微信随手回,20 字左右、最多 40 字;")
             append("口语化、直接能发,别客套、别铺垫、别解释、别重复对方的话。")
-            // Output language follows the conversation, not the UI locale: reply in
-            // whatever language the other party is using (English chat -> English replies).
+            // Output language follows the conversation, not the UI locale: suggest in
+            // whatever language the other party is using (English chat -> English suggestions).
             append("用与对方消息相同的语言回复(对方说英文就用英文、中文就用中文)。")
             append("仅返回 JSON 字符串数组,如 [\"回复1\",\"回复2\"]。")
         }
@@ -58,27 +58,27 @@ class AiService(
             client.complete(settings, system, user)
         } else {
             // Timing out cancels the coroutine, which cancels the HTTP call.
-            withTimeoutOrNull(replyTimeoutMs) { client.complete(settings, system, user) }
+            withTimeoutOrNull(suggestionTimeoutMs) { client.complete(settings, system, user) }
                 ?: throw AiException(
                     AiException.Kind.TIMEOUT,
-                    detail = "reply budget ${replyTimeoutMs}ms",
+                    detail = "suggestion budget ${suggestionTimeoutMs}ms",
                 )
         }
 
         // An empty or content-free answer must surface as an error, never as a blank candidate.
-        parseReplies(raw, n).ifEmpty {
+        parseSuggestions(raw, n).ifEmpty {
             throw AiException(
                 AiException.Kind.BAD_RESPONSE,
-                detail = "no replies in: ${raw.take(80)}",
+                detail = "no suggestions in: ${raw.take(80)}",
             )
         }
     }
 
     /**
      * Be tolerant: accept a JSON array, a fenced block, or newline-separated lines.
-     * Empty when the answer holds no usable reply (blank, `[]`, only blank items).
+     * Empty when the answer holds no usable suggestion (blank, `[]`, only blank items).
      */
-    internal fun parseReplies(raw: String, max: Int): List<String> {
+    internal fun parseSuggestions(raw: String, max: Int): List<String> {
         val cleaned = raw.trim()
             .removePrefix("```json").removePrefix("```")
             .removeSuffix("```")
@@ -95,7 +95,7 @@ class AiService(
                     if (s.isNotEmpty()) out.add(s)
                 }
                 // A well-formed array is the answer, even if empty: falling back to
-                // line parsing would surface the literal "[]" as a reply.
+                // line parsing would surface the literal "[]" as a suggestion.
                 return out.take(max)
             } catch (_: JSONException) {
                 // fall through to line parsing
@@ -110,7 +110,7 @@ class AiService(
     }
 
     companion object {
-        const val REPLY_TIMEOUT_MS = 30_000L
+        const val SUGGESTION_TIMEOUT_MS = 30_000L
 
         /** Production singleton with the real cloud/local client selection. */
         val instance: AiService by lazy { AiService() }

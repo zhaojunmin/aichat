@@ -32,8 +32,8 @@
     <string name="home_download_model">下载 %1$s</string>
     <string name="home_testing_local">本地生成中…</string>
     <string name="home_testing_cloud">测试中…</string>
-    <string name="home_reply_style_title">回复风格</string>
-    <string name="home_reply_style_desc">选一个场景,或自定义你想要的语气。</string>
+    <string name="home_suggestion_style_title">回复风格</string>
+    <string name="home_suggestion_style_desc">选一个场景,或自定义你想要的语气。</string>
     <string name="home_custom_persona_label">自定义风格(填写后覆盖上面的场景)</string>
     <string name="home_memory_title">专属记忆(越用越懂你)</string>
     <string name="home_memory_switch_label">记住我的说话风格和习惯</string>
@@ -57,7 +57,7 @@
     <string name="adv_bubble_autostart">随应用启动自动开启</string>
     <string name="adv_bubble_on_desc">打开微信 / QQ / Soul 等聊天界面即可用;关闭则不自动启动</string>
     <string name="adv_bubble_off_desc">需先在首页授予悬浮窗权限</string>
-    <string name="adv_reply_pref_title">回复偏好</string>
+    <string name="adv_suggestion_pref_title">回复偏好</string>
     <string name="adv_suggestion_count">每次候选条数:%1$d</string>
     <string name="adv_autopaste_title">自动填入输入框</string>
     <string name="adv_autopaste_desc">选好回复后直接填进聊天输入框</string>
@@ -188,7 +188,7 @@
     <string name="persona_business">商务/正式</string>
     <string name="persona_support">客服/答疑</string>
 
-    <!-- Not translated: the overlay bubble's label and the numbering of a suggested reply. -->
+    <!-- Not translated: the overlay bubble's label and the numbering of a suggestion. -->
     <string name="bubble_label" translatable="false">AI</string>
-    <string name="panel_reply_item" translatable="false">"%1$d.  %2$s"</string>
+    <string name="panel_suggestion_item" translatable="false">"%1$d.  %2$s"</string>
 </resources>

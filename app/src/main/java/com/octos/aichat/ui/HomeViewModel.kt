@@ -122,7 +122,7 @@ class HomeViewModel(
                         appContext.getString(R.string.error_local_load_failed)
                     }
                 }
-                AiService.instance.generateReplies(s, sample)
+                AiService.instance.generateSuggestions(s, sample)
             }.getOrElse {
                 listOf(appContext.getString(R.string.vm_error_prefix, it.toUserMessage(appContext)))
             }

@@ -10,7 +10,7 @@
 ## 0. TL;DR
 
 1. **质量属性优先级**:隐私与安全 > 可靠性(读得准、不崩) > 性能(点球到出结果) > 可维护/可测试 > 兼容性(第三方 App 改版、设备 ABI) > 易用性 > 可观测性。
-2. **最大的工程缺口**:仓库里**没有任何测试**(`app/src/test` 不存在)、**没有 CI**、**没有静态检查配置**。代码已经为可测性做了铺垫(`AiService` 注入 `clientFor`、`parseReplies`/`parseLearnResult` 是 `internal`、`SettingsStore`/`MemoryStore` 有接口),但没有用上。
+2. **最大的工程缺口**:仓库里**没有任何测试**(`app/src/test` 不存在)、**没有 CI**、**没有静态检查配置**。代码已经为可测性做了铺垫(`AiService` 注入 `clientFor`、`parseSuggestions`/`parseLearnResult` 是 `internal`、`SettingsStore`/`MemoryStore` 有接口),但没有用上。
 3. **已发现的问题**(详见 §3):本地模式下记忆学习被云端 API Key 卡死;`allowBackup=true` 会把聊天记忆和 API Key 带进云备份;API Key 明文存储;错误被静默吞掉、无法定位;调试用的控件树抓取在生产环境的主线程上一直在跑。
 4. **落地顺序**:P0 先建测试 + CI + Lint 的安全网,并修掉隐私类问题;P1 补性能预算和 LLM 输出回归评测;P2 做可观测性和发布流程。
 
@@ -53,7 +53,7 @@
 |---|---|---|---|
 | R1 | 在已支持 App 的标准聊天页点悬浮球 | 「我/对方」判定准确率 ≥ 95%(以固定样本集计) | 解析器输入抽象成纯数据(见 §4.2),用**脱敏后的 UI dump 做 golden 测试** |
 | R2 | 第三方 App 改版导致 view-id 失效 | 不崩溃,自动降级到位置解析,并提示「解析规则可能过期」 | 已有降级逻辑;**补上降级时的提示和计数** |
-| R3 | 模型返回非 JSON、带 markdown 围栏、空串或超长内容 | 依然能给出 1..n 条回复,或明确报错 | `parseReplies` 已经做了容错;**用表驱动单测覆盖各种畸形输入** |
+| R3 | 模型返回非 JSON、带 markdown 围栏、空串或超长内容 | 依然能给出 1..n 条回复,或明确报错 | `parseSuggestions` 已经做了容错;**用表驱动单测覆盖各种畸形输入** |
 | R4 | 网络超时或 4xx/5xx | 10 秒内给出可读的错误(区分 Key 无效、余额不足、超时),不留在一直转圈的状态 | `CloudClient` 按 HTTP 状态码映射成具体错误类型;总超时 ≤ 30 秒,现在 read 是 60 秒 |
 | R5 | 学习过程中进程被杀 | 未学习的回复不丢,也不会重复学习 | 已实现(学习成功后才 `markLearned`);**补测试** |
 | R6 | 本地模式且没有填云端 Key | 记忆照常学习 | **现在是坏的**,见 §3 问题 1 |
@@ -139,8 +139,8 @@
 
 | 对象 | 要测什么 |
 |---|---|
-| `AiService.parseReplies` / `parseLearnResult` | 表驱动:纯 JSON 数组、带围栏、带前后废话、编号列表、空串、非法 id、未知 category |
-| `AiService.generateReplies` | 注入假 `AiClient`,检查 prompt 里包含记忆块,并且不包含「我」在末尾连发的消息 |
+| `AiService.parseSuggestions` / `parseLearnResult` | 表驱动:纯 JSON 数组、带围栏、带前后废话、编号列表、空串、非法 id、未知 category |
+| `AiService.generateSuggestions` | 注入假 `AiClient`,检查 prompt 里包含记忆块,并且不包含「我」在末尾连发的消息 |
 | `AiService` 本地模式 | **本地未就绪时抛异常、绝不调用云端 client**(锁住 S1) |
 | `MemoryRetrieval` | 三因子打分的排序、词法回退、空记忆 |
 | `WordPieceTokenizer` / `VectorCodec` | 与 HF tokenizer 的对齐样例;编码和解码互逆 |

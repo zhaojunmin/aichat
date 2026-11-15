@@ -181,7 +181,10 @@ internal fun AdvancedScreen(
                 }
             }
 
-            SectionCard(stringResource(R.string.adv_reply_pref_title), icon = Icons.Outlined.Tune) {
+            SectionCard(
+                stringResource(R.string.adv_suggestion_pref_title),
+                icon = Icons.Outlined.Tune,
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         stringResource(R.string.adv_suggestion_count, settings.suggestionCount),

@@ -32,9 +32,9 @@ enum class InferenceMode { CLOUD, LOCAL }
 data class BackendConfig(val baseUrl: String, val model: String, val apiKey: String = "")
 
 /**
- * A reusable "persona + scene" preset that shapes how the assistant replies.
+ * A reusable "persona + scene" preset that shapes the assistant's suggestions.
  * The [systemPrompt] is sent as the system message; it is combined with the
- * extracted conversation to produce candidate replies.
+ * extracted conversation to produce suggestions.
  */
 data class PersonaPreset(val id: String, @StringRes val titleRes: Int, val systemPrompt: String)
 

@@ -62,7 +62,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Foreground service that paints a draggable bubble over other apps. Tapping it
- * asks the configured AI for reply candidates based on whatever the accessibility
+ * asks the configured AI for suggestions based on whatever the accessibility
  * reader last captured, and shows them in a panel ([BubblePanel]). Tapping a
  * candidate copies it (and optionally auto-pastes into the chat input).
  *
@@ -103,7 +103,7 @@ class FloatingBubbleService : Service() {
         if (::bubble.isInitialized && bubble.isVisible) {
             bubble.visibility = View.GONE
             // The user left the chat app: a good moment to learn, since a local
-            // learning pass can't hold up a reply they're waiting for.
+            // learning pass can't hold up suggestions they're waiting for.
             MemoryRepository.get(this).learnIfDue()
         }
         if (::panel.isInitialized) panel.remove()
@@ -117,7 +117,7 @@ class FloatingBubbleService : Service() {
         super.onCreate()
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
         palette = resolvePalette()
-        panel = BubblePanel(this, wm, palette, ::onReplyChosen)
+        panel = BubblePanel(this, wm, palette, ::onSuggestionChosen)
         startForegroundNotice()
         addBubble()
         followThemeSetting()
@@ -354,7 +354,7 @@ class FloatingBubbleService : Service() {
                 DiagLog.timed(
                     if (settings.useLocal) TimedOp.GENERATE_LOCAL else TimedOp.GENERATE_CLOUD,
                 ) {
-                    AiService.instance.generateReplies(settings, conv, memoryBlock)
+                    AiService.instance.generateSuggestions(settings, conv, memoryBlock)
                 }
             }
         }
@@ -363,7 +363,7 @@ class FloatingBubbleService : Service() {
             if (it is CancellationException) throw it else DiagLog.recordAiFailure(it)
         }
         result.onSuccess {
-            panel.showResults(it, conv.lastFromOther())
+            panel.showSuggestions(it, conv.lastFromOther())
             DiagLog.recordDuration(TimedOp.TAP_TO_RESULT, SystemClock.elapsedRealtime() - tappedAt)
         }
             .onFailure { panel.showError(it.toUserMessage(this@FloatingBubbleService)) }
@@ -392,10 +392,11 @@ class FloatingBubbleService : Service() {
         return true
     }
 
-    private fun onReplyChosen(reply: String) {
-        MemoryRepository.get(this).recordReply(reply)
+    private fun onSuggestionChosen(suggestion: String) {
+        // Once chosen, the suggestion is my reply: it goes into the reply log.
+        MemoryRepository.get(this).recordReply(suggestion)
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("ai_reply", reply))
+        clipboard.setPrimaryClip(ClipData.newPlainText("ai_suggestion", suggestion))
 
         panel.remove()
         val autoPaste = SettingsRepository.get(this).current().autoPaste
@@ -406,7 +407,7 @@ class FloatingBubbleService : Service() {
         scope.launch {
             val pkg = AccessibilityBridge.foregroundPackage
             val screen = AccessibilityBridge.screen.value
-            val pasted = screen != null && screen.fill(reply, pkg)
+            val pasted = screen != null && screen.fill(suggestion, pkg)
             if (screen == null) DiagLog.record(ErrorCode.A11Y_305, pkg = pkg)
             toast(if (pasted) getString(R.string.svc_filled) else getString(R.string.svc_copied))
         }
