@@ -1,4 +1,4 @@
-package com.octos.aichat.bubble
+package com.octos.aichat
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -10,7 +10,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import com.octos.aichat.R
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 import com.octos.aichat.ui.MainActivity
@@ -18,8 +17,9 @@ import com.octos.aichat.ui.MainActivity
 /**
  * Keeps the process alive while the floating bubble is up: a foreground service with
  * a persistent notification, nothing else. It does no work of its own — the bubble
- * ([FloatingBubbleService]) lives in the Application, which starts this service with
- * the bubble and stops it with the bubble.
+ * (`FloatingBubbleService`) lives in [ChatAssistantApp], which starts this service with
+ * the bubble and stops it with the bubble. Process-level, like the Application, so it
+ * sits in the root package.
  */
 class KeepLiveService : Service() {
 

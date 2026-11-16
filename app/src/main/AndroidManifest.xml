@@ -52,7 +52,7 @@
         </service>
 
         <service
-            android:name=".bubble.KeepLiveService"
+            android:name=".KeepLiveService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property
