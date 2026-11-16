@@ -115,7 +115,7 @@ object OcrReader {
             gapInsideMessage(bitmap, upper, lower)
         }
         // Group chats: drop the sender name printed above each bubble.
-        val blocks = SenderNameFilter.drop(merged) { name, below ->
+        val named = SenderNameFilter.drop(merged) { name, below ->
             val a = paddingColor(bitmap, name, name.lineHeight)
             val b = paddingColor(bitmap, below, name.lineHeight)
             // Unreadable pixels → treat as same background, i.e. keep the block.
@@ -123,6 +123,8 @@ object OcrReader {
             // a pale wallpaper (#E7F0F9 measured) is only 45 off a white bubble.
             a == null || b == null || similar(a, b, FLAT_TOLERANCE)
         }
+        // Quoted text under a reply (and other small secondary text) is not a message.
+        val blocks = QuoteFilter.drop(named)
 
         val messages = ArrayList<ChatMessage>()
         var last: String? = null
