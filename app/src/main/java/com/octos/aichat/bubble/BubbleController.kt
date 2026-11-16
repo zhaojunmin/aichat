@@ -34,21 +34,22 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
- * The floating assistant: a draggable bubble over other apps. Tapping it asks the
+ * Controls the floating bubble: a draggable bubble over other apps. Tapping it asks the
  * configured AI for suggestions based on what the accessibility reader sees, and shows
  * them in a panel ([BubblePanel]). Tapping one copies it (and optionally fills it into
  * the chat input).
  *
  * Not an Android Service: a single instance per process, created and destroyed by
  * [com.octos.aichat.ChatAssistantApp] — it exists while the accessibility service is
- * connected, the bubble is switched on and drawing over apps is allowed. The
- * accessibility binding is what keeps the process alive, so there is no foreground
- * service or notification. Construction shows the bubble; [destroy] removes it.
+ * connected and drawing over apps is allowed. Construction shows the bubble; [destroy]
+ * removes it.
  *
- * This class owns the orchestration (tap → suggestions → chosen one delivered). The ball
- * itself is [FloatingBubble], the panel [BubblePanel], shared drawables [BubbleStyle].
+ * It owns the views and the collaborators, turns taps on the views into work (tap →
+ * suggestions → chosen one delivered) and keeps the views in step with the foreground
+ * app and the theme. The ball itself is [FloatingBubble], the panel [BubblePanel],
+ * shared drawables [BubbleStyle].
  */
-class FloatingBubbleService(private val context: Context) {
+class BubbleController(private val context: Context) {
 
     private val wm = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
