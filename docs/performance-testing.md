@@ -108,8 +108,11 @@ PROFILE=1 ADB=adb.exe quality/scripts/perf-loop.sh run 6 1
 python3 -m venv build/perfetto-venv && build/perfetto-venv/bin/pip install perfetto==0.59.1
 build/perfetto-venv/bin/python quality/scripts/perfetto_analyze.py \
     build/benchmark-results/perf-round-1.txt build/benchmark-results/perf-round-1.pftrace \
-    --mapping app/build/outputs/mapping/release/mapping.txt
+    --mapping app/build/outputs/mapping/release/mapping.txt \
+    --html build/benchmark-results/tap-hot-stacks.html   # 可选:每个阶段一张火焰图
 ```
+
+`--html` 生成一个独立的网页(不依赖外网):每个阶段一个标签页,火焰图从上到下是调用方到被调方,宽度是采样数;点一个帧放大到它,悬停看采样数和占比;下面列出自身耗时最高的函数。`a11y.onEvent` 只统计执行它的那条线程上的采样;C++ 符号用 `c++filt` 还原(装了 binutils 时)。
 
 安全约束(手机是真人在用的):
 
