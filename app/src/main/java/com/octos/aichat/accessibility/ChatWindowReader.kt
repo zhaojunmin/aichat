@@ -22,8 +22,8 @@ import kotlinx.coroutines.withContext
 
 /**
  * What the overlay needs from the screen on a bubble tap: the chat as parsed from
- * the node tree, or the pieces for the OCR path (bubble geometry, a screenshot,
- * the keyboard area to crop away). Built on [service]'s window APIs; holds no state.
+ * the node tree, or a screenshot ready for OCR (with the app's message bounds, the
+ * keyboard cropped away). Built on [service]'s window APIs; holds no state.
  */
 class ChatWindowReader(private val service: AccessibilityService) {
 
@@ -66,7 +66,7 @@ class ChatWindowReader(private val service: AccessibilityService) {
      * the same window as [readConversation] — [pkg]'s own, not whichever window is active
      * (our overlay or the keyboard may be). A full tree walk, so off the main thread.
      */
-    suspend fun locateMessageBounds(pkg: String): List<MessageBounds> {
+    private suspend fun locateMessageBounds(pkg: String): List<MessageBounds> {
         if (!MessageBoundsLocator.hasRule(pkg)) return emptyList()
         return withContext(Dispatchers.IO) {
             MessageBoundsLocator.locate(windowRoot(pkg), screenWidth, pkg)
@@ -74,12 +74,31 @@ class ChatWindowReader(private val service: AccessibilityService) {
     }
 
     /**
-     * Capture the current screen via the accessibility API — no MediaProjection
-     * consent dialog needed. Returns a software ARGB_8888 bitmap ready for OCR,
-     * or null on failure (e.g. a FLAG_SECURE window, or rate limiting).
+     * [pkg]'s chat ready for OCR: the message bounds (apps with a rule) and the pixels,
+     * taken back to back. Without bounds the whole screen is read, so the keyboard is
+     * cut off when it is up — its letters would be read as chat; with bounds, text
+     * outside the bubbles is dropped anyway. Null when the screenshot failed.
      */
     @RequiresApi(Build.VERSION_CODES.R)
-    suspend fun captureScreenshot(pkg: String): Bitmap? = suspendCancellableCoroutine { cont ->
+    suspend fun captureScreenshot(pkg: String): ChatScreenshot? {
+        val bounds = locateMessageBounds(pkg)
+        val screen = takeScreenshot(pkg) ?: return null
+        val imeTop = if (bounds.isEmpty()) imeBounds()?.top ?: -1 else -1
+        val bitmap = if (imeTop in 1 until screen.height) {
+            Bitmap.createBitmap(screen, 0, 0, screen.width, imeTop).also { screen.recycle() }
+        } else {
+            screen
+        }
+        return ChatScreenshot(bitmap, bounds)
+    }
+
+    /**
+     * Capture the current screen via the accessibility API — no MediaProjection
+     * consent dialog needed. Returns a software ARGB_8888 bitmap, or null on failure
+     * (e.g. a FLAG_SECURE window, or rate limiting).
+     */
+    @RequiresApi(Build.VERSION_CODES.R)
+    private suspend fun takeScreenshot(pkg: String): Bitmap? = suspendCancellableCoroutine { cont ->
         // takeScreenshot() can throw synchronously (e.g. SecurityException if the
         // capability is missing). Guard it so a failure never crashes the whole
         // accessibility service process.
@@ -121,11 +140,8 @@ class ChatWindowReader(private val service: AccessibilityService) {
         }
     }
 
-    /**
-     * Screen bounds of the soft keyboard if it is showing, else null. Used to crop
-     * the keyboard out of OCR screenshots so its letters aren't read as chat.
-     */
-    fun imeBounds(): Rect? = try {
+    /** Screen bounds of the soft keyboard if it is showing, else null. */
+    private fun imeBounds(): Rect? = try {
         service.windows
             ?.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
             ?.let { w -> Rect().also { w.getBoundsInScreen(it) } }
