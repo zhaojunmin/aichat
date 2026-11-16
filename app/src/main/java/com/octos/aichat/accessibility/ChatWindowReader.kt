@@ -75,21 +75,23 @@ class ChatWindowReader(private val service: AccessibilityService) {
 
     /**
      * [pkg]'s chat ready for OCR: the message bounds (apps with a rule) and the pixels,
-     * taken back to back. Without bounds the whole screen is read, so the keyboard is
-     * cut off when it is up — its letters would be read as chat; with bounds, text
-     * outside the bubbles is dropped anyway. Null when the screenshot failed.
+     * taken back to back, cropped to [areaToRecognize] — the bounds are shifted to match.
+     * Null when the screenshot failed.
      */
     @RequiresApi(Build.VERSION_CODES.R)
     suspend fun captureScreenshot(pkg: String): ChatScreenshot? {
         val bounds = locateMessageBounds(pkg)
         val screen = takeScreenshot(pkg) ?: return null
-        val imeTop = if (bounds.isEmpty()) imeBounds()?.top ?: -1 else -1
-        val bitmap = if (imeTop in 1 until screen.height) {
-            Bitmap.createBitmap(screen, 0, 0, screen.width, imeTop).also { screen.recycle() }
-        } else {
-            screen
+        val area = areaToRecognize(bounds, screen.width, screen.height, imeBounds()?.top)
+        if (area.width() == screen.width && area.height() == screen.height) {
+            return ChatScreenshot(screen, bounds)
         }
-        return ChatScreenshot(bitmap, bounds)
+        val cropped = Bitmap.createBitmap(screen, area.left, area.top, area.width(), area.height())
+        screen.recycle()
+        val shifted = bounds.map { b ->
+            b.copy(rect = Rect(b.rect).apply { offset(-area.left, -area.top) })
+        }
+        return ChatScreenshot(cropped, shifted)
     }
 
     /**
@@ -149,5 +151,30 @@ class ChatWindowReader(private val service: AccessibilityService) {
     } catch (e: Exception) {
         DiagLog.record(ErrorCode.A11Y_306, cause = e)
         null
+    }
+
+    companion object {
+        /**
+         * The part of a [width]×[height] screenshot worth recognising: everything above
+         * the keyboard (its letters would be read as chat), narrowed to the area the
+         * [bounds] cover when the app gives them (title bar, input bar and panels around
+         * the bubbles are dropped before OCR rather than after). A keyboard top outside
+         * the screen is ignored; while sliding in, the keyboard reports where it is now.
+         * Falls back to the whole screen when nothing is left.
+         */
+        internal fun areaToRecognize(
+            bounds: List<MessageBounds>,
+            width: Int,
+            height: Int,
+            imeTop: Int?,
+        ): Rect {
+            val screen = Rect(0, 0, width, height)
+            val area = Rect(0, 0, width, imeTop?.takeIf { it in 1 until height } ?: height)
+            if (bounds.isNotEmpty()) {
+                val covered = Rect(bounds.first().rect).apply { bounds.forEach { union(it.rect) } }
+                if (!area.intersect(covered)) return screen
+            }
+            return area.takeIf { !it.isEmpty } ?: screen
+        }
     }
 }

@@ -6,10 +6,10 @@ import androidx.annotation.RequiresApi
 import com.octos.aichat.data.Conversation
 
 /**
- * What the OCR path recognises: the screen as a software bitmap — cut off above the soft
- * keyboard when it is up and the app gives no [messageBounds] — and the message bounds
- * of apps with a [MessageBoundsLocator] rule, taken at the same moment as the pixels.
- * The caller owns [bitmap] and recycles it.
+ * What the OCR path recognises: the part of the screen worth reading as a software bitmap
+ * (above the soft keyboard; just the area the bubbles cover when the app gives
+ * [messageBounds]) and those bounds, taken at the same moment as the pixels and given in
+ * [bitmap]'s coordinates. The caller owns [bitmap] and recycles it.
  */
 class ChatScreenshot(val bitmap: Bitmap, val messageBounds: List<MessageBounds>)
 
