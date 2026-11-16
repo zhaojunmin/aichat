@@ -1,0 +1,18 @@
+# Perfetto config for one Java heap dump of the app (quality/scripts/leak-loop.sh).
+# ART writes the full object graph (classes, objects, references, GC roots) once the data
+# source starts; trace processor marks what is reachable, so garbage not yet collected
+# doesn't count. Needs a profileable app — the release build is
+# (AndroidManifest <profileable android:shell="true"/>). Unlike callstack sampling it needs
+# neither traced_probes nor traced_perf.
+
+buffers { size_kb: 262144 fill_policy: DISCARD }
+
+data_sources {
+  config {
+    name: "android.java_hprof"
+    java_hprof_config { process_cmdline: "com.octos.aichat" }
+  }
+}
+
+duration_ms: 15000
+data_source_stop_timeout_ms: 30000
