@@ -11,6 +11,7 @@ import com.octos.aichat.accessibility.MessageBounds
 import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
 import com.octos.aichat.data.Speaker
+import com.octos.aichat.data.SupportedApps
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.ErrorCode
 import kotlin.coroutines.resume
@@ -21,9 +22,9 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * Screenshot → conversation, using on-device ML Kit Chinese OCR. Used as a
  * fallback for apps whose chat content the accessibility node tree can't read.
  *
- * The author of each bubble is guessed from its horizontal placement: a chat
- * bubble hugs the side of its sender (mine on the right, theirs on the left),
- * so whichever margin is smaller tells us who sent it.
+ * The author of each message comes from its bubble: a green bubble is mine; apps whose
+ * own messages are exactly the green ones (WeChat) count everything else as the other
+ * side, other apps fall back to the side the bubble hugs ([OcrSpeaker]).
  */
 object OcrReader {
 
@@ -124,6 +125,7 @@ object OcrReader {
             a == null || b == null || similar(a, b, FLAT_TOLERANCE)
         }
 
+        val greenOnly = SupportedApps.myBubblesGreen(pkg)
         val messages = ArrayList<ChatMessage>()
         var last: String? = null
         for (b in blocks) {
@@ -131,7 +133,13 @@ object OcrReader {
             // e.g. merged text now over the length cap
             if (!OcrMessageFilter.looksLikeMessage(content)) continue
             if (content == last) continue
-            val speaker = classify(bitmap, Rect(b.left, b.top, b.right, b.bottom), screenWidth)
+            val box = Rect(b.left, b.top, b.right, b.bottom)
+            val speaker = OcrSpeaker.of(
+                green = greenShare(bitmap, box) > MY_GREEN_SHARE,
+                greenOnly = greenOnly,
+                leftMargin = box.left,
+                rightMargin = screenWidth - box.right,
+            )
             messages.add(ChatMessage(speaker, content))
             last = content
         }
@@ -202,14 +210,11 @@ object OcrReader {
                 }
         }
 
-    /**
-     * Author from bubble background colour: WeChat's "me" bubble is green
-     * (~#95EC69), the other party's is white/grey. We sample pixels inside the
-     * text box — a green hue (g noticeably above r and b) means mine. This is
-     * immune to message length, unlike left/right position. Falls back to the
-     * horizontal margin when no green is found.
-     */
-    private fun classify(bitmap: Bitmap, box: Rect, screenWidth: Int): Speaker {
+    /** Share of sampled pixels that must be green for a bubble to count as mine. */
+    private const val MY_GREEN_SHARE = 0.08f
+
+    /** Share (0..1) of a grid of pixels inside [box] with a green hue, light or dark theme. */
+    private fun greenShare(bitmap: Bitmap, box: Rect): Float {
         val w = bitmap.width
         val h = bitmap.height
         val stepX = (box.width() / 6).coerceAtLeast(1)
@@ -225,7 +230,6 @@ object OcrReader {
                     val r = (p shr 16) and 0xFF
                     val g = (p shr 8) and 0xFF
                     val b = p and 0xFF
-                    // Green hue across light & dark WeChat themes.
                     if (g > 60 && g > r + 18 && g > b + 18) green++
                     total++
                 }
@@ -233,11 +237,6 @@ object OcrReader {
             }
             y += stepY
         }
-        if (total > 0 && green.toFloat() / total > 0.08f) return Speaker.ME
-
-        // No green bubble detected → fall back to horizontal placement.
-        val leftMargin = box.left
-        val rightMargin = screenWidth - box.right
-        return if (rightMargin < leftMargin) Speaker.ME else Speaker.OTHER
+        return if (total > 0) green.toFloat() / total else 0f
     }
 }

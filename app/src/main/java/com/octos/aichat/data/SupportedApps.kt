@@ -26,8 +26,12 @@ sealed interface ChatReading {
      * Screenshot + on-device OCR, for apps whose tree hides the text or is too noisy.
      * [messageBoundsId] names a node that still carries each message's bounds (Momo):
      * OCR is then confined to those rectangles. Null means a whole-screen read (WeChat).
+     * [myBubblesGreen]: the user's own messages are exactly the green bubbles (WeChat), so
+     * anything else — the other side, cards, system lines — is not "me"; otherwise a
+     * message without green falls back to its horizontal placement.
      */
-    data class Ocr(val messageBoundsId: String? = null) : ChatReading
+    data class Ocr(val messageBoundsId: String? = null, val myBubblesGreen: Boolean = false) :
+        ChatReading
 }
 
 /** A chat app supported out of the box, and how its messages are read. */
@@ -48,7 +52,7 @@ object SupportedApps {
 
     val ALL: List<SupportedApp> = listOf(
         // Node tree blocked: whole-screen OCR with colour / layout heuristics.
-        SupportedApp(WECHAT, "微信", ChatReading.Ocr()),
+        SupportedApp(WECHAT, "微信", ChatReading.Ocr(myBubblesGreen = true)),
         // All bubble texts share one id; profile-card and header texts use others. The id
         // is R8-obfuscated and changes between QQ versions — when it stops matching, the
         // parser falls back to its generic path rather than returning nothing. No stable
@@ -89,4 +93,8 @@ object SupportedApps {
     /** The bounds-carrying node id for [pkg], if it is an OCR app that exposes one. */
     fun messageBoundsId(pkg: String): String? =
         (of(pkg)?.reading as? ChatReading.Ocr)?.messageBoundsId
+
+    /** Whether [pkg]'s own messages are exactly its green bubbles (see [ChatReading.Ocr]). */
+    fun myBubblesGreen(pkg: String): Boolean =
+        (of(pkg)?.reading as? ChatReading.Ocr)?.myBubblesGreen == true
 }
