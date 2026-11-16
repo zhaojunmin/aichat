@@ -142,8 +142,13 @@ class ChatWindowReader(private val service: AccessibilityService) {
         }
     }
 
-    /** Screen bounds of the soft keyboard if it is showing, else null. */
+    /**
+     * Screen bounds of the soft keyboard if it is showing, else null. [AccessibilityService.getWindows]
+     * answers from the accessibility cache, which can still list a keyboard that has since
+     * closed — the crop would then cut the newest messages off. Cleared first (API 33+).
+     */
     private fun imeBounds(): Rect? = try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) service.clearCache()
         service.windows
             ?.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
             ?.let { w -> Rect().also { w.getBoundsInScreen(it) } }
