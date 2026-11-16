@@ -17,7 +17,7 @@ import com.octos.aichat.ui.MainActivity
 /**
  * Keeps the process alive while the floating bubble is up: a foreground service with
  * a persistent notification, nothing else. It does no work of its own — the bubble
- * (`FloatingBubbleService`) lives in [ChatAssistantApp], which starts this service with
+ * (`BubbleController`) lives in [ChatAssistantApp], which starts this service with
  * the bubble and stops it with the bubble. Process-level, like the Application, so it
  * sits in the root package.
  */
