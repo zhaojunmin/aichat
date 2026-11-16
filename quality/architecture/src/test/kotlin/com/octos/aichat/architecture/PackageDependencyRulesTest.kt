@@ -130,12 +130,11 @@ class PackageDependencyRulesTest {
      * the reader. From `ui` it may only take the theme, the activity a notification
      * opens, and the shared error wording.
      */
-    @Test fun bubbleReadsViaCaptureAndUsesUiOnlyForThemeNotificationAndErrorText() = assertPackage(
+    @Test fun bubbleReadsViaCaptureAndUsesUiOnlyForThemeAndErrorText() = assertPackage(
         "bubble..",
         allowed = setOf("ai..", "capture", "data..", "diagnostics..", "ui.theme.."),
         allowedTypes = setOf(
             "accessibility.AccessibilityBridge",
-            "ui.MainActivity",
             "ui.toUserMessage",
         ),
     )
@@ -152,13 +151,15 @@ class PackageDependencyRulesTest {
     )
 
     /**
-     * The root package holds only the Application class. Process-wide hubs that every
-     * layer reaches for (the old `AppBus`) belong to the package that owns the state.
+     * The root package holds only process-level components: the Application and the
+     * keep-alive service it starts. Process-wide hubs that every layer reaches for (the
+     * old `AppBus`) belong to the package that owns the state.
      */
-    @Test fun rootPackageHoldsOnlyTheApplication() {
-        val stray = appFiles().filter { it.appPackage().isEmpty() && it.name != "ChatAssistantApp" }
+    @Test fun rootPackageHoldsOnlyProcessLevelComponents() {
+        val rootFiles = setOf("ChatAssistantApp", "KeepLiveService")
+        val stray = appFiles().filter { it.appPackage().isEmpty() && it.name !in rootFiles }
         assertTrue(
-            "only ChatAssistantApp lives in the root package:\n" +
+            "only $rootFiles live in the root package:\n" +
                 stray.joinToString("\n") { "  ${it.name}.kt" },
             stray.isEmpty(),
         )

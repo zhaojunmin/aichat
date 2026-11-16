@@ -8,7 +8,6 @@ import android.util.Log
 import com.octos.aichat.accessibility.AccessibilityBridge
 import com.octos.aichat.ai.local.ModelStore
 import com.octos.aichat.bubble.BubbleController
-import com.octos.aichat.bubble.KeepLiveService
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.DiagnosticsRecorder
