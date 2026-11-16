@@ -50,7 +50,22 @@ def svg(h, body, title=None, subtitle=None):
     )
 
 
+def zh(s):
+    """Chinese full-width punctuation for prose labels (thousand separators and times kept)."""
+    out = []
+    for i, c in enumerate(s):
+        prev = s[i - 1] if i else ""
+        nxt = s[i + 1] if i + 1 < len(s) else ""
+        if c in ",:" and prev.isdigit() and nxt.isdigit():
+            out.append(c)
+        else:
+            out.append({",": "，", ":": "：", ";": "；", "(": "（", ")": "）", "?": "？", "!": "！"}.get(c, c))
+    return "".join(out)
+
+
 def text(x, y, s, size=20, weight=400, fill=INK, anchor="start", family=SANS, italic=False):
+    if family == SANS:
+        s = zh(s)
     st = ' font-style="italic"' if italic else ""
     return (f'<text x="{x}" y="{y}" font-family="{family}" font-size="{size}" font-weight="{weight}" '
             f'fill="{fill}" text-anchor="{anchor}"{st}>{escape(s)}</text>')
@@ -93,6 +108,7 @@ def chip(x, y, label, fill, color="#FFFFFF", size=16, padx=10, h=28):
 
 def tw(s, size):
     """Rough text width: CJK ≈ 1em, ASCII ≈ 0.56em."""
+    s = zh(s)
     return sum(size if ord(c) > 0x2E80 else size * 0.56 for c in s)
 
 
@@ -351,7 +367,7 @@ def fig6_heap():
     body += lines(450, 190, ["20 轮只多了约 105 KB,对象 +1,749 个。",
                              "涨是涨了,但每一组增长都找到了持有者,",
                              "没有一组落在 App 自己的字段上。"], 17, 400, INK, 30)
-    body += chip(450, 290, "BubbleController / FloatingBubble / MainActivity:三次 dump 都是 1 个", TEAL, size=15)[0]
+    body += chip(450, 290, "BubbleController / FloatingBubble / MainActivity:三次 dump 都是 1 个", TEAL, size=14)[0]
     # table
     ty = 400
     cols = [48, 330, 520, 860]
