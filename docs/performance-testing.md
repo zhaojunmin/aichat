@@ -131,3 +131,53 @@ build/perfetto-venv/bin/python quality/scripts/perfetto_analyze.py \
 - **OCR 前裁剪**:只能少 ~14% 像素,估计省约 50 ms(一次点击的 2%),但识别坐标、比例区间、按像素判断发送者都要平移,且压线的消息会丢上半截,收益不抵风险。
 - **记忆块到 50 ms 预算**:配置已到头;再降需缩短查询(现取最近 12 行)或提前计算,会影响召回效果,属产品取舍。
 - 云端模式下,一次点击约 2.3 s 里 1.5–2 s 是云端生成,代码侧无可优化。生成期间「加载中」动画一直在画(约一个核的 17%),本地模式下会与推理抢 CPU,是否改为静态提示待定。
+
+## 内存泄漏回路(leak-loop.sh + Perfetto Java 堆)
+
+反复跑同一组生命周期,在轮与轮之间用 Perfetto 的 `android.java_hprof` 数据源 dump Java 堆,比较哪些对象一直在涨。
+
+```bash
+# 前提:同上,手机上开着参考聊天时跑过 perf-loop.sh reference;Perfetto venv 已建好
+ADB=adb.exe quality/scripts/leak-loop.sh 10 3     # 预热 2 轮,之后每 10 轮 dump 一次,共 3 次
+TAP=0 ADB=adb.exe quality/scripts/leak-loop.sh    # 不点悬浮球(不调用 AI)
+# 结果:build/leak-results/report.txt;KEEP=1 时保留 heap-<n>.pftrace,可单独再分析:
+build/perfetto-venv/bin/python quality/scripts/heap_leak.py build/leak-results/heap-*.pftrace \
+    --cycles 10 --mapping app/build/outputs/mapping/release/mapping.txt
+```
+
+每一轮做三件事,对应 App 里会反复创建 / 销毁的对象:
+
+| 步骤 | 覆盖的对象 |
+|---|---|
+| 打开首页再按 Home | `MainActivity` 及其 Compose 界面、ViewModel |
+| 关无障碍 → 等悬浮球消失 → 开无障碍 → 等悬浮球回来 | `BubbleController`、悬浮球和面板的窗口、协程 |
+| (TAP=1)在参考聊天里点悬浮球,等结果,按 Home | 面板、读屏 / OCR、生成建议 |
+
+`heap_leak.py` 的判断:
+
+- 只看 App 堆(`HEAP_TYPE_APP`)里**仍可达**的对象,还没回收的垃圾不算。
+- **疑似泄漏**:某个类的对象数在每个区间都增长,且平均每轮至少多 1 个。预热后缓存会稳定下来,泄漏则每轮都在加。
+- **生命周期对象**:`BubbleController`、`FloatingBubble`、`MainActivity` 等同一时刻最多 1 个;多出来的说明旧实例还被引用,脚本会打印从 GC root 到它的最短引用链(字段名用 R8 mapping 还原)。被 R8 合并掉的类(如 `BubblePanel`、`ChatCapture`)会注明跳过。
+- 发现泄漏时退出码为 1。
+
+### 第一次结果(2026-11-16,荣耀 ELP-AN00,预热 2 轮 + 2×10 轮,TAP=1 云端)
+
+App 堆可达对象 149,441 → 149,865 → 151,190,字节 5.60 → 5.64 → 5.70 MB(20 轮约 +105 KB)。增长都找到了持有者:
+
+| 增长 | 持有者 | 判断 |
+|---|---|---|
+| `Header` / `ByteString` / `byte[]`(+80 个) | OkHttp HTTP/2 的 HPACK 动态表 | 有上限(默认 4 KB),不是泄漏 |
+| `ViewRootImpl$W`、`ScrollCaptureWindowEx`(18 → 65) | 窗口的 Binder 桩,GC root 是 JNI 全局引用,由 system_server 持有 | `ViewRootImpl` 一直是 2 个,视图本身没漏;系统侧 GC 后释放 |
+| `Cleaner` / `CleanerThunk`(+80) | 待回收的 native 分配链表 | 等 GC 处理,不是泄漏 |
+| `Long`(+105) | `ROOT_VM_INTERNAL` 的 `Long[][]` | ART 内部 |
+| `ChatAccessibilityService`(3 → 7 → 9) | 框架的 `IAccessibilityServiceClientWrapper.mContext`,同样是 system_server 持有的 Binder 桩 | 每次重开无障碍新建一个实例,旧的要等系统释放 Binder;增长不是每轮一个,说明会被陆续释放。App 代码里没有引用旧实例 |
+
+`BubbleController`、`FloatingBubble`、`MainActivity` 三次都是 1 个:App 自己的生命周期对象没有泄漏。
+
+注意:
+
+- release 包是 profileable 的,所以不需要 debug 包;Java 堆 dump 不依赖 `traced_probes` / `traced_perf`,荣耀上可用。一次 dump 约 20 MB。
+- `--mapping` 必须是**手机上装的那个包**的 mapping,否则类名对不上。
+- 关无障碍那一步会改系统设置,脚本退出时(包括中途失败)会恢复原值。
+- **堆 dump 是 App 的全部 Java 内存**(聊天内容、API Key 都在里面),报告生成后默认删除,`KEEP=1` 才保留;保留的话用完自己删。
+- 报告里的「where the growth sits」按引用链末尾几跳分组,对比首尾两次 dump 哪组变多,用来区分 App 自己的字段和框架 / 库里有上限的缓存。
