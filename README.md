@@ -40,7 +40,7 @@ ChatAccessibilityService(只做回调分发)
                           └─► LocalClient(MNN + Qwen2.5,隐私;自己准备模型,
                                           不支持 / 未下载 / 加载失败都以 AiException 返回)
         ▼
-FloatingBubbleService(单实例,由 ChatAssistantApp 随无障碍连接创建/销毁;
+BubbleController(单实例,由 ChatAssistantApp 随无障碍连接创建/销毁;
                       FloatingBubble 悬浮球 + BubblePanel 建议面板)
         │ 选中一条
         ├─► 复制到剪贴板
@@ -59,7 +59,7 @@ FloatingBubbleService(单实例,由 ChatAssistantApp 随无障碍连接创建/�
 | 支持哪些 App、各自怎么读 | `data/SupportedApps.kt`(注册表:控件树规则 / 截图 OCR,加 App 只改这里) |
 | 聊天解析(控件树,按水平位置分「我/对方」) | `accessibility/ChatParser.kt`、`MessageBoundsLocator.kt` |
 | 截图 OCR(ML Kit 中文) | `ocr/OcrReader.kt`、`MessageLineMerger.kt`、`SenderNameFilter.kt` |
-| 悬浮球 + 面板 | `bubble/FloatingBubbleService.kt`(悬浮助手编排;不是 Android Service,由 `ChatAssistantApp` 持有)、`FloatingBubble.kt`(悬浮球视图:拖拽、显隐、截图时隐藏)、`BubblePanel.kt`、`BubbleStyle.kt`、`BubblePalette.kt`(主题色 → View 颜色) |
+| 悬浮球 + 面板 | `bubble/BubbleController.kt`(持有悬浮球与面板,处理点击 → 建议 → 送达,跟随前台与主题;由 `ChatAssistantApp` 持有)、`FloatingBubble.kt`(悬浮球视图:拖拽、显隐、截图时隐藏)、`BubblePanel.kt`、`BubbleStyle.kt`、`BubblePalette.kt`(主题色 → View 颜色) |
 | 生成建议 | `bubble/SuggestionGenerator.kt`(拼提示词、经 `AiClient` 调模型、云端超时、解析;`suggestFor` 串起记录消息与记忆) |
 | AI 接口(对外只有 `AiClient`) | `ai/AiClient.kt`(`AiClient`、`AiException`、`aiClientFor`)、`ai/CloudClient.kt`、`ai/LocalClient.kt`(自己准备本地模型,失败以 `AiException` 返回) |
 | 本地推理(MNN Qwen2.5) | `ai/local/LlmEngine.kt`、`LocalModel.kt`、`ModelStore.kt`(启动时 `ModelStore.init` 记下模型目录,AI 接口不需要 Context) |

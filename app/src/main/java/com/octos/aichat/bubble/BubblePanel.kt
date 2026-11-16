@@ -18,7 +18,7 @@ import com.octos.aichat.diagnostics.ErrorCode
 /**
  * The floating result panel: builds and swaps the loading / error / results views
  * and owns its single overlay window. Pure UI — all business decisions (what to
- * generate, what happens on a suggestion tap) stay in [FloatingBubbleService] and arrive
+ * generate, what happens on a suggestion tap) stay in [BubbleController] and arrive
  * via [onSuggestionChosen]. Single responsibility: paint the panel.
  */
 internal class BubblePanel(

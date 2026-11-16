@@ -7,7 +7,7 @@ import android.provider.Settings
 import android.util.Log
 import com.octos.aichat.accessibility.AccessibilityBridge
 import com.octos.aichat.ai.local.ModelStore
-import com.octos.aichat.bubble.FloatingBubbleService
+import com.octos.aichat.bubble.BubbleController
 import com.octos.aichat.bubble.KeepLiveService
 import com.octos.aichat.data.SettingsRepository
 import com.octos.aichat.diagnostics.DiagLog
@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
  * Process-wide setup that must run before any component: diagnostics. Wiring the
  * switch here keeps the `diagnostics` package free of any dependency on `data`.
  *
- * Also owns the floating assistant ([FloatingBubbleService], one per process): it is
+ * Also owns the floating bubble ([BubbleController], one per process): it is
  * created while the accessibility service is connected and drawing over apps is allowed,
  * and destroyed as soon as either stops holding.
  * While it is up, [KeepLiveService] keeps the process alive.
@@ -45,7 +45,7 @@ class ChatAssistantApp : Application() {
 
     // Drawing over apps can be granted with no callback to us: bumped to re-check.
     private val overlayCheck = MutableStateFlow(0)
-    private var bubbleService: FloatingBubbleService? = null
+    private var bubbleController: BubbleController? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -76,7 +76,7 @@ class ChatAssistantApp : Application() {
     /** The system theme flipped (or another config change): the bubble re-resolves its colours. */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        bubbleService?.onConfigurationChanged()
+        bubbleController?.onConfigurationChanged()
     }
 
     /** Re-check whether the bubble should be up — e.g. after the overlay permission was granted. */
@@ -95,17 +95,17 @@ class ChatAssistantApp : Application() {
     }
 
     private fun createBubble() {
-        if (bubbleService != null) return
-        bubbleService = runCatching { FloatingBubbleService(this) }
+        if (bubbleController != null) return
+        bubbleController = runCatching { BubbleController(this) }
             .onFailure { DiagLog.record(ErrorCode.BUB_503, cause = it) }
             .getOrNull()
-        if (bubbleService != null) KeepLiveService.start(this)
+        if (bubbleController != null) KeepLiveService.start(this)
     }
 
     private fun destroyBubble() {
         KeepLiveService.stop(this)
-        bubbleService?.destroy()
-        bubbleService = null
+        bubbleController?.destroy()
+        bubbleController = null
     }
 
     private fun applyDiagnosticsSwitch(on: Boolean, sinceMs: Long) {

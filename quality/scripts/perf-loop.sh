@@ -60,15 +60,19 @@ case "${1:-}" in
     # `|| true`: grep -m1 stops early, dumpsys then dies of SIGPIPE, and pipefail would end the run.
     INSTALLED=$("$ADB" shell dumpsys package "$PKG" | grep -m1 lastUpdateTime | tr -d '\r' | sed 's/.*=//' || true)
     status=0
-    # Launch the app once so the bubble service is up (e.g. after a reinstall), then check it.
+    # Launch the app once (e.g. after a reinstall), then check the bubble is up.
     "$ADB" shell am start -n "$PKG/.ui.MainActivity" >/dev/null
     sleep 3
     "$ADB" shell input keyevent KEYCODE_HOME
     # Capture first: `dumpsys | grep -q` lets grep exit early, dumpsys dies of SIGPIPE, and
     # pipefail would turn a match into a failure.
-    services=$("$ADB" shell dumpsys activity services "$PKG")
-    if ! grep -q "FloatingBubbleService" <<<"$services"; then
-      echo "the bubble service isn't running — is the overlay permission on?"
+    # The bubble is not a service: look for the app's overlay window.
+    windows=$("$ADB" exec-out dumpsys window windows)
+    if ! awk -v pkg="$PKG" 'BEGIN { RS = "Window #" }
+        { split($0, head, "\n") }
+        index(head[1], pkg) && /APPLICATION_OVERLAY/ { found = 1 }
+        END { exit !found }' <<<"$windows"; then
+      echo "the bubble isn't showing — are accessibility and the overlay permission on?"
       exit 3
     fi
     for round in $(seq 1 "$ROUNDS"); do
