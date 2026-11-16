@@ -128,7 +128,7 @@
 | `OCR-402` | WARN | 识别成功但没读出消息 | 解析结果为空 |
 | `BUB-501` | ERROR | 启动前台服务失败 | `KeepLiveService` 启动 / `startForeground` |
 | `BUB-502` | WARN | 移除悬浮窗失败 | `removeView` |
-| `BUB-503` | ERROR | 显示悬浮球失败 | `ChatAssistantApp` 创建 `FloatingBubbleService`(如 `addView` 被拒) |
+| `BUB-503` | ERROR | 显示悬浮球失败 | `ChatAssistantApp` 创建 `BubbleController`(如 `addView` 被拒) |
 | `MEM-601` | ERROR | 学习失败(已回滚,下次重试) | `MemoryRepository.runLearning` |
 | `MEM-602` | WARN | 学习器返回不可用结果 | `MemoryLearner.learn` 返回 null |
 | `MEM-603` | ERROR | 回复日志写入失败 | `ReplyLog.append` |
@@ -295,9 +295,9 @@ A11Y-304 截图失败            3
 | `SecretCodec.decode` | 解不开就返回 "" | 记 `SET-802` |
 | `SettingsRepository` 加密失败 `Log.w` | logcat | 记 `SET-801` |
 | `SettingsRepository` 推理模式枚举解析 | 默认值 | 保持 |
-| `FloatingBubbleService` `removeView` | 吞掉 | 记 `BUB-502` |
-| `FloatingBubbleService` 生成结果 `runCatching` | 显示错误 | 额外记 `AI-1xx` / `LLM-2xx` |
-| `ChatAssistantApp` 创建 `FloatingBubbleService` | 不显示悬浮球 | 记 `BUB-503` |
+| `BubbleController` `removeView` | 吞掉 | 记 `BUB-502` |
+| `BubbleController` 生成结果 `runCatching` | 显示错误 | 额外记 `AI-1xx` / `LLM-2xx` |
+| `ChatAssistantApp` 创建 `BubbleController` | 不显示悬浮球 | 记 `BUB-503` |
 | `KeepLiveService` 启动前台服务 | 悬浮球照常,只是没有保活 | 记 `BUB-501` |
 | `BubblePanel` `removeView` | 吞掉 | 记 `BUB-502` |
 | `LlmEngine` 载入原生库 | `available=false` | 记 `LLM-203` |
