@@ -155,6 +155,18 @@ internal fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text(stringResource(R.string.home_perm_notification)) }
                 }
+
+                // The launch-management switches can't be read, so this is a link, not a ✓ row.
+                Spacer(Modifier.height(4.dp))
+                OutlinedButton(
+                    onClick = { BackgroundRunSettings.open(context) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.home_perm_background_run)) }
+                Text(
+                    stringResource(R.string.home_perm_background_run_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             // --- AI service (key + model + quick test) ---

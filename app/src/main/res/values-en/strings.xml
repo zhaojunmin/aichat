@@ -18,6 +18,8 @@
     <string name="home_perm_accessibility">Read chat content (Accessibility)</string>
     <string name="home_perm_overlay">Show floating bubble (Overlay)</string>
     <string name="home_perm_notification">Allow notifications (keep the assistant running)</string>
+    <string name="home_perm_background_run">Allow background running (launch management)</string>
+    <string name="home_perm_background_run_desc">On the page that opens, switch this app to manual management and allow auto-launch, secondary launch and background activity. On Honor / Huawei you can also lock the app in Recents so swiping it away doesn\'t close it.</string>
     <string name="home_ai_service_title">AI service</string>
     <string name="home_inference_desc">Choose how inference runs. Local mode: chat content never leaves the device.</string>
     <string name="inference_cloud">Cloud</string>
