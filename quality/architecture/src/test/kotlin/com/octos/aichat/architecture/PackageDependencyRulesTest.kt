@@ -121,7 +121,7 @@ class PackageDependencyRulesTest {
     @Test fun captureUsesScreenPortAndOcr() = assertPackage(
         "capture..",
         allowed = setOf("data", "diagnostics..", "ocr.."),
-        allowedTypes = setOf("accessibility.ScreenAccess", "accessibility.MessageBounds"),
+        allowedTypes = setOf("accessibility.ScreenAccess", "accessibility.ChatScreenshot"),
     )
 
     /**

@@ -1,8 +1,6 @@
 package com.octos.aichat.capture
 
-import android.graphics.Bitmap
-import android.graphics.Rect
-import com.octos.aichat.accessibility.MessageBounds
+import com.octos.aichat.accessibility.ChatScreenshot
 import com.octos.aichat.accessibility.ScreenAccess
 import com.octos.aichat.data.ChatMessage
 import com.octos.aichat.data.Conversation
@@ -63,10 +61,10 @@ class ChatCaptureTest {
 
         assertEquals(ReadPath.OCR, result.path)
         assertEquals(
-            listOf("locateMessageBounds(com.tencent.mm)", "captureScreenshot(com.tencent.mm)"),
+            listOf("captureScreenshot(com.tencent.mm)"),
             screen.calls,
         )
-        assertTrue("geometry and pixels taken while hidden", screen.allCapturedWhileHidden)
+        assertTrue("captured while hidden", screen.allCapturedWhileHidden)
         assertEquals(1, overlay.hides)
         assertFalse("overlay is shown again", overlay.hidden)
     }
@@ -87,7 +85,7 @@ class ChatCaptureTest {
 
         private fun record(call: String) {
             calls += call
-            if (call.startsWith("locate") || call.startsWith("capture")) {
+            if (call.startsWith("capture")) {
                 allCapturedWhileHidden = allCapturedWhileHidden && overlayHidden()
             }
         }
@@ -97,17 +95,10 @@ class ChatCaptureTest {
             return conv
         }
 
-        override suspend fun locateMessageBounds(pkg: String): List<MessageBounds> {
-            record("locateMessageBounds($pkg)")
-            return emptyList()
-        }
-
-        override suspend fun captureScreenshot(pkg: String): Bitmap? {
+        override suspend fun captureScreenshot(pkg: String): ChatScreenshot? {
             record("captureScreenshot($pkg)")
             return null
         }
-
-        override fun imeBounds(): Rect? = null
 
         override suspend fun fill(text: String, pkg: String?): Boolean = false
     }
