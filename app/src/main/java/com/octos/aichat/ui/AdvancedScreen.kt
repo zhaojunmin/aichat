@@ -151,33 +151,6 @@ internal fun AdvancedScreen(
             }
 
             SectionCard(
-                stringResource(R.string.adv_bubble_title),
-                icon = Icons.Outlined.BubbleChart,
-            ) {
-                val overlayOn = Settings.canDrawOverlays(context)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(R.string.adv_bubble_autostart))
-                        Text(
-                            if (overlayOn) {
-                                stringResource(R.string.adv_bubble_on_desc)
-                            } else {
-                                stringResource(R.string.adv_bubble_off_desc)
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    Switch(
-                        checked = settings.bubbleAutoStart,
-                        enabled = overlayOn,
-                        onCheckedChange = { c ->
-                            vm.update { it.copy(bubbleAutoStart = c) }
-                        },
-                    )
-                }
-            }
-
-            SectionCard(
                 stringResource(R.string.adv_suggestion_pref_title),
                 icon = Icons.Outlined.Tune,
             ) {

@@ -72,8 +72,6 @@ data class AppSettings(
     val customPersona: String = "",
     val suggestionCount: Int = 3,
     val autoPaste: Boolean = true,
-    /** Auto-start the floating bubble on app launch (when overlay permission is granted). */
-    val bubbleAutoStart: Boolean = true,
     /**
      * Apps read via screenshot + OCR (on top of the built-in ones); everything else keeps
      * node-tree parsing. This list alone decides the path — there is no separate switch.
