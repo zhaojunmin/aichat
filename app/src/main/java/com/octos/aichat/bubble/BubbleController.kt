@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
  * them in a panel ([BubblePanel]). Tapping one copies it (and optionally fills it into
  * the chat input).
  *
- * Not an Android Service: a single instance per process, created and destroyed by
+ * A single instance per process, created and destroyed by
  * [com.octos.aichat.ChatAssistantApp] — it exists while the accessibility service is
  * connected and drawing over apps is allowed. Construction shows the bubble; [destroy]
  * removes it.
