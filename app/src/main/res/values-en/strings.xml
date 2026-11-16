@@ -53,10 +53,6 @@
     <!-- Advanced -->
     <string name="adv_title">Advanced</string>
     <string name="adv_desc">These options are for advanced users and adaptation debugging; normal use needs no changes.</string>
-    <string name="adv_bubble_title">Floating bubble</string>
-    <string name="adv_bubble_autostart">Auto-start with the app</string>
-    <string name="adv_bubble_on_desc">Works once you open WeChat / QQ / Soul etc.; off means it won\'t auto-start</string>
-    <string name="adv_bubble_off_desc">Grant the overlay permission on the home screen first</string>
     <string name="adv_suggestion_pref_title">Reply preferences</string>
     <string name="adv_suggestion_count">Suggestions per round: %1$d</string>
     <string name="adv_autopaste_title">Auto-fill the input box</string>

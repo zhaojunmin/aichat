@@ -10,7 +10,6 @@ import com.octos.aichat.ai.local.ModelStore
 import com.octos.aichat.bubble.FloatingBubbleService
 import com.octos.aichat.bubble.KeepLiveService
 import com.octos.aichat.data.SettingsRepository
-import com.octos.aichat.data.SettingsStore
 import com.octos.aichat.diagnostics.DiagLog
 import com.octos.aichat.diagnostics.DiagnosticsRecorder
 import com.octos.aichat.diagnostics.DiagnosticsStore
@@ -33,8 +32,8 @@ import kotlinx.coroutines.launch
  * switch here keeps the `diagnostics` package free of any dependency on `data`.
  *
  * Also owns the floating assistant ([FloatingBubbleService], one per process): it is
- * created while the accessibility service is connected, the bubble is switched on and
- * drawing over apps is allowed, and destroyed as soon as one of those stops holding.
+ * created while the accessibility service is connected and drawing over apps is allowed,
+ * and destroyed as soon as either stops holding.
  * While it is up, [KeepLiveService] keeps the process alive.
  */
 class ChatAssistantApp : Application() {
@@ -71,7 +70,7 @@ class ChatAssistantApp : Application() {
                 .drop(1) // the current value was applied synchronously above
                 .collect { (on, since) -> applyDiagnosticsSwitch(on, since) }
         }
-        followBubble(settings)
+        followBubble()
     }
 
     /** The system theme flipped (or another config change): the bubble re-resolves its colours. */
@@ -85,14 +84,10 @@ class ChatAssistantApp : Application() {
         overlayCheck.update { it + 1 }
     }
 
-    private fun followBubble(settings: SettingsStore) {
+    private fun followBubble() {
         mainScope.launch {
-            combine(
-                AccessibilityBridge.screen.map { it != null },
-                settings.state.map { it.bubbleAutoStart },
-                overlayCheck,
-            ) { connected, switchedOn, _ ->
-                connected && switchedOn && Settings.canDrawOverlays(this@ChatAssistantApp)
+            combine(AccessibilityBridge.screen.map { it != null }, overlayCheck) { connected, _ ->
+                connected && Settings.canDrawOverlays(this@ChatAssistantApp)
             }
                 .distinctUntilChanged()
                 .collect { on -> if (on) createBubble() else destroyBubble() }

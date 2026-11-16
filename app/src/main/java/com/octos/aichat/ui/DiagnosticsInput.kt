@@ -23,7 +23,6 @@ fun diagnosticsSettings(s: AppSettings): List<Pair<String, String>> = listOf(
     "suggestions" to s.suggestionCount.toString(),
     "ocrApps" to s.ocrPackageSet.size.toString(), // a count: package names stay private
     "autoPaste" to s.autoPaste.toString(),
-    "bubbleAutoStart" to s.bubbleAutoStart.toString(),
     "memory" to s.memoryEnabled.toString(),
     "semanticRecall" to s.memoryEmbeddingEnabled.toString(),
 )

@@ -53,10 +53,6 @@
     <!-- Advanced -->
     <string name="adv_title">高级设置</string>
     <string name="adv_desc">这些选项面向进阶用户和适配调试,普通使用无需改动。</string>
-    <string name="adv_bubble_title">悬浮球</string>
-    <string name="adv_bubble_autostart">随应用启动自动开启</string>
-    <string name="adv_bubble_on_desc">打开微信 / QQ / Soul 等聊天界面即可用;关闭则不自动启动</string>
-    <string name="adv_bubble_off_desc">需先在首页授予悬浮窗权限</string>
     <string name="adv_suggestion_pref_title">回复偏好</string>
     <string name="adv_suggestion_count">每次候选条数:%1$d</string>
     <string name="adv_autopaste_title">自动填入输入框</string>
