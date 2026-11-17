@@ -1,0 +1,32 @@
+AIChatAssistant (聊天助手 · AI 回复助手)
+Copyright 2026 zhaojunmin
+
+Licensed under the Apache License, Version 2.0 (see LICENSE). This applies to the
+source code, build scripts, documentation and figures in this repository, including
+the JNI glue in native/ (libembedjni.so, libllmjni.so).
+
+Third-party components bundled in this repository, each under its own license:
+
+  * MNN — https://github.com/alibaba/MNN
+    Apache License 2.0, Copyright Alibaba Group Holding Limited.
+    app/src/main/jniLibs/arm64-v8a/libMNN.so, libMNN_Express.so, libllm.so
+    (built from MNN 3.6.2).
+
+  * bge-small-zh-v1.5 — https://huggingface.co/BAAI/bge-small-zh-v1.5
+    MIT License, Copyright BAAI.
+    app/src/main/assets/embed/bge_fp16.mnn (converted to MNN, fp16) and vocab.txt.
+
+Not included in this repository; downloaded by the app at runtime when the user
+chooses on-device inference, under their own licenses:
+
+  * Qwen2.5-0.5B-Instruct, Qwen2.5-1.5B-Instruct (MNN conversions by taobao-mnn):
+    Apache License 2.0.
+  * Qwen2.5-3B-Instruct (MNN conversion by taobao-mnn): Qwen Research License,
+    which does not permit commercial use —
+    https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE
+    (the conversion's own page lists Apache 2.0, but converting the format does not
+    change the license of the original weights).
+
+Libraries pulled in by Gradle at build time and packaged into the APK keep their own
+licenses (AndroidX, Kotlin, OkHttp: Apache License 2.0; Google ML Kit text
+recognition: ML Kit Terms of Service).
