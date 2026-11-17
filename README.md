@@ -125,3 +125,17 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 - **本地 LLM / embedding 仅 arm64-v8a**:其他 ABI 自动回退云端 / 词法。
 - **自动填入** 依赖控件树里能找到可编辑的输入框;**微信屏蔽控件树,自动填入不可用**(只会「已复制」,手动粘贴),自绘输入框同理。
 - 语义召回为实验特性(可在高级设置一键关闭);召回质量、tokenizer 与 HF 的对齐建议用真实语料继续回归。
+
+## 开源许可
+
+本项目以 [Apache License 2.0](LICENSE) 开源,适用于仓库中的源码、构建脚本、文档与配图。
+
+仓库里打包的第三方组件保留各自的许可证,详见 [NOTICE](NOTICE):
+
+| 组件 | 文件 | 许可证 |
+|---|---|---|
+| [MNN](https://github.com/alibaba/MNN) 3.6.2 | `libMNN.so`、`libMNN_Express.so`、`libllm.so` | Apache 2.0 |
+| [bge-small-zh-v1.5](https://huggingface.co/BAAI/bge-small-zh-v1.5)(转为 MNN fp16) | `assets/embed/bge_fp16.mnn`、`vocab.txt` | MIT |
+
+本地模式下载的 Qwen2.5 模型不在仓库中:0.5B / 1.5B 为 Apache 2.0;**3B 为 [Qwen Research License](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct/blob/main/LICENSE),不允许商用**(MNN 转换版页面标的 Apache 2.0 不改变原模型的许可证)。
+
