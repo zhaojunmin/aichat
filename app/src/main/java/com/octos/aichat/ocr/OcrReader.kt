@@ -85,7 +85,12 @@ object OcrReader {
                 val r = b.boundingBox ?: return@mapNotNull null
                 val lines = b.lines.map { it.text }.ifEmpty { listOf(b.text) }
                 val joined = lines.reduce(MessageLineMerger::joinLines).trim()
-                OcrBlock(r.left, r.top, r.right, r.bottom, joined, lines.size)
+                // The first line's own box, not block height / lines: that average
+                // includes line spacing, so a two-line quote measured as tall as a
+                // one-line message and QuoteFilter kept it.
+                val firstLine = b.lines.firstOrNull()?.boundingBox?.height()
+                    ?: (r.height() / lines.size)
+                OcrBlock(r.left, r.top, r.right, r.bottom, joined, lines.size, firstLine)
             }
             .filter { it.text.isNotEmpty() }
             .sortedBy { it.top }

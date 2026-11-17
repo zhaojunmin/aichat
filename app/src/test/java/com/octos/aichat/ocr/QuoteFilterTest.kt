@@ -21,12 +21,27 @@ class QuoteFilterTest {
         )
     }
 
+    @Test fun imageTextDoesNotHideTheQuote() {
+        val image = (0 until 9).map { block(1100 + it * 40, 24, "图里的小字$it") }
+        val bottomReply = block(1600, 50, "嗯 所以需要组织导向配套")
+        val bottomQuote = block(1730, 41, "华为肖亚军:大模型现在的问题")
+        assertEquals(
+            listOf(theirs) + image + bottomReply,
+            QuoteFilter.drop(listOf(theirs) + image + listOf(bottomReply, bottomQuote)),
+        )
+    }
+
+    @Test fun smallTextFarBelowIsKept() {
+        val far = block(1200, 41, "远处的小字")
+        assertEquals(listOf(next, far), QuoteFilter.drop(listOf(next, far)))
+    }
+
     @Test fun aReplyAndItsQuoteAloneStillMeasureTheReply() {
         assertEquals(listOf(reply), QuoteFilter.drop(listOf(reply, quote)))
     }
 
     @Test fun messageSizeJitterIsKept() {
-        val screen = listOf(theirs, reply, next, block(1000, 46, "嗯"))
+        val screen = listOf(theirs, reply, next, block(1000, 48, "嗯"))
         assertEquals(screen, QuoteFilter.drop(screen))
     }
 
