@@ -16,8 +16,27 @@ internal data class OcrBlock(
      * [lineHeight] it doesn't grow with the line spacing of a merged block.
      */
     val firstLineHeight: Int = (bottom - top) / lines.coerceAtLeast(1),
+    /**
+     * WCAG contrast ratio between the text and the block's own background (≥ 1), or 0
+     * when it couldn't be measured. Message text is near-black on its bubble (≈ 17 on
+     * white); quotes and other secondary text are grey (≈ 4.5), whatever the type size.
+     */
+    val contrast: Float = 0f,
 ) {
     val lineHeight: Int get() = (bottom - top) / lines.coerceAtLeast(1)
+
+    /**
+     * This block's text is much fainter than [other]'s: grey secondary text (a quote)
+     * next to message text. Lines of one bubble share a colour. False when either
+     * contrast is unknown.
+     */
+    fun isFaintComparedTo(other: OcrBlock): Boolean =
+        contrast > 0f && other.contrast > 0f && contrast < other.contrast * FAINT_CONTRAST_RATIO
+
+    private companion object {
+        // Measured on WeChat: message text 17.4–17.6 on a white bubble, quote text 4.5 (0.26×).
+        const val FAINT_CONTRAST_RATIO = 0.6f
+    }
 }
 
 /**
@@ -31,7 +50,9 @@ internal data class OcrBlock(
  *   share the edge;
  * - [sameMessage]: the caller's pixel check that both lines and the gap between
  *   them share one bubble background — so two tight bubbles, or a group sender's
- *   name above its bubble, never merge.
+ *   name above its bubble, never merge;
+ * - text colour: a line much fainter than the one above (a grey quote under a reply,
+ *   whose box can be nearly as pale as a white bubble) is not part of it.
  */
 internal object MessageLineMerger {
 
@@ -43,7 +64,9 @@ internal object MessageLineMerger {
         val out = ArrayList<OcrBlock>()
         for (b in blocks.sortedBy { it.top }) {
             val prev = out.lastOrNull()
-            if (prev != null && adjacentLines(prev, b) && sameMessage(prev, b)) {
+            if (prev != null && adjacentLines(prev, b) && !b.isFaintComparedTo(prev) &&
+                sameMessage(prev, b)
+            ) {
                 out[out.size - 1] = OcrBlock(
                     left = minOf(prev.left, b.left),
                     top = prev.top,
@@ -52,6 +75,7 @@ internal object MessageLineMerger {
                     text = joinLines(prev.text, b.text),
                     lines = prev.lines + b.lines,
                     firstLineHeight = prev.firstLineHeight,
+                    contrast = prev.contrast,
                 )
             } else {
                 out.add(b)
