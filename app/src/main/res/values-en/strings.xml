@@ -6,6 +6,7 @@
 
     <!-- Shared actions / status -->
     <string name="action_enable">Enable</string>
+    <string name="action_reenable">Re-enable</string>
     <string name="action_delete">Delete</string>
     <string name="action_close">Close</string>
     <string name="status_ready">✅ Ready</string>
@@ -16,6 +17,7 @@
     <string name="home_permissions_title">Enable permissions</string>
     <string name="home_permissions_desc">The assistant needs these two permissions to read chats and show the floating bubble.</string>
     <string name="home_perm_accessibility">Read chat content (Accessibility)</string>
+    <string name="home_perm_accessibility_not_running">The switch is on, but the screen reader isn\'t running (after the app is force-stopped, the system doesn\'t restart it). In Accessibility settings, turn “%1$s” off and on again.</string>
     <string name="home_perm_overlay">Show floating bubble (Overlay)</string>
     <string name="home_perm_notification">Allow notifications (keep the assistant running)</string>
     <string name="home_perm_background_run">Allow background running (launch management)</string>

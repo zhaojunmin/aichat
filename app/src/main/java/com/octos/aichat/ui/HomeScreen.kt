@@ -37,8 +37,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,6 +61,7 @@ import com.octos.aichat.ai.local.localModel
 import com.octos.aichat.data.AiBackend
 import com.octos.aichat.data.InferenceMode
 import com.octos.aichat.data.PersonaPresets
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Bumps a counter on every ON_RESUME so permission state re-reads. */
@@ -91,6 +94,17 @@ internal fun HomeScreen(
     val memStats by vm.stats.collectAsStateWithLifecycle()
 
     val accessibilityOn = remember(tick) { isAccessibilityEnabled(context) }
+    val accessibilityRunning by vm.accessibilityRunning.collectAsStateWithLifecycle()
+    // Right after launch the system may still be binding the service: give it a moment
+    // before calling a missing connection a problem.
+    var bindGraceOver by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(ACCESSIBILITY_BIND_GRACE_MS)
+        bindGraceOver = true
+    }
+    // Switched on, yet not connected: typically after a force-stop, when the system marks
+    // the service crashed and won't rebind it until the switch is toggled.
+    val accessibilityNotRunning = accessibilityOn && !accessibilityRunning && bindGraceOver
     val overlayOn = remember(tick) { Settings.canDrawOverlays(context) }
 
     val testOutput by vm.testOutput.collectAsStateWithLifecycle()
@@ -131,9 +145,25 @@ internal fun HomeScreen(
                 Spacer(Modifier.height(8.dp))
                 PermissionRow(
                     label = stringResource(R.string.home_perm_accessibility),
-                    granted = accessibilityOn,
-                    action = stringResource(R.string.action_enable),
+                    granted = accessibilityOn && !accessibilityNotRunning,
+                    action = stringResource(
+                        if (accessibilityNotRunning) {
+                            R.string.action_reenable
+                        } else {
+                            R.string.action_enable
+                        },
+                    ),
                 ) { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                if (accessibilityNotRunning) {
+                    Text(
+                        stringResource(
+                            R.string.home_perm_accessibility_not_running,
+                            stringResource(R.string.accessibility_label),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
 
                 PermissionRow(
                     label = stringResource(R.string.home_perm_overlay),
@@ -435,3 +465,6 @@ internal fun HomeScreen(
         )
     }
 }
+
+/** How long the home screen waits for the accessibility service to connect before warning. */
+private const val ACCESSIBILITY_BIND_GRACE_MS = 3_000L

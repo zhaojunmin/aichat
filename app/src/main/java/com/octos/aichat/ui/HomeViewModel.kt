@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.octos.aichat.R
+import com.octos.aichat.accessibility.AccessibilityBridge
 import com.octos.aichat.ai.local.LlmEngine
 import com.octos.aichat.ai.local.LocalModel
 import com.octos.aichat.ai.local.ModelStore
@@ -20,7 +21,10 @@ import com.octos.aichat.data.Speaker
 import com.octos.aichat.data.memory.MemoryRepository
 import com.octos.aichat.data.memory.MemoryStore
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
@@ -36,6 +40,15 @@ class HomeViewModel(
 ) : AndroidViewModel(app) {
 
     val settingsState = settings.state
+
+    /**
+     * Whether the accessibility service is actually connected — not just switched on in
+     * settings. After a force-stop the system can keep the switch on but mark the service
+     * crashed and never rebind it; the switch alone can't tell.
+     */
+    val accessibilityRunning: StateFlow<Boolean> = AccessibilityBridge.screen
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, AccessibilityBridge.screen.value != null)
     val memories = memory.memories
     val stats = memory.stats
 
