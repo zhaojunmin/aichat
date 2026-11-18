@@ -6,6 +6,7 @@
 
     <!-- Shared actions / status -->
     <string name="action_enable">去开启</string>
+    <string name="action_reenable">去重开</string>
     <string name="action_delete">删除</string>
     <string name="action_close">关闭</string>
     <string name="status_ready">✅ 已就绪</string>
@@ -16,6 +17,7 @@
     <string name="home_permissions_title">开启权限</string>
     <string name="home_permissions_desc">助手需要这两项权限才能读取聊天并弹出悬浮球。</string>
     <string name="home_perm_accessibility">读取聊天内容(无障碍)</string>
+    <string name="home_perm_accessibility_not_running">开关是开着的,但读屏服务没有运行(App 被强制停止后系统不会自动恢复)。请在无障碍设置里把「%1$s」关掉再打开。</string>
     <string name="home_perm_overlay">显示悬浮球(悬浮窗)</string>
     <string name="home_perm_notification">允许通知(让助手保持运行)</string>
     <string name="home_perm_background_run">允许后台运行(应用启动管理)</string>
