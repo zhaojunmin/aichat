@@ -91,6 +91,7 @@ object OcrReader {
                 val firstLine = b.lines.firstOrNull()?.boundingBox?.height()
                     ?: (r.height() / lines.size)
                 OcrBlock(r.left, r.top, r.right, r.bottom, joined, lines.size, firstLine)
+                    .let { it.copy(contrast = textContrast(bitmap, it)) }
             }
             .filter { it.text.isNotEmpty() }
             .sortedBy { it.top }
@@ -173,6 +174,60 @@ object OcrReader {
         }
         return true
     }
+
+    /**
+     * WCAG contrast between a block's first-line glyphs and the block's own background
+     * (its padding colour), 0 when it can't be read. Glyph strokes = the neutral pixels
+     * (colour emoji skipped) farthest from the background; a high percentile instead of
+     * the single extreme keeps one stray pixel from deciding.
+     */
+    private fun textContrast(bitmap: Bitmap, b: OcrBlock): Float {
+        val bg = paddingColor(bitmap, b, b.firstLineHeight) ?: return 0f
+        val x0 = b.left.coerceAtLeast(0)
+        val x1 = b.right.coerceAtMost(bitmap.width)
+        val y0 = b.top.coerceAtLeast(0)
+        val h = minOf(b.firstLineHeight, bitmap.height - y0)
+        val w = x1 - x0
+        if (w < 4 || h < 4) return 0f
+        val px = IntArray(w * h)
+        bitmap.getPixels(px, 0, w, x0, y0, w, h)
+        val bgL = relativeLuminance(bg)
+        val ratios = ArrayList<Float>(px.size / 4)
+        for (i in px.indices step 2) {
+            val c = px[i]
+            val r = (c shr 16) and 0xFF
+            val g = (c shr 8) and 0xFF
+            val bl = c and 0xFF
+            if (maxOf(r, g, bl) - minOf(r, g, bl) > NEUTRAL_SPREAD) continue
+            val l = relativeLuminance(c)
+            ratios.add((maxOf(l, bgL) + 0.05f) / (minOf(l, bgL) + 0.05f))
+        }
+        if (ratios.isEmpty()) return 0f
+        ratios.sort()
+        return ratios[(ratios.size * GLYPH_PERCENTILE).toInt().coerceAtMost(ratios.size - 1)]
+    }
+
+    private fun relativeLuminance(c: Int): Float =
+        0.2126f * LINEAR[(c shr 16) and 0xFF] + 0.7152f * LINEAR[(c shr 8) and 0xFF] +
+            0.0722f * LINEAR[c and 0xFF]
+
+    /** sRGB channel value → linear light (WCAG relative luminance), precomputed. */
+    private val LINEAR = FloatArray(256) { v ->
+        val s = v / 255f
+        if (s <=
+            0.04045f
+        ) {
+            s / 12.92f
+        } else {
+            Math.pow(((s + 0.055f) / 1.055f).toDouble(), 2.4).toFloat()
+        }
+    }
+
+    /** Max channel spread of a "neutral" (grey/black/white) pixel; colour emoji are wider. */
+    private const val NEUTRAL_SPREAD = 24
+
+    /** Glyph strokes cover a few percent of a text line; take the 99.5th percentile. */
+    private const val GLYPH_PERCENTILE = 0.995f
 
     /**
      * Colour just left of a block's text, at its vertical middle: the bubble's own

@@ -98,4 +98,27 @@ class MessageLineMergerTest {
         assertEquals("Opus 5.5", MessageLineMerger.joinLines("Opus ", " 5.5"))
         assertEquals("x", MessageLineMerger.joinLines("", "x"))
     }
+
+    /**
+     * A grey quote right under a reply: its pale box can pass the background check
+     * (white bubble vs #E8EFF3 box is within tolerance), but its text is much fainter.
+     */
+    @Test fun aFaintQuoteIsNotGluedOntoTheReply() {
+        val reply = line(2300, "我又卡出来了").copy(contrast = 17.5f)
+        val quote = line(2357, "朱金鹏:我的也掉了").copy(contrast = 4.5f)
+        val out = MessageLineMerger.merge(listOf(reply, quote), always)
+        assertEquals(listOf("我又卡出来了", "朱金鹏:我的也掉了"), out.map { it.text })
+    }
+
+    @Test fun linesInTheSameColourStillMerge() {
+        val out = MessageLineMerger.merge(
+            listOf(
+                line(2300, "我这还没掉。。别封号就行。").copy(contrast = 17.4f),
+                line(2357, "_(:3」∠)_").copy(contrast = 17.4f),
+            ),
+            always,
+        )
+        assertEquals(1, out.size)
+        assertEquals(17.4f, out[0].contrast)
+    }
 }
